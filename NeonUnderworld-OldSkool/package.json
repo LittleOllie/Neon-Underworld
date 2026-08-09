@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3302",
-    "build": "next build",
-    "vercel-build": "npm run db:generate --prefix .. && if [ -n \"$DATABASE_URL\" ]; then prisma migrate deploy --schema=../prisma/schema.prisma; else echo 'WARN: DATABASE_URL not set — skipping migrations.'; fi && next build",
+    "build": "npx prisma generate --schema=../prisma/schema.prisma && next build",
+    "vercel-build": "if [ -n \"$DATABASE_URL\" ]; then npx prisma migrate deploy --schema=../prisma/schema.prisma; else echo 'WARN: DATABASE_URL not set — skipping migrations.'; fi && npm run build",
     "start": "next start -p 3302",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -24,7 +24,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "uuid": "^11.1.0",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "prisma": "^6.19.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
@@ -37,7 +38,6 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.22",
     "prettier": "^3.6.2",
-    "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"
