@@ -2,6 +2,7 @@
 
 import {
   launchAttackAction as coreLaunchAttackAction,
+  launchDirectAttackAction as coreLaunchDirectAttackAction,
   type AttackLaunchResult,
 } from '@core/server/actions/attack.actions';
 import type { ActionResult } from '@core/server/actions/auth.actions';
@@ -21,68 +22,18 @@ import type { CanonicalPlayerContext } from '@local/server/services/player.servi
 import { isWithinAttackRange } from '@core/lib/game-engine/combat-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
 import type { CombatPlayerRecord } from '@core/server/services/combat.service';
+import { directAttackReportId } from '@local/features/attack/direct-attack';
 
 export type { AttackLaunchResult };
 
 const calculateNetWorth = (player: CombatPlayerRecord) =>
   NetWorthService.calculateFromPlayer(player);
 
-export async function launchAttackAction(
-  scoutReportId: string,
+async function finalizeAttackLaunch(
+  attackerId: string,
+  result: ActionResult<AttackLaunchResult>,
   attackType: AttackType,
-  attackingThugs: number,
-  idempotencyKey: string,
 ): Promise<ActionResult<AttackLaunchResult>> {
-  const session = await auth();
-  const attackerId = session?.user?.playerId;
-  if (!attackerId) return { success: false, error: 'Not authenticated' };
-
-  const existingEncounter = await prisma.combatEncounter.findUnique({
-    where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
-  });
-
-  if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
-    const defender = await prisma.player.findUniqueOrThrow({ where: { id: existingEncounter.defenderId } });
-    return {
-      success: true,
-      data: {
-        encounterId: existingEncounter.id,
-        attackType: existingEncounter.attackType as AttackType,
-        outcome: existingEncounter.outcome,
-        outcomeLabel: existingEncounter.outcome,
-        attackingThugs: existingEncounter.attackingThugs,
-        attackerLosses: existingEncounter.attackerLosses,
-        defenderLosses: existingEncounter.defenderLosses,
-        attackerReturned: existingEncounter.attackerReturned,
-        cashStolen: existingEncounter.cashStolen,
-        drugsStolen: (existingEncounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
-          hash: 0,
-          shrooms: 0,
-          coke: 0,
-          heroin: 0,
-        },
-        turnsSpent: existingEncounter.turnsSpent,
-        ridesUsed: existingEncounter.ridesUsed,
-        weaponCoverage: '',
-        forceEstimate: '',
-        targetAlias: defender.alias,
-        targetAliasNormalized: defender.aliasNormalized,
-        attackerReportId: existingEncounter.attackerReportId,
-        defenderReportId: existingEncounter.defenderReportId,
-        newTurns: 0,
-        idempotentReplay: true,
-      },
-    };
-  }
-
-  const result = await coreLaunchAttackAction(
-    scoutReportId,
-    attackType,
-    attackingThugs,
-    idempotencyKey,
-    calculateNetWorth,
-  );
-
   if (!result.success) return result;
   if (result.data.idempotentReplay) return result;
 
@@ -163,11 +114,132 @@ export async function launchAttackAction(
   };
 }
 
+export async function launchAttackAction(
+  scoutReportId: string,
+  attackType: AttackType,
+  attackingThugs: number,
+  idempotencyKey: string,
+): Promise<ActionResult<AttackLaunchResult>> {
+  const session = await auth();
+  const attackerId = session?.user?.playerId;
+  if (!attackerId) return { success: false, error: 'Not authenticated' };
+
+  const existingEncounter = await prisma.combatEncounter.findUnique({
+    where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
+  });
+
+  if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
+    const defender = await prisma.player.findUniqueOrThrow({ where: { id: existingEncounter.defenderId } });
+    return {
+      success: true,
+      data: {
+        encounterId: existingEncounter.id,
+        attackType: existingEncounter.attackType as AttackType,
+        outcome: existingEncounter.outcome,
+        outcomeLabel: existingEncounter.outcome,
+        attackingThugs: existingEncounter.attackingThugs,
+        attackerLosses: existingEncounter.attackerLosses,
+        defenderLosses: existingEncounter.defenderLosses,
+        attackerReturned: existingEncounter.attackerReturned,
+        cashStolen: existingEncounter.cashStolen,
+        drugsStolen: (existingEncounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
+          hash: 0,
+          shrooms: 0,
+          coke: 0,
+          heroin: 0,
+        },
+        turnsSpent: existingEncounter.turnsSpent,
+        ridesUsed: existingEncounter.ridesUsed,
+        weaponCoverage: '',
+        forceEstimate: '',
+        targetAlias: defender.alias,
+        targetAliasNormalized: defender.aliasNormalized,
+        attackerReportId: existingEncounter.attackerReportId,
+        defenderReportId: existingEncounter.defenderReportId,
+        newTurns: 0,
+        idempotentReplay: true,
+      },
+    };
+  }
+
+  const result = await coreLaunchAttackAction(
+    scoutReportId,
+    attackType,
+    attackingThugs,
+    idempotencyKey,
+    calculateNetWorth,
+  );
+
+  return finalizeAttackLaunch(attackerId, result, attackType);
+}
+
+export async function launchDirectAttackAction(
+  targetAliasNormalized: string,
+  attackType: AttackType,
+  attackingThugs: number,
+  idempotencyKey: string,
+): Promise<ActionResult<AttackLaunchResult>> {
+  const session = await auth();
+  const attackerId = session?.user?.playerId;
+  if (!attackerId) return { success: false, error: 'Not authenticated' };
+
+  const existingEncounter = await prisma.combatEncounter.findUnique({
+    where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
+  });
+
+  if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
+    const defender = await prisma.player.findUniqueOrThrow({ where: { id: existingEncounter.defenderId } });
+    return {
+      success: true,
+      data: {
+        encounterId: existingEncounter.id,
+        attackType: existingEncounter.attackType as AttackType,
+        outcome: existingEncounter.outcome,
+        outcomeLabel: existingEncounter.outcome,
+        attackingThugs: existingEncounter.attackingThugs,
+        attackerLosses: existingEncounter.attackerLosses,
+        defenderLosses: existingEncounter.defenderLosses,
+        attackerReturned: existingEncounter.attackerReturned,
+        cashStolen: existingEncounter.cashStolen,
+        drugsStolen: (existingEncounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
+          hash: 0,
+          shrooms: 0,
+          coke: 0,
+          heroin: 0,
+        },
+        turnsSpent: existingEncounter.turnsSpent,
+        ridesUsed: existingEncounter.ridesUsed,
+        weaponCoverage: '',
+        forceEstimate: '',
+        targetAlias: defender.alias,
+        targetAliasNormalized: defender.aliasNormalized,
+        attackerReportId: existingEncounter.attackerReportId,
+        defenderReportId: existingEncounter.defenderReportId,
+        newTurns: 0,
+        idempotentReplay: true,
+      },
+    };
+  }
+
+  const result = await coreLaunchDirectAttackAction(
+    targetAliasNormalized,
+    attackType,
+    attackingThugs,
+    idempotencyKey,
+    calculateNetWorth,
+  );
+
+  return finalizeAttackLaunch(attackerId, result, attackType);
+}
+
 function totalDrugs(d: { hash: number; shrooms: number; coke: number; heroin: number }): number {
   return d.hash + d.shrooms + d.coke + d.heroin;
 }
 
-export async function getAttackPageData(ctx: CanonicalPlayerContext) {
+export async function getAttackPageData(
+  ctx: CanonicalPlayerContext,
+  options?: { targetAlias?: string },
+) {
   const intelReports = await ReportService.listValidPlayerIntelReports(ctx.id);
   const attackerNw = ctx.netWorth;
   const activeIntel = intelReports.filter((r) => !r.expired);
@@ -226,8 +298,64 @@ export async function getAttackPageData(ctx: CanonicalPlayerContext) {
       attacksOnTarget,
       eligible,
       eligibilityNote,
+      isDirect: false,
     };
   });
+
+  if (options?.targetAlias) {
+    const aliasNormalized = options.targetAlias.trim().toLowerCase();
+    const alreadyListed = targets.some(
+      (t) => t.alias.toLowerCase() === aliasNormalized || t.reportId === directAttackReportId(aliasNormalized),
+    );
+    if (!alreadyListed && aliasNormalized !== ctx.aliasNormalized) {
+      const targetPlayer = await prisma.player.findFirst({
+        where: {
+          aliasNormalized,
+          seasonId: ctx.seasonId,
+          isSystemPlayer: false,
+        },
+        include: { district: true },
+      });
+      if (targetPlayer) {
+        const attacksOnTarget = await prisma.combatEncounter.count({
+          where: {
+            attackerId: ctx.id,
+            defenderId: targetPlayer.id,
+            createdAt: { gte: since24h },
+          },
+        });
+        const targetNw = NetWorthService.calculateFromPlayer(targetPlayer);
+        const inRange = isWithinAttackRange(attackerNw, targetNw);
+        const sameDistrict = targetPlayer.district.slug === ctx.district.slug;
+        const eligible = inRange && sameDistrict;
+        const eligibilityNote = !sameDistrict
+          ? 'You can only attack players in your district.'
+          : !inRange
+            ? 'This player is outside your attack range.'
+            : 'Direct attack — no intel';
+
+        targets.unshift({
+          reportId: directAttackReportId(aliasNormalized),
+          alias: targetPlayer.alias,
+          city: targetPlayer.district.name,
+          bands: {
+            thugs: 'Unknown',
+            weapons: 'Unknown',
+            cash: 'Unknown',
+            drugs: 'Unknown',
+            cartel: 'Unknown',
+            confidence: 0,
+          },
+          netWorthEstimate: targetNw,
+          reportAge: new Date().toISOString(),
+          attacksOnTarget,
+          eligible,
+          eligibilityNote,
+          isDirect: true,
+        });
+      }
+    }
+  }
 
   return {
     thugs: ctx.thugs,

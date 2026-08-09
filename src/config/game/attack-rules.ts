@@ -23,8 +23,9 @@ export const ATTACK_RULES = {
     RAID_DRUG_LABS: 3,
   } as const,
 
-  /** Turns to gather intel on a target player before attacking */
+  /** Turns to gather player intel before attacking (optional — direct attacks skip this) */
   scoutIntelTurnCost: 5,
+  intelGatherTurnCost: 5,
 
   /** Player intel report validity */
   scoutReportExpiryHours: 48,

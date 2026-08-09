@@ -15,4 +15,5 @@ export interface AttackTargetRow {
   attacksOnTarget: number;
   eligible: boolean;
   eligibilityNote: string;
+  isDirect?: boolean;
 }

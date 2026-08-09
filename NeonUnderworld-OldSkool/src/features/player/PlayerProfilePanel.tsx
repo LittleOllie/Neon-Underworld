@@ -32,6 +32,7 @@ export interface PlayerIntelDisplay {
 
 interface Props {
   targetAlias: string;
+  targetAliasNormalized: string;
   initialTurns: number;
   existingIntel: PlayerIntelDisplay | null;
 }
@@ -55,14 +56,20 @@ function bandsFromIntel(intel: {
   };
 }
 
-export function PlayerProfilePanel({ targetAlias, initialTurns, existingIntel }: Props) {
+export function PlayerProfilePanel({
+  targetAlias,
+  targetAliasNormalized,
+  initialTurns,
+  existingIntel,
+}: Props) {
   const router = useRouter();
   const [turns, setTurns] = useState(initialTurns);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [intel, setIntel] = useState<PlayerIntelDisplay | null>(existingIntel);
+  const intelTurnCost = ATTACK_RULES.intelGatherTurnCost;
 
-  async function handleScout() {
+  async function handleGatherIntel() {
     setLoading(true);
     setError('');
     const response = await scoutTargetAction(targetAlias, uuidv4());
@@ -80,11 +87,13 @@ export function PlayerProfilePanel({ targetAlias, initialTurns, existingIntel }:
     router.refresh();
   }
 
+  const attackNowHref = `/attack?target=${encodeURIComponent(targetAliasNormalized)}`;
+
   if (intel) {
     return (
       <>
         <Divider />
-        <p className="g-section-label">SCOUT REPORT</p>
+        <p className="g-section-label">INTEL REPORT</p>
         <StatRow label="Intel quality" value={`${intel.bands.confidence}%`} />
         <StatRow label="Thugs" value={intel.bands.thugs} />
         <StatRow label="Weapon coverage" value={intel.bands.weapons} />
@@ -96,7 +105,16 @@ export function PlayerProfilePanel({ targetAlias, initialTurns, existingIntel }:
           iconTone="danger"
           onClick={() => router.push(`/attack?reportId=${intel.reportId}`)}
         >
-          Attack Player
+          Attack with Intel
+        </PrimaryButton>
+        <PrimaryButton
+          className="g-btn-full g-btn-secondary"
+          variant="secondary"
+          icon="attack"
+          iconTone="danger"
+          onClick={() => router.push(attackNowHref)}
+        >
+          Attack Now (No Intel)
         </PrimaryButton>
         <p className="g-note">
           <Link href={`/reports/${intel.reportId}`}>View in Reports</Link>
@@ -109,15 +127,26 @@ export function PlayerProfilePanel({ targetAlias, initialTurns, existingIntel }:
     <>
       <Divider />
       <p className="g-note">No current intel on this player.</p>
-      <p className="g-note">Scout for {ATTACK_RULES.scoutIntelTurnCost} turns.</p>
+      <p className="g-note">
+        Gather intel for {intelTurnCost} turns to see force estimates, or attack directly without
+        intel.
+      </p>
       {error && <p className="g-error">{error}</p>}
       <PrimaryButton
         className="g-btn-full"
-        icon="scout"
-        onClick={handleScout}
-        disabled={loading || turns < ATTACK_RULES.scoutIntelTurnCost}
+        icon="intel"
+        onClick={handleGatherIntel}
+        disabled={loading || turns < intelTurnCost}
       >
-        {loading ? 'Scouting…' : `Scout Player — ${ATTACK_RULES.scoutIntelTurnCost} Turns`}
+        {loading ? 'Gathering…' : `Gather Intel — ${intelTurnCost} Turns`}
+      </PrimaryButton>
+      <PrimaryButton
+        className="g-btn-full g-btn-danger"
+        icon="attack"
+        iconTone="danger"
+        onClick={() => router.push(attackNowHref)}
+      >
+        Attack Now
       </PrimaryButton>
     </>
   );

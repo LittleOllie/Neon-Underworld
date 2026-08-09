@@ -70,6 +70,13 @@ export const attackLaunchSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
+export const directAttackLaunchSchema = z.object({
+  targetAliasNormalized: z.string().min(2).max(32),
+  attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS']),
+  attackingThugs: z.number().int().min(1).max(5000),
+  idempotencyKey: z.string().uuid(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;

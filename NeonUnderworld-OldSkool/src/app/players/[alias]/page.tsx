@@ -50,6 +50,7 @@ export default async function PlayerProfilePage({ params }: Props) {
       ) : (
         <PlayerProfilePanel
           targetAlias={profile.alias}
+          targetAliasNormalized={profile.aliasNormalized}
           initialTurns={ctx.turns}
           existingIntel={existingIntel}
         />

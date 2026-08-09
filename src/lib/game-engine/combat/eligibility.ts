@@ -39,6 +39,8 @@ export interface AttackEligibilityInput {
   defenderTravelling: boolean;
   intelReport: PlayerIntelSnapshot | null;
   attacksOnTargetLast24h: number;
+  /** Skip intel requirement — blind attack without prior player intel */
+  allowDirectAttack?: boolean;
   now?: Date;
 }
 
@@ -71,11 +73,13 @@ export function validateAttackEligibilityCode(
   if (input.defenderTravelling) {
     return 'TARGET_UNAVAILABLE';
   }
-  if (!isIntelReportValid(input.intelReport, now)) {
-    return 'EXPIRED_INTEL';
-  }
-  if (input.intelReport && input.intelReport.targetPlayerId !== input.defenderId) {
-    return 'INVALID_INTEL';
+  if (!input.allowDirectAttack) {
+    if (!isIntelReportValid(input.intelReport, now)) {
+      return 'EXPIRED_INTEL';
+    }
+    if (input.intelReport && input.intelReport.targetPlayerId !== input.defenderId) {
+      return 'INVALID_INTEL';
+    }
   }
   if (input.attackerDistrictId !== input.defenderDistrictId) {
     return 'TARGET_WRONG_DISTRICT';

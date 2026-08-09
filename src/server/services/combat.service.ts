@@ -75,6 +75,13 @@ export interface CombatResolutionOutput {
 
 export type NetWorthCalculator = (player: CombatPlayerRecord) => number;
 
+/** Stored on CombatEncounter when attacking without prior player intel */
+export const DIRECT_ATTACK_SCOUT_REPORT_ID = 'direct-attack';
+
+export type AttackEncounterTarget =
+  | { kind: 'intel'; scoutReportId: string }
+  | { kind: 'direct'; defenderAliasNormalized: string };
+
 function parseIntelFromReport(metadata: unknown): PlayerIntelSnapshot | null {
   if (!metadata || typeof metadata !== 'object') return null;
   const m = metadata as { type?: string; intel?: PlayerIntelSnapshot };
@@ -95,19 +102,25 @@ export async function countAttacksOnTargetLast24h(
 export async function resolveAttackEncounter(
   attackerId: string,
   userId: string,
-  scoutReportId: string,
+  target: AttackEncounterTarget,
   attackType: AttackType,
   attackingThugs: number,
   idempotencyKey: string,
   calculateNetWorth: NetWorthCalculator,
 ): Promise<CombatResolutionOutput> {
+  const scoutReportId =
+    target.kind === 'intel' ? target.scoutReportId : DIRECT_ATTACK_SCOUT_REPORT_ID;
+
   const existing = await prisma.combatEncounter.findUnique({
     where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
     include: { defender: { select: { alias: true, aliasNormalized: true, id: true } } },
   });
 
   if (existing) {
-    const intelReport = await prisma.report.findFirst({ where: { id: scoutReportId, playerId: attackerId } });
+    const intelReport =
+      target.kind === 'intel'
+        ? await prisma.report.findFirst({ where: { id: target.scoutReportId, playerId: attackerId } })
+        : null;
     const intel = parseIntelFromReport(intelReport?.metadata);
     const attackerTurnState = await prisma.playerTurnState.findUnique({ where: { playerId: attackerId } });
     const settledTurns = attackerTurnState
@@ -162,17 +175,32 @@ export async function resolveAttackEncounter(
     if (!attacker.turnState) throw new Error('Turn state missing');
     if (attacker.season.status !== 'ACTIVE') throw new SeasonInactiveError();
 
-    const report = await tx.report.findFirst({
-      where: { id: scoutReportId, playerId: attackerId },
-    });
-    if (!report) throw new GameplayError('INVALID_INTEL');
-    const intel = parseIntelFromReport(report.metadata);
-    if (!intel) throw new GameplayError('INVALID_INTEL');
+    let intel: PlayerIntelSnapshot | null = null;
+    let defender;
 
-    const defender = await tx.player.findUniqueOrThrow({
-      where: { id: intel.targetPlayerId },
-      include: { district: true, season: true, turnState: true },
-    });
+    if (target.kind === 'intel') {
+      const report = await tx.report.findFirst({
+        where: { id: target.scoutReportId, playerId: attackerId },
+      });
+      if (!report) throw new GameplayError('INVALID_INTEL');
+      intel = parseIntelFromReport(report.metadata);
+      if (!intel) throw new GameplayError('INVALID_INTEL');
+
+      defender = await tx.player.findUniqueOrThrow({
+        where: { id: intel.targetPlayerId },
+        include: { district: true, season: true, turnState: true },
+      });
+    } else {
+      defender = await tx.player.findFirst({
+        where: {
+          aliasNormalized: target.defenderAliasNormalized,
+          seasonId: attacker.seasonId,
+          isSystemPlayer: false,
+        },
+        include: { district: true, season: true, turnState: true },
+      });
+      if (!defender) throw new GameplayError('INVALID_TARGET');
+    }
 
     const attackerRecord = attacker as unknown as CombatPlayerRecord;
     const defenderRecord = defender as unknown as CombatPlayerRecord;
@@ -215,6 +243,7 @@ export async function resolveAttackEncounter(
       defenderTravelling: defender.travelling,
       intelReport: intel,
       attacksOnTargetLast24h: attacksOnTarget,
+      allowDirectAttack: target.kind === 'direct',
     });
     if (eligibilityCode) throw new GameplayError(eligibilityCode);
 
@@ -324,7 +353,10 @@ export async function resolveAttackEncounter(
         seasonId: attacker.seasonId,
         actionType: 'ATTACK',
         idempotencyKey,
-        requestPayload: { scoutReportId, attackType, attackingThugs } as object,
+        requestPayload:
+          target.kind === 'intel'
+            ? ({ scoutReportId: target.scoutReportId, attackType, attackingThugs } as object)
+            : ({ directTarget: target.defenderAliasNormalized, attackType, attackingThugs } as object),
         resultPayload: { encounterId: encounter.id } as object,
         turnsSpent: turnCost,
       },
@@ -380,7 +412,7 @@ export async function resolveAttackEncounter(
     targetAliasNormalized: result.defender.aliasNormalized,
     targetPlayerId: result.defender.id,
     scoutReportId,
-    scoutConfidence: result.intel.confidencePercent,
+    scoutConfidence: result.intel?.confidencePercent ?? 0,
     newTurns: result.turnStateAfter.currentTurns,
     attackerForceSnapshot: result.combat.attackerForceSnapshot,
     defenderForceSnapshot: result.combat.defenderForceSnapshot,

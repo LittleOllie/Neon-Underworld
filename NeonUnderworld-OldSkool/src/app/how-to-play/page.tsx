@@ -46,12 +46,12 @@ export default async function HowToPlayPage() {
         </li>
         <li>
           Open <Link href="/rankings">Rankings</Link>, tap a player in <strong>your district</strong>,
-          then <strong>Scout Player</strong> on their profile. That creates attack intel in{' '}
-          <Link href="/reports">Reports</Link>.
+          then <strong>Gather Intel</strong> on their profile (optional) or tap <strong>Attack Now</strong>{' '}
+          to hit them without intel. Intel reports appear in <Link href="/reports">Reports</Link>.
         </li>
         <li>
-          From the report or intel alert, open <Link href="/attack">Attack</Link> and launch a hit
-          on an eligible target.
+          From a profile, report, or <Link href="/attack">Attack</Link>, launch a hit on an eligible
+          target.
         </li>
         <li>Watch your rank climb on Rankings as your net worth grows.</li>
       </ol>
@@ -71,17 +71,18 @@ export default async function HowToPlayPage() {
 
       <Divider />
 
-      <SectionLabel>Scouting Rivals (for Attacks)</SectionLabel>
+      <SectionLabel>Gathering Intel (Optional for Attacks)</SectionLabel>
       <p className="g-note g-guide-body">
-        District scouting (on the Scout page) recruits your crew. To attack someone, you need{' '}
-        <strong>player intel</strong> first:
+        District scouting (on the <Link href="/scout">Scout</Link> page) recruits your crew. To attack
+        someone you can either gather <strong>player intel</strong> first, or attack directly:
       </p>
       <ol className="g-howto-steps">
         <li>
           Go to <Link href="/rankings">Rankings</Link> and open a player in your district.
         </li>
         <li>
-          On their profile, tap <strong>Scout Player</strong> (costs turns).
+          <strong>Gather Intel</strong> (costs turns) to see force estimates and save a report, or tap{' '}
+          <strong>Attack Now</strong> to skip intel.
         </li>
         <li>
           Intel appears in <Link href="/reports">Reports</Link>. From there you can attack while it is

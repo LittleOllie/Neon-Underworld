@@ -2,15 +2,20 @@ import { GameShell, PageTitle } from '@local/components/game';
 import { requireGameSession, globalStatsFromContext } from '@local/lib/game-context';
 import { AttackForm } from '@local/features/attack/AttackForm';
 import { getAttackPageData } from '@local/server/actions/attack.actions';
+import { directAttackReportId } from '@local/features/attack/direct-attack';
 
 interface Props {
-  searchParams: Promise<{ reportId?: string }>;
+  searchParams: Promise<{ reportId?: string; target?: string }>;
 }
 
 export default async function AttackPage({ searchParams }: Props) {
   const params = await searchParams;
   const { ctx } = await requireGameSession();
-  const data = await getAttackPageData(ctx);
+  const data = await getAttackPageData(ctx, { targetAlias: params.target });
+
+  const initialReportId =
+    params.reportId ??
+    (params.target ? directAttackReportId(params.target.trim().toLowerCase()) : undefined);
 
   return (
     <GameShell stats={globalStatsFromContext(ctx)} background="attack">
@@ -23,7 +28,7 @@ export default async function AttackPage({ searchParams }: Props) {
         aks={data.aks}
         turns={data.turns}
         targets={data.targets}
-        initialReportId={params.reportId}
+        initialReportId={initialReportId}
       />
     </GameShell>
   );

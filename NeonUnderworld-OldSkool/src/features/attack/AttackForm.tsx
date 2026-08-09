@@ -17,8 +17,10 @@ import {
 import { forceEstimate } from '@core/lib/game-engine/combat/force-score';
 import {
   launchAttackAction,
+  launchDirectAttackAction,
   type AttackLaunchResult,
 } from '@local/server/actions/attack.actions';
+import { parseDirectAttackReportId } from '@local/features/attack/direct-attack';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { ActionButton } from '@local/components/game/ActionButton';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
@@ -41,6 +43,7 @@ interface AttackFormProps {
 const ATTACK_TYPES: AttackType[] = ['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS'];
 
 function riskFromForce(estimate: string): string {
+  if (estimate === 'Unknown') return 'Unknown';
   if (estimate === 'Overwhelming Advantage' || estimate === 'Advantage') return 'Moderate';
   if (estimate === 'Even Match') return 'High';
   return 'Severe';
@@ -89,7 +92,7 @@ export function AttackForm(props: AttackFormProps) {
     force <= 0 ? 0 : Math.round((weaponAlloc.armedThugs / force) * 100);
 
   const forceEstimateLabel = useMemo(() => {
-    if (!selectedTarget) return 'Unknown';
+    if (!selectedTarget || selectedTarget.isDirect) return 'Unknown';
     const defenderStrength =
       selectedTarget.bands.weapons === 'Heavily Armed'
         ? 500
@@ -126,7 +129,10 @@ export function AttackForm(props: AttackFormProps) {
     if (!selectedReportId || !canAttack) return;
     setLoading(true);
     setError('');
-    const response = await launchAttackAction(selectedReportId, attackType, force, uuidv4());
+    const directTarget = parseDirectAttackReportId(selectedReportId);
+    const response = directTarget
+      ? await launchDirectAttackAction(directTarget, attackType, force, uuidv4())
+      : await launchAttackAction(selectedReportId, attackType, force, uuidv4());
     setLoading(false);
     if (!response.success) {
       setError(response.error);
@@ -169,7 +175,10 @@ export function AttackForm(props: AttackFormProps) {
   if (props.targets.length === 0) {
     return (
       <>
-        <p className="g-note">Find a target through Rankings and scout them first.</p>
+        <p className="g-note">
+          Find a target through Rankings. Gather intel first for force estimates, or attack directly
+          from a player profile.
+        </p>
         <ActionButton href="/rankings" icon="rankings" className="g-btn-full">
           View Rankings
         </ActionButton>
@@ -193,7 +202,8 @@ export function AttackForm(props: AttackFormProps) {
       >
         {props.targets.map((t) => (
           <option key={t.reportId} value={t.reportId} disabled={!t.eligible}>
-            {t.alias} — {t.eligible ? t.city : t.eligibilityNote}
+            {t.alias}
+            {t.isDirect ? ' — direct' : ''} — {t.eligible ? t.city : t.eligibilityNote}
           </option>
         ))}
       </select>

@@ -95,6 +95,10 @@ describe('Attack eligibility', () => {
     expect(baseEligibility({ intelReport: null })).toMatch(/intel is no longer valid/i);
   });
 
+  it('allows direct attack without intel', () => {
+    expect(baseEligibility({ intelReport: null, allowDirectAttack: true })).toBeNull();
+  });
+
   it('rejects insufficient turns', () => {
     expect(baseEligibility({ attackerTurns: 1 })).toMatch(/enough turns/i);
   });
