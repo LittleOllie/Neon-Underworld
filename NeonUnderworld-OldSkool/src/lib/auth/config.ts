@@ -1,7 +1,9 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import { authConfig } from './auth.config';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: 'credentials',
@@ -15,9 +17,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
-  pages: { signIn: '/login' },
   callbacks: {
+    ...authConfig.callbacks,
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
@@ -35,30 +36,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    authorized({ auth, request }) {
-      const isLoggedIn = !!auth?.user;
-      const path = request.nextUrl.pathname;
-      const isAuthPage = path.startsWith('/login') || path.startsWith('/register');
-      const isProtected =
-        path.startsWith('/command') ||
-        path.startsWith('/empire') ||
-        path.startsWith('/operations') ||
-        path.startsWith('/underworld') ||
-        path.startsWith('/social') ||
-        path.startsWith('/scout') ||
-        path.startsWith('/produce') ||
-        path.startsWith('/shop') ||
-        path.startsWith('/attack') ||
-        path.startsWith('/reports') ||
-        path.startsWith('/rankings') ||
-        path.startsWith('/players') ||
-        path.startsWith('/guides') ||
-        path.startsWith('/coming');
-
-      if (isAuthPage) return true;
-      if (isProtected) return isLoggedIn;
-      return true;
-    },
   },
-  trustHost: true,
 });

@@ -56,15 +56,15 @@ function baseEligibility(overrides: Partial<Parameters<typeof validateAttackElig
 
 describe('Attack eligibility', () => {
   it('rejects self-attack', () => {
-    expect(baseEligibility({ attackerId: 'same', defenderId: 'same' })).toMatch(/yourself/);
+    expect(baseEligibility({ attackerId: 'same', defenderId: 'same' })).toMatch(/cannot be found/i);
   });
 
   it('rejects below 0.5× net worth', () => {
-    expect(baseEligibility({ defenderNw: 400_000 })).toMatch(/range/);
+    expect(baseEligibility({ defenderNw: 400_000 })).toMatch(/outside your attack range/i);
   });
 
   it('rejects above 2× net worth', () => {
-    expect(baseEligibility({ defenderNw: 2_500_000 })).toMatch(/range/);
+    expect(baseEligibility({ defenderNw: 2_500_000 })).toMatch(/outside your attack range/i);
   });
 
   it('accepts exact lower boundary', () => {
@@ -80,19 +80,19 @@ describe('Attack eligibility', () => {
       expiresAt: new Date(Date.now() - 1000).toISOString(),
     });
     expect(isIntelReportValid(expired)).toBe(false);
-    expect(baseEligibility({ intelReport: expired })).toMatch(/Scout/);
+    expect(baseEligibility({ intelReport: expired })).toMatch(/intel is no longer valid/i);
   });
 
   it('rejects missing scout report', () => {
-    expect(baseEligibility({ intelReport: null })).toMatch(/Scout/);
+    expect(baseEligibility({ intelReport: null })).toMatch(/intel is no longer valid/i);
   });
 
   it('rejects insufficient turns', () => {
-    expect(baseEligibility({ attackerTurns: 1 })).toMatch(/turns/);
+    expect(baseEligibility({ attackerTurns: 1 })).toMatch(/enough turns/i);
   });
 
   it('rejects travelling attacker', () => {
-    expect(baseEligibility({ attackerTravelling: true })).toMatch(/travelling/);
+    expect(baseEligibility({ attackerTravelling: true })).toMatch(/travelling/i);
   });
 
   it('rejects invalid target report mismatch', () => {
@@ -101,13 +101,17 @@ describe('Attack eligibility', () => {
         defenderId: 'other',
         intelReport: intel({ targetPlayerId: 'defender-1' }),
       }),
-    ).toMatch(/match/);
+    ).toMatch(/intel is no longer valid/i);
   });
 
   it('enforces attack cap', () => {
     expect(
       baseEligibility({ attacksOnTargetLast24h: ATTACK_RULES.targetAttackCapPer24h }),
-    ).toMatch(/limit/);
+    ).toMatch(/cannot be attacked right now/i);
+  });
+
+  it('rejects insufficient rides', () => {
+    expect(baseEligibility({ attackerRides: 0, attackingThugs: 50 })).toMatch(/enough rides/i);
   });
 });
 

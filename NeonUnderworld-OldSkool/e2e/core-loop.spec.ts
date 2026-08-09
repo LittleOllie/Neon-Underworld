@@ -32,6 +32,11 @@ test.describe('Core loop — Scout, Produce, City Shop', () => {
     await page.getByLabel('Turns to scout').fill('25');
     await page.getByRole('button', { name: 'Scout', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 15000 });
+    const turnsStatus = page.locator('.g-status-item').filter({ hasText: 'Turns' });
+    await expect(turnsStatus).toBeVisible();
+    const turnsAfterScout = await turnsStatus.textContent();
+    expect(turnsAfterScout).toMatch(/\d[\d,]*\s*\/\s*[\d,]+/);
+    expect(turnsAfterScout).not.toMatch(/K/i);
 
     await page.goto('/produce');
     await expect(page.getByRole('heading', { name: 'Produce' })).toBeVisible();
@@ -57,14 +62,14 @@ test.describe('Home vs Empire separation', () => {
     await expect(page.getByRole('link', { name: 'Rankings' }).first()).toBeVisible();
 
     const homeMain = page.locator('main');
-    await expect(homeMain.getByText('Payout')).toHaveCount(0);
-    await expect(homeMain.getByText('Supplies')).toHaveCount(0);
-    await expect(homeMain.getByText(/^Armed$/)).toHaveCount(0);
+    await expect(homeMain.locator('.g-label', { hasText: 'Payout' })).toHaveCount(0);
+    await expect(homeMain.locator('.g-label', { hasText: 'Supplies' })).toHaveCount(0);
+    await expect(homeMain.locator('.g-label', { hasText: 'Armed' })).toHaveCount(0);
 
     await page.goto('/empire');
     await expect(page.getByRole('heading', { name: 'Empire' })).toBeVisible();
-    await expect(page.locator('.g-row-label', { hasText: 'Payout' })).toBeVisible();
-    await expect(page.locator('.g-row-label', { hasText: 'Armed' })).toBeVisible();
+    await expect(page.locator('.g-label', { hasText: 'Payout' })).toBeVisible();
+    await expect(page.locator('.g-label', { hasText: 'Armed' })).toBeVisible();
     await expect(page.getByText('GEAR')).toBeVisible();
   });
 });

@@ -46,6 +46,16 @@ describe('collectAttentionItems', () => {
     expect(visible.length).toBeLessThanOrEqual(3);
     expect(remaining).toBe(Math.max(0, items.length - 3));
   });
+
+  it('links production turns alert to produce page', () => {
+    const items = collectAttentionItems({
+      ctx: { ...baseCtx, turns: 0, prostitutes: 5 },
+      brief: { armedThugs: 5, unarmedThugs: 0, bankCash: 0, readinessWarningCount: 0 },
+      unreadCount: 0,
+    });
+    const production = items.find((i) => i.id === 'production-turns');
+    expect(production?.href).toBe('/produce');
+  });
 });
 
 describe('navigation shell config', () => {

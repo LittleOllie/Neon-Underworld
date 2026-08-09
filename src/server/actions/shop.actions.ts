@@ -15,7 +15,8 @@ import {
 } from '@/config/game/shop-rules';
 import { calculateNetWorth } from '@/lib/game-engine/net-worth';
 import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
-import { SeasonInactiveError, toUserMessage } from '@/lib/game-engine/errors';
+import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { throwIfValidationMessage, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { ActionResult } from './auth.actions';
 
 export type { ShopItemKey };
@@ -143,12 +144,9 @@ export async function shopPurchaseAction(
 
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
 
-      const validationError = validateShopPurchaseContext(
-        player,
-        parsed.data.item,
-        parsed.data.quantity,
+      throwIfValidationMessage(
+        validateShopPurchaseContext(player, parsed.data.item, parsed.data.quantity),
       );
-      if (validationError) throw new Error(validationError);
 
       const rule = getCityShopItem(parsed.data.item)!;
       const unitPrice = rule.shopPrice;

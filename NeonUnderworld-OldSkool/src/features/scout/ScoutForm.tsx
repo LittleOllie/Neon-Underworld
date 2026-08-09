@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { scoutAction, type OldSkoolScoutResult } from '@local/server/actions/scout.actions';
 import { getScoutAreaDisplays } from '@core/lib/game-engine/scout-display';
@@ -19,6 +20,7 @@ interface ScoutFormProps {
 const AREA_DISPLAYS = getScoutAreaDisplays();
 
 export function ScoutForm({ initialTurns }: ScoutFormProps) {
+  const router = useRouter();
   const [turns, setTurns] = useState(initialTurns);
   const [amountRaw, setAmountRaw] = useState('25');
   const [amount, setAmount] = useState(25);
@@ -49,6 +51,7 @@ export function ScoutForm({ initialTurns }: ScoutFormProps) {
     }
     setResult(response.data);
     setTurns(response.data.newTurns);
+    router.refresh();
   }
 
   if (result) {

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { GameShell, PageTitle, StatRow, Divider, SectionLabel, ActionButton } from '@local/components/game';
 import { requireGameSession, globalStatsFromContext, formatRelativeTime } from '@local/lib/game-context';
 import { ReportService, type CombatReportSnapshot } from '@local/server/services/report.service';
+import { ReportReadSync } from '@local/features/reports/ReportReadSync';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -15,7 +16,8 @@ export default async function ReportDetailPage({ params }: Props) {
   const report = await ReportService.getById(id, playerId);
   if (!report) notFound();
 
-  if (!report.read) {
+  const wasUnread = !report.read;
+  if (wasUnread) {
     await ReportService.markRead(id, playerId);
     report.read = true;
   }
@@ -31,6 +33,7 @@ export default async function ReportDetailPage({ params }: Props) {
 
   return (
     <GameShell stats={globalStatsFromContext(ctx)} background="reports">
+      <ReportReadSync wasUnread={wasUnread} />
       <PageTitle>{report.title}</PageTitle>
       <p className="g-note">{formatRelativeTime(report.createdAt)}</p>
 

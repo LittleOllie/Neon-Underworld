@@ -11,7 +11,9 @@ import {
 } from '@/lib/game-engine/turns';
 import { buildPlayerIntelSnapshot, deriveIntelSeed } from '@/lib/game-engine/combat/build-intel-snapshot';
 import type { PlayerIntelSnapshot } from '@/lib/game-engine/combat/eligibility';
-import { SeasonInactiveError, toUserMessage } from '@/lib/game-engine/errors';
+import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
+import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { ActionResult } from './auth.actions';
 
 export interface ScoutTargetResultData {
@@ -69,13 +71,14 @@ export async function scoutTargetAction(
       });
       if (!scout.turnState) throw new Error('Turn state missing');
       if (scout.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertPlayerCanPerformAction(scout);
 
       const target = await tx.player.findFirst({
         where: { aliasNormalized, seasonId: scout.seasonId, isSystemPlayer: false },
         include: { district: true },
       });
-      if (!target) throw new Error('Target player not found in your season.');
-      if (target.id === playerId) throw new Error('You cannot scout yourself.');
+      if (!target) throw new GameplayError('INVALID_TARGET');
+      if (target.id === playerId) throw new GameplayError('INVALID_TARGET', 'You cannot scout yourself.');
 
       const settled = settleTurnRegeneration(
         resolveCanonicalTurnState({
@@ -88,7 +91,7 @@ export async function scoutTargetAction(
 
       const turnCost = ATTACK_RULES.scoutIntelTurnCost;
       if (settled.currentTurns < turnCost) {
-        throw new Error(`Insufficient turns. Player intel requires ${turnCost} turns.`);
+        throw new GameplayError('INSUFFICIENT_TURNS');
       }
 
       const { newState } = consumeTurns(settled, turnCost);

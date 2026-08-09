@@ -2,7 +2,8 @@
 
 import { requirePlayer } from '@/lib/auth/session';
 import { attackLaunchSchema } from '@/lib/validation/schemas';
-import { toUserMessage } from '@/lib/game-engine/errors';
+import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import {
   resolveAttackEncounter,
   type NetWorthCalculator,

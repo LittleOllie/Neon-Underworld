@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ATTACK_RULES,
@@ -46,6 +47,7 @@ function riskFromForce(estimate: string): string {
 }
 
 export function AttackForm(props: AttackFormProps) {
+  const router = useRouter();
   const forceMax = Math.min(props.thugs, ATTACK_RULES.maxAttackingThugs);
   const defaultForce = Math.min(50, forceMax);
 
@@ -130,6 +132,7 @@ export function AttackForm(props: AttackFormProps) {
       return;
     }
     setResult(response.data);
+    router.refresh();
   }
 
   if (result) {

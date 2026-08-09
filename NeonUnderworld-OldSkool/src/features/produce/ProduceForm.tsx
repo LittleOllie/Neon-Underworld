@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { produceAction, type OldSkoolProduceResult } from '@local/server/actions/produce.actions';
 import { NumericInput } from '@local/components/game/NumericInput';
@@ -23,6 +24,7 @@ const DRUGS: { key: ProductionDrug; label: string }[] = [
 ];
 
 export function ProduceForm({ initialTurns, thugCount }: ProduceFormProps) {
+  const router = useRouter();
   const [turns, setTurns] = useState(initialTurns);
   const [amountRaw, setAmountRaw] = useState('100');
   const [amount, setAmount] = useState(100);
@@ -57,6 +59,7 @@ export function ProduceForm({ initialTurns, thugCount }: ProduceFormProps) {
     }
     setResult(response.data);
     setTurns(response.data.newTurns);
+    router.refresh();
   }
 
   if (result) {

@@ -45,6 +45,7 @@ export interface CanonicalPlayerContext {
   turnCap: number;
   isAtCap: boolean;
   msUntilNextTurn: number;
+  /** @deferred Partial regen progress not reflected — not shown in UI during v1. */
   timeUntilNextTurn: string;
   netWorth: number;
   rank: number;

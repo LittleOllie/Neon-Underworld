@@ -64,7 +64,7 @@ export function collectAttentionItems(input: {
     items.push({
       id: 'production-turns',
       label: 'Turns required for production',
-      href: '/command',
+      href: '/produce',
       severity: 'info',
       icon: 'info',
     });

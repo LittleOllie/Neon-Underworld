@@ -1,7 +1,9 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import { authConfig } from './auth.config';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: 'credentials',
@@ -10,17 +12,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        // Delegated to route handler — middleware only checks session presence
         const { authorizeCredentials } = await import('./authorize');
         return authorizeCredentials(credentials);
       },
     }),
   ],
-  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
-  pages: {
-    signIn: '/login',
-  },
   callbacks: {
+    ...authConfig.callbacks,
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
@@ -38,23 +36,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    authorized({ auth, request }) {
-      const isLoggedIn = !!auth?.user;
-      const isAuthPage =
-        request.nextUrl.pathname.startsWith('/login') ||
-        request.nextUrl.pathname.startsWith('/register');
-      const isProtected =
-        request.nextUrl.pathname.startsWith('/command') ||
-        request.nextUrl.pathname.startsWith('/empire') ||
-        request.nextUrl.pathname.startsWith('/rankings') ||
-        request.nextUrl.pathname.startsWith('/operations') ||
-        request.nextUrl.pathname.startsWith('/admin') ||
-        request.nextUrl.pathname.startsWith('/players');
-
-      if (isAuthPage) return true;
-      if (isProtected) return isLoggedIn;
-      return true;
-    },
   },
-  trustHost: true,
 });

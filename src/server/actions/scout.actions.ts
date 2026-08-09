@@ -22,8 +22,9 @@ import {
   DuplicateActionError,
   InvalidScoutAmountError,
   SeasonInactiveError,
-  toUserMessage,
 } from '@/lib/game-engine/errors';
+import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
+import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { DistrictModifiers } from '@/config/game/balance';
 import type { ActionResult } from './auth.actions';
 
@@ -77,6 +78,8 @@ export async function scoutAction(
         throw new SeasonInactiveError();
       }
 
+      assertPlayerCanPerformAction(player);
+
       if (!player.turnState) {
         throw new Error('Turn state not found');
       }
@@ -91,6 +94,9 @@ export async function scoutAction(
 
       const validation = validateScoutAmount(parsed.data.turns, settled.currentTurns);
       if (!validation.valid) {
+        if (validation.error === 'Insufficient turns') {
+          throw new GameplayError('INSUFFICIENT_TURNS');
+        }
         throw new InvalidScoutAmountError(validation.error!);
       }
 

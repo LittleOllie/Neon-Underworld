@@ -123,4 +123,31 @@ describe('shopPurchaseAction — server validation', () => {
     expect(result.success).toBe(false);
     expect(mockTransaction).not.toHaveBeenCalled();
   });
+
+  it('returns safe message for insufficient cash', async () => {
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        player: {
+          findUniqueOrThrow: vi.fn().mockResolvedValue({
+            id: 'player-1',
+            seasonId: 'season-1',
+            cash: 1,
+            lifeStatus: 'ACTIVE',
+            travelling: false,
+            season: { status: 'ACTIVE' },
+          }),
+        },
+      }),
+    );
+    const { shopPurchaseAction } = await import('@/server/actions/shop.actions');
+    const result = await shopPurchaseAction(
+      'condom',
+      10,
+      '00000000-0000-4000-8000-000000000005',
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("You don't have enough cash.");
+    }
+  });
 });

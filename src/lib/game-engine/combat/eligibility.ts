@@ -1,6 +1,10 @@
 import { isWithinAttackRange } from '@/config/game/redlite-rules';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
 import { ridesRequiredForThugs } from '@/lib/game-engine/combat-rules';
+import {
+  GAMEPLAY_ERROR_MESSAGES,
+  type GameplayErrorCode,
+} from '@/lib/game-engine/gameplay-errors';
 
 export interface PlayerIntelSnapshot {
   targetPlayerId: string;
@@ -45,37 +49,39 @@ export function isIntelReportValid(intel: PlayerIntelSnapshot | null, now = new 
   return new Date(intel.expiresAt).getTime() > now.getTime();
 }
 
-export function validateAttackEligibility(input: AttackEligibilityInput): string | null {
+export function validateAttackEligibilityCode(
+  input: AttackEligibilityInput,
+): GameplayErrorCode | null {
   const now = input.now ?? new Date();
 
   if (input.attackerId === input.defenderId) {
-    return 'You cannot attack yourself.';
+    return 'INVALID_TARGET';
   }
   if (ATTACK_RULES.blockedAttackerLifeStatuses.includes(input.attackerLifeStatus as never)) {
-    return 'You cannot attack in your current status.';
+    return 'PLAYER_INCAPACITATED';
   }
   if (input.attackerTravelling) {
-    return 'You cannot attack while travelling.';
+    return 'PLAYER_TRAVELLING';
   }
   if (ATTACK_RULES.blockedDefenderLifeStatuses.includes(input.defenderLifeStatus as never)) {
-    return 'This target cannot be attacked.';
+    return 'TARGET_UNAVAILABLE';
   }
   if (input.defenderTravelling) {
-    return 'This target is travelling and cannot be attacked.';
+    return 'TARGET_UNAVAILABLE';
   }
   if (!isIntelReportValid(input.intelReport, now)) {
-    return 'You need a valid Scout intelligence report on this target. Scout them first.';
+    return 'EXPIRED_INTEL';
   }
   if (input.intelReport && input.intelReport.targetPlayerId !== input.defenderId) {
-    return 'Scout report does not match this target.';
+    return 'INVALID_INTEL';
   }
   if (!isWithinAttackRange(input.attackerNw, input.defenderNw)) {
-    return 'Target is outside your attack range (0.5×–2× net worth).';
+    return 'TARGET_OUT_OF_RANGE';
   }
 
   const turnCost = ATTACK_RULES.turnCosts[input.attackType];
   if (input.attackerTurns < turnCost) {
-    return `Insufficient turns. This attack requires ${turnCost} turns.`;
+    return 'INSUFFICIENT_TURNS';
   }
 
   if (
@@ -83,20 +89,26 @@ export function validateAttackEligibility(input: AttackEligibilityInput): string
     input.attackingThugs < ATTACK_RULES.minAttackingThugs ||
     input.attackingThugs > ATTACK_RULES.maxAttackingThugs
   ) {
-    return 'Invalid attacking force size.';
+    return 'INVALID_FORCE';
   }
   if (input.attackingThugs > input.attackerThugs) {
-    return 'You do not have enough thugs for this force.';
+    return 'INVALID_FORCE';
   }
 
   const requiredRides = ridesRequired(input.attackingThugs);
   if (input.attackerRides < requiredRides) {
-    return `Insufficient rides. Need ${requiredRides} ride${requiredRides === 1 ? '' : 's'} for ${input.attackingThugs} thugs.`;
+    return 'INSUFFICIENT_RIDES';
   }
 
   if (input.attacksOnTargetLast24h >= ATTACK_RULES.targetAttackCapPer24h) {
-    return `Attack limit reached (${ATTACK_RULES.targetAttackCapPer24h} per target in 24 hours).`;
+    return 'TARGET_UNAVAILABLE';
   }
 
   return null;
+}
+
+export function validateAttackEligibility(input: AttackEligibilityInput): string | null {
+  const code = validateAttackEligibilityCode(input);
+  if (!code) return null;
+  return GAMEPLAY_ERROR_MESSAGES[code];
 }

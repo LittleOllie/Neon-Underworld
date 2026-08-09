@@ -20,8 +20,9 @@ import { workerCashBreakdown } from '@/lib/game-engine/worker-economics';
 import {
   InvalidScoutAmountError,
   SeasonInactiveError,
-  toUserMessage,
 } from '@/lib/game-engine/errors';
+import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
+import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { ActionResult } from './auth.actions';
 
 export interface ProduceResultData {
@@ -70,6 +71,8 @@ export async function produceAction(
       });
 
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertPlayerCanPerformAction(player);
+      if (player.thugs < 1) throw new GameplayError('INVALID_FORCE', 'You need thugs to produce.');
       if (!player.turnState) throw new Error('Turn state not found');
 
       const now = new Date();
@@ -84,7 +87,12 @@ export async function produceAction(
       );
 
       const validation = validateProductionAmount(parsed.data.turns, settled.currentTurns);
-      if (!validation.valid) throw new InvalidScoutAmountError(validation.error!);
+      if (!validation.valid) {
+        if (validation.error === 'Insufficient turns') {
+          throw new GameplayError('INSUFFICIENT_TURNS');
+        }
+        throw new InvalidScoutAmountError(validation.error!);
+      }
 
       const prostituteHappiness = calculateProstituteHappiness({
         prostitutes: player.prostitutes,

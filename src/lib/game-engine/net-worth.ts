@@ -4,6 +4,11 @@ import {
   type PlayerResources,
 } from '@/config/game/balance';
 
+/**
+ * Legacy net-worth for core engine resource deltas during actions.
+ * Player-visible rankings, header, and attack eligibility use
+ * calculateCanonicalNetWorth / calculateCanonicalNetWorthFromPlayer instead.
+ */
 export function calculateNetWorth(resources: PlayerResources): number {
   let total = 0;
   for (const key of Object.keys(NET_WORTH_VALUES) as NetWorthResource[]) {

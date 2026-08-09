@@ -51,6 +51,7 @@ export function settleTurnRegeneration(
   if (!isAtCap) {
     const rate = canonical.regenerationRatePerMs;
     if (rate > 0) {
+      /** @deferred Does not account for partial progress toward the next turn — not shown in UI v1. */
       msUntilNextTurn = Math.ceil(1 / rate);
     }
   }

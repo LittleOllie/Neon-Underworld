@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
 import {
-  validateAttackEligibility,
+  validateAttackEligibilityCode,
   ridesRequired,
   type PlayerIntelSnapshot,
 } from '@/lib/game-engine/combat/eligibility';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/game-engine/turns';
 import { snapshotPlayerState } from '@/lib/game-engine/state';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 
 export interface CombatPlayerRecord {
   id: string;
@@ -107,6 +108,17 @@ export async function resolveAttackEncounter(
   if (existing) {
     const intelReport = await prisma.report.findFirst({ where: { id: scoutReportId, playerId: attackerId } });
     const intel = parseIntelFromReport(intelReport?.metadata);
+    const attackerTurnState = await prisma.playerTurnState.findUnique({ where: { playerId: attackerId } });
+    const settledTurns = attackerTurnState
+      ? settleTurnRegeneration(
+          resolveCanonicalTurnState({
+            currentTurns: attackerTurnState.currentTurns,
+            lastRegeneratedAt: attackerTurnState.lastRegeneratedAt,
+            turnCap: attackerTurnState.turnCap,
+            regenerationRatePerMs: attackerTurnState.regenerationRate,
+          }),
+        ).currentTurns
+      : 0;
     return {
       encounterId: existing.id,
       attackType: existing.attackType as AttackType,
@@ -124,6 +136,7 @@ export async function resolveAttackEncounter(
         heroin: 0,
       },
       turnsSpent: existing.turnsSpent,
+      /** Rides committed/required for this attack — transport capacity, not consumed. */
       ridesUsed: existing.ridesUsed,
       weaponCoverage: '',
       forceEstimate: '',
@@ -131,7 +144,7 @@ export async function resolveAttackEncounter(
       targetPlayerId: existing.defenderId,
       scoutReportId,
       scoutConfidence: intel?.confidencePercent ?? 0,
-      newTurns: 0,
+      newTurns: settledTurns,
       attackerForceSnapshot: existing.attackerForceSnapshot as Record<string, unknown>,
       defenderForceSnapshot: existing.defenderForceSnapshot as Record<string, unknown>,
       defenderThugsBefore: (existing.defenderForceSnapshot as { thugsDefending?: number })?.thugsDefending ?? 0,
@@ -150,9 +163,9 @@ export async function resolveAttackEncounter(
     const report = await tx.report.findFirst({
       where: { id: scoutReportId, playerId: attackerId },
     });
-    if (!report) throw new Error('Scout intelligence report not found.');
+    if (!report) throw new GameplayError('INVALID_INTEL');
     const intel = parseIntelFromReport(report.metadata);
-    if (!intel) throw new Error('Invalid scout intelligence report.');
+    if (!intel) throw new GameplayError('INVALID_INTEL');
 
     const defender = await tx.player.findUniqueOrThrow({
       where: { id: intel.targetPlayerId },
@@ -182,7 +195,7 @@ export async function resolveAttackEncounter(
       },
     });
 
-    const validationError = validateAttackEligibility({
+    const eligibilityCode = validateAttackEligibilityCode({
       attackerId,
       defenderId: defender.id,
       attackType,
@@ -199,7 +212,7 @@ export async function resolveAttackEncounter(
       intelReport: intel,
       attacksOnTargetLast24h: attacksOnTarget,
     });
-    if (validationError) throw new Error(validationError);
+    if (eligibilityCode) throw new GameplayError(eligibilityCode);
 
     const turnCost = ATTACK_RULES.turnCosts[attackType];
     const { newState: turnStateAfter } = consumeTurns(settled, turnCost);
@@ -238,6 +251,7 @@ export async function resolveAttackEncounter(
       },
     });
 
+    /** Rides committed/required for this attack — transport capacity, not consumed. */
     const ridesUsed = ridesRequired(attackingThugs);
     const attackerAlloc = allocateWeaponsForThugs(attackingThugs, {
       glocks: attacker.glocks,

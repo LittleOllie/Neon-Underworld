@@ -18,6 +18,7 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
   const router = useRouter();
   const [payout, setPayout] = useState(initialPayout);
   const [preview, setPreview] = useState<{ effects: string[] } | null>(null);
+  const [previewError, setPreviewError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -26,11 +27,18 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
   useEffect(() => {
     if (payout === initialPayout) {
       setPreview(null);
+      setPreviewError('');
       return;
     }
     let cancelled = false;
+    setPreviewError('');
     previewPayoutAction(payout).then((result) => {
-      if (cancelled || !result.success) return;
+      if (cancelled) return;
+      if (!result.success) {
+        setPreview(null);
+        setPreviewError(result.error);
+        return;
+      }
       setPreview({ effects: result.data.effects });
     });
     return () => {
@@ -90,6 +98,8 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
           ))}
         </ul>
       )}
+
+      {previewError && <p className="g-error">{previewError}</p>}
 
       <PrimaryButton
         className="g-btn-save"
