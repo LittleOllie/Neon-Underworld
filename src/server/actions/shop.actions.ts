@@ -1,0 +1,212 @@
+'use server';
+
+import { prisma } from '@/lib/db/prisma';
+import { requirePlayer } from '@/lib/auth/session';
+import { shopPurchaseSchema } from '@/lib/validation/schemas';
+import {
+  CITY_SHOP_ITEMS,
+  getCityShopItem,
+  isCityShopItem,
+  isPersonnelItem,
+  SHOP_CATEGORY_LABELS,
+  SHOP_CATEGORY_ORDER,
+  type ShopCategory,
+  type ShopItemKey,
+} from '@/config/game/shop-rules';
+import { calculateNetWorth } from '@/lib/game-engine/net-worth';
+import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
+import { SeasonInactiveError, toUserMessage } from '@/lib/game-engine/errors';
+import type { ActionResult } from './auth.actions';
+
+export type { ShopItemKey };
+
+export interface ShopCatalogEntry {
+  key: ShopItemKey;
+  displayName: string;
+  category: ShopCategory;
+  categoryLabel: string;
+  unitPrice: number;
+  purpose: string;
+  contributesToNetWorth: boolean;
+}
+
+export interface ShopPurchaseResult {
+  item: ShopItemKey;
+  quantity: number;
+  unitPrice: number;
+  totalCost: number;
+  newCash: number;
+  newNetWorth: number;
+  newOwnedQuantity: number;
+}
+
+export interface ShopPageInventory {
+  glocks: number;
+  uzis: number;
+  aks: number;
+  rides: number;
+  condoms: number;
+  hash: number;
+  beer: number;
+  shrooms: number;
+  coke: number;
+  heroin: number;
+  thugs: number;
+}
+
+export async function getShopCatalog(): Promise<ShopCatalogEntry[]> {
+  return CITY_SHOP_ITEMS.map((entry) => ({
+    key: entry.key,
+    displayName: entry.displayName,
+    category: entry.category,
+    categoryLabel: SHOP_CATEGORY_LABELS[entry.category],
+    unitPrice: entry.shopPrice,
+    purpose: entry.purpose,
+    contributesToNetWorth: entry.contributesToNetWorth,
+  }));
+}
+
+function validateShopPurchaseContext(
+  player: {
+    cash: number;
+    lifeStatus: string;
+    travelling: boolean;
+  },
+  itemKey: string,
+  quantity: number,
+): string | null {
+  if (isPersonnelItem(itemKey)) {
+    return 'Workers and Thugs cannot be purchased from the City Shop. Use Scout to recruit personnel.';
+  }
+  if (!isCityShopItem(itemKey)) {
+    return 'This item is not sold by the City Shop.';
+  }
+  const rule = getCityShopItem(itemKey);
+  if (!rule || !rule.cityShop) {
+    return 'This item is not sold by the City Shop.';
+  }
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    return 'Quantity must be a positive whole number.';
+  }
+  if (quantity > 1000) {
+    return 'Maximum 1,000 units per purchase.';
+  }
+  if (player.lifeStatus !== 'ACTIVE') {
+    return 'Purchases unavailable in your current status.';
+  }
+  if (player.travelling) {
+    return 'Purchases unavailable while travelling.';
+  }
+  const totalCost = rule.shopPrice * quantity;
+  if (totalCost > player.cash) {
+    return 'Insufficient cash.';
+  }
+  if (totalCost < 0 || !Number.isFinite(totalCost)) {
+    return 'Invalid purchase total.';
+  }
+  return null;
+}
+
+export async function shopPurchaseAction(
+  item: string,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<ShopPurchaseResult>> {
+  try {
+    const session = await requirePlayer();
+    const parsed = shopPurchaseSchema.safeParse({ item, quantity, idempotencyKey });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    if (isPersonnelItem(parsed.data.item)) {
+      return {
+        success: false,
+        error: 'Workers and Thugs cannot be purchased from the City Shop. Use Scout to recruit personnel.',
+      };
+    }
+
+    const playerId = session.user.playerId!;
+
+    const existing = await prisma.gameAction.findUnique({
+      where: { playerId_idempotencyKey: { playerId, idempotencyKey } },
+    });
+    if (existing?.resultPayload) {
+      return { success: true, data: existing.resultPayload as unknown as ShopPurchaseResult };
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const player = await tx.player.findUniqueOrThrow({
+        where: { id: playerId },
+        include: { season: true },
+      });
+
+      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+
+      const validationError = validateShopPurchaseContext(
+        player,
+        parsed.data.item,
+        parsed.data.quantity,
+      );
+      if (validationError) throw new Error(validationError);
+
+      const rule = getCityShopItem(parsed.data.item)!;
+      const unitPrice = rule.shopPrice;
+      const totalCost = unitPrice * parsed.data.quantity;
+
+      const newCash = player.cash - totalCost;
+      const field = rule.field;
+      const currentQty = player[field] as number;
+      const newQty = currentQty + parsed.data.quantity;
+
+      const updatedPlayer = await tx.player.update({
+        where: { id: playerId },
+        data: { cash: newCash, [field]: newQty },
+      });
+
+      const newNetWorth = calculateNetWorth(playerToResources(updatedPlayer));
+
+      const resultData: ShopPurchaseResult = {
+        item: parsed.data.item,
+        quantity: parsed.data.quantity,
+        unitPrice,
+        totalCost,
+        newCash,
+        newNetWorth,
+        newOwnedQuantity: newQty,
+      };
+
+      await tx.gameAction.create({
+        data: {
+          playerId,
+          seasonId: player.seasonId,
+          actionType: 'SHOP_PURCHASE',
+          idempotencyKey,
+          requestPayload: parsed.data as object,
+          resultPayload: resultData as object,
+          turnsSpent: 0,
+        },
+      });
+
+      await tx.economicAuditLog.create({
+        data: {
+          playerId,
+          userId: session.user.id,
+          eventType: 'SHOP_PURCHASE',
+          source: 'shop',
+          beforeState: snapshotPlayerState(player) as object,
+          delta: { cash: -totalCost, [field]: parsed.data.quantity },
+          afterState: snapshotPlayerState(updatedPlayer) as object,
+          metadata: { idempotencyKey, item: parsed.data.item, unitPrice, totalCost },
+        },
+      });
+
+      return resultData;
+    }, { isolationLevel: 'Serializable' });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Shop purchase error:', error);
+    return { success: false, error: toUserMessage(error) };
+  }
+}

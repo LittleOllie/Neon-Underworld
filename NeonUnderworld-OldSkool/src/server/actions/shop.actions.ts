@@ -1,0 +1,116 @@
+'use server';
+
+import {
+  shopPurchaseAction as coreShopPurchaseAction,
+  getShopCatalog as coreGetShopCatalog,
+  type ShopPurchaseResult,
+  type ShopCatalogEntry,
+  type ShopItemKey,
+} from '@core/server/actions/shop.actions';
+import type { ActionResult } from '@core/server/actions/auth.actions';
+import { auth } from '@local/lib/auth/config';
+import { prisma } from '@core/lib/db/prisma';
+import { ACTIVITY_TYPES } from '@local/config/activity-types';
+import { ActivityService } from '@local/server/services/activity.service';
+import { EmpireService } from '@local/server/services/empire.service';
+import { NetWorthService } from '@local/server/services/net-worth.service';
+
+export type { ShopPurchaseResult, ShopCatalogEntry, ShopItemKey };
+
+export interface ShopRecentPurchase {
+  message: string;
+  createdAt: Date;
+}
+
+export interface ShopPageData {
+  catalog: ShopCatalogEntry[];
+  cash: number;
+  city: string;
+  inventory: {
+    glocks: number;
+    uzis: number;
+    aks: number;
+    rides: number;
+    condoms: number;
+    hash: number;
+    beer: number;
+    shrooms: number;
+    coke: number;
+    heroin: number;
+    thugs: number;
+    workers: number;
+  };
+  recentPurchases: ShopRecentPurchase[];
+}
+
+export async function getShopPageData(playerId: string): Promise<ShopPageData> {
+  const [catalog, player, activities] = await Promise.all([
+    coreGetShopCatalog(),
+    prisma.player.findUniqueOrThrow({
+      where: { id: playerId },
+      include: { district: true },
+    }),
+    prisma.activity.findMany({
+      where: { playerId, category: 'SHOP_PURCHASE' },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  return {
+    catalog,
+    cash: player.cash,
+    city: player.district.name,
+    inventory: {
+      glocks: player.glocks,
+      uzis: player.uzis,
+      aks: player.aks,
+      rides: player.rides,
+      condoms: player.condoms,
+      hash: player.hash,
+      beer: player.beer,
+      shrooms: player.shrooms,
+      coke: player.coke,
+      heroin: player.heroin,
+      thugs: player.thugs,
+      workers: player.prostitutes,
+    },
+    recentPurchases: activities.map((a) => ({
+      message: a.message,
+      createdAt: a.createdAt,
+    })),
+  };
+}
+
+export async function shopPurchaseAction(
+  item: ShopItemKey,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<ShopPurchaseResult & { canonicalNetWorth: number }>> {
+  const result = await coreShopPurchaseAction(item, quantity, idempotencyKey);
+  if (!result.success) return result;
+
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+
+  await EmpireService.syncInventory(playerId);
+  const updated = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+  const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
+
+  await ActivityService.record(
+    playerId,
+    ACTIVITY_TYPES.SHOP_PURCHASE,
+    `Purchased ${result.data.quantity}× ${result.data.item} for $${result.data.totalCost.toLocaleString()}.`,
+    { shop: result.data },
+  );
+
+  return {
+    success: true,
+    data: {
+      ...result.data,
+      newNetWorth: canonicalNetWorth,
+      canonicalNetWorth,
+    },
+  };
+}

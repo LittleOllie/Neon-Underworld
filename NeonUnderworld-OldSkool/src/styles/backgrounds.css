@@ -1,0 +1,108 @@
+/**
+ * Page background artwork layer — sits behind GameShell UI.
+ * Art files: public/images/game-backgrounds/{key}.webp or .png
+ *
+ * Readability target: ~80% gameplay UI / ~20% environmental art.
+ * Tune globally via :root; per-page via --page-bg-darkness on .g-page-bg.
+ */
+
+:root {
+  --page-bg-darkness: 0;
+
+  /* Shared UI surfaces when cinematic backgrounds are active */
+  --g-ui-header-bg: rgba(12, 12, 16, 0.94);
+  --g-ui-btn-bg: rgba(14, 14, 16, 0.82);
+  --g-ui-btn-bg-hover: rgba(22, 20, 16, 0.88);
+  --g-ui-btn-bg-active: rgba(10, 10, 12, 0.92);
+  --g-ui-input-bg: rgba(10, 10, 12, 0.88);
+  --g-ui-bar-track: rgba(8, 8, 10, 0.78);
+}
+
+.g-page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
+  --local-bg-darkness: var(--page-bg-darkness, 0);
+}
+
+.g-page-bg-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.g-page-bg-art.is-loaded {
+  opacity: 1;
+}
+
+/* Dark gradient above art, below UI — gameplay zone darkest */
+.g-page-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(7, 8, 11, calc(0.7 + var(--local-bg-darkness) * 0.06)) 0%,
+    rgba(7, 8, 11, calc(0.62 + var(--local-bg-darkness) * 0.05)) 38%,
+    rgba(7, 8, 11, calc(0.56 + var(--local-bg-darkness) * 0.04)) 58%,
+    rgba(7, 8, 11, calc(0.46 + var(--local-bg-darkness) * 0.03)) 100%
+  );
+}
+
+/* Soft edge falloff — no blur on artwork */
+.g-page-bg-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 95% 85% at 50% 42%, transparent 42%, rgba(7, 8, 11, 0.22) 100%),
+    linear-gradient(
+      90deg,
+      rgba(7, 8, 11, 0.18) 0%,
+      transparent 12%,
+      transparent 88%,
+      rgba(7, 8, 11, 0.18) 100%
+    );
+}
+
+.g-shell {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.g-top {
+  position: sticky;
+  z-index: 200;
+}
+
+.g-main,
+.g-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.g-nav-mobile {
+  z-index: 200;
+}
+
+/* Stronger chrome when a cinematic background is active */
+.g-shell--bg .g-top,
+.g-shell--bg .g-nav-mobile {
+  background: var(--g-ui-header-bg);
+}
+
+.g-shell--bg .g-footer {
+  background: rgba(12, 12, 16, 0.72);
+}

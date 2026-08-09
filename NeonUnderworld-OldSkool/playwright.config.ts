@@ -1,0 +1,20 @@
+import { defineConfig } from '@playwright/test';
+
+const TEST_PORT = 3310;
+const baseURL = `http://localhost:${TEST_PORT}`;
+
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 60_000,
+  workers: 1,
+  use: {
+    baseURL,
+  },
+  webServer: {
+    command: `rm -rf .next && npm run dev -- -p ${TEST_PORT}`,
+    url: baseURL,
+    reuseExistingServer: false,
+    cwd: __dirname,
+    timeout: 120_000,
+  },
+});

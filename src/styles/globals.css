@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+:root {
+  --background: #080809;
+  --foreground: #eceae6;
+  --surface: #111114;
+  --surface-elevated: #18181c;
+  --surface-hover: #1e1e23;
+  --border: #26262c;
+  --border-subtle: #1a1a1f;
+  --gold: #c4a055;
+  --gold-bright: #d4b56a;
+  --gold-dim: #7a6840;
+  --gold-muted: rgba(196, 160, 85, 0.12);
+  --amber: #c9954a;
+  --cyan: #5aaeb0;
+  --purple: #8f7ec4;
+  --green: #5fa872;
+  --red: #c45c5c;
+  --muted: #7a7874;
+  --muted-foreground: #a8a6a2;
+  --font-display: var(--font-display-fallback, system-ui, sans-serif);
+  --font-ui: var(--font-ui-fallback, system-ui, sans-serif);
+  --font-mono: var(--font-mono-fallback, monospace);
+  --nav-height: 4.5rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-gold-dim: var(--gold-dim);
+  --color-amber: var(--amber);
+  --color-cyan: var(--cyan);
+  --color-purple: var(--purple);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.font-mono-figures {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-shell-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(196, 160, 85, 0.06), transparent),
+    var(--background);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+}
+
+.panel-elevated {
+  background: linear-gradient(180deg, var(--surface-elevated) 0%, var(--surface) 100%);
+  border: 1px solid var(--border-subtle);
+}
+
+.hero-panel {
+  background: linear-gradient(135deg, rgba(196, 160, 85, 0.08) 0%, var(--surface) 60%);
+  border: 1px solid rgba(196, 160, 85, 0.18);
+}
+
+.text-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.2s ease-out forwards;
+}
+
+.pb-nav-safe {
+  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 1rem);
+}
+
+@keyframes turn-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.92; transform: scale(1.015); }
+}
+
+.animate-turn-pulse {
+  animation: turn-pulse 0.55s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-turn-pulse {
+    animation: none;
+  }
+}

@@ -1,0 +1,173 @@
+/**
+ * Neon Underworld — global game typography & colour tokens
+ * Mobile-first readable hierarchy over cinematic backgrounds.
+ */
+
+:root {
+  --game-text-primary: #e8e6e0;
+  --game-text-secondary: #b0ada6;
+  --game-text-muted: #8a877f;
+  --game-gold: var(--os-gold);
+  --game-gold-dark: var(--os-gold-dark);
+  --game-positive: var(--os-green);
+  --game-warning: var(--os-amber);
+  --game-danger: var(--os-red);
+  --game-surface: rgba(14, 14, 16, 0.82);
+  --game-border: rgba(255, 255, 255, 0.14);
+
+  /* Type scale — mobile base, desktop bumps via media query */
+  --game-fs-title: clamp(28px, 5vw, 34px);
+  --game-fs-section: 17px;
+  --game-fs-body: 16px;
+  --game-fs-value: 17px;
+  --game-fs-value-lg: 18px;
+  --game-fs-secondary: 14px;
+  --game-fs-nav: 13px;
+  --game-fs-nav-mobile: 12px;
+  --game-fs-btn: 16px;
+  --game-fs-meta: 13px;
+  --game-lh-body: 1.55;
+  --game-lh-guide: 1.6;
+}
+
+@media (min-width: 769px) {
+  :root {
+    --game-fs-section: 19px;
+    --game-fs-body: 17px;
+    --game-fs-value: 18px;
+    --game-fs-value-lg: 20px;
+    --game-fs-secondary: 15px;
+    --game-fs-nav: 14px;
+    --game-fs-btn: 17px;
+    --game-fs-meta: 14px;
+  }
+}
+
+/* Label / value hierarchy */
+.g-label {
+  color: var(--game-text-primary);
+  font-size: var(--game-fs-body);
+  font-weight: 500;
+}
+
+.g-value {
+  color: var(--game-gold);
+  font-size: var(--game-fs-value);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.g-value--positive {
+  color: var(--game-positive);
+}
+
+.g-value--warning {
+  color: var(--game-warning);
+}
+
+.g-value--danger {
+  color: var(--game-danger);
+}
+
+.g-value--neutral {
+  color: var(--game-text-primary);
+  font-weight: 600;
+}
+
+/* Icons */
+.g-icon {
+  flex-shrink: 0;
+  color: var(--game-gold);
+  stroke: currentColor;
+}
+
+.g-icon--warn {
+  color: var(--game-warning);
+}
+
+.g-icon--danger {
+  color: var(--game-danger);
+}
+
+.g-icon--positive {
+  color: var(--game-positive);
+}
+
+.g-icon--muted {
+  color: var(--game-text-secondary);
+}
+
+.g-icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.g-btn__inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.g-actions .g-btn__inner {
+  gap: 12px;
+}
+
+.g-nav-link-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.g-alert-inner {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.g-alert-value {
+  color: var(--game-gold);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.g-alert-text {
+  color: var(--game-text-primary);
+}
+
+.g-alert--warn .g-alert-value {
+  color: var(--game-warning);
+}
+
+.g-rank-num {
+  color: var(--game-gold);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.g-rank-name {
+  color: var(--game-text-primary);
+  font-weight: 600;
+}
+
+.g-rank-worth {
+  color: var(--game-gold);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.g-result-line--positive {
+  color: var(--game-positive);
+}
+
+.g-result-line--negative {
+  color: var(--game-danger);
+}
+
+.g-result-line--value {
+  color: var(--game-gold);
+  font-weight: 600;
+}

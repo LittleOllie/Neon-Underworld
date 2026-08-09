@@ -1,0 +1,391 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  ADMIN
+}
+
+enum SeasonStatus {
+  UPCOMING
+  ACTIVE
+  ENDED
+}
+
+enum PlayerLifeStatus {
+  ACTIVE
+  TRAVELLING
+  HOSPITALIZED
+  JAIL
+  INACTIVE
+}
+
+enum ProtectionLevel {
+  NONE
+  STANDARD
+  PREMIUM
+}
+
+enum ActivityCategory {
+  LOGIN
+  SCOUT
+  RECRUIT_THUGS
+  RECRUIT_WORKERS
+  PRODUCTION
+  SHOP_PURCHASE
+  MARKET_LISTING
+  MARKET_BID
+  MARKET_SALE
+  TRAVEL
+  ATTACK
+  DEFENCE
+  BUSINESS
+  CARTEL
+  SYSTEM
+  WORKER_PAYOUT_UPDATED
+  BANK_DEPOSIT
+  BANK_WITHDRAWAL
+  PERSONNEL_DISMISSED
+  EMPIRE_UPDATED
+}
+
+enum ReportCategory {
+  TRAVEL
+  COMBAT
+  SCOUT
+  MARKET
+  SYSTEM
+}
+
+enum AttackType {
+  DRIVE_BY
+  HOME_INVASION
+  RAID_DRUG_LABS
+}
+
+enum CombatOutcome {
+  SUCCESS
+  PARTIAL
+  REPULSED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(PLAYER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+  bannedAt     DateTime?
+  banReason    String?
+
+  player         Player?
+  inviteCodeUses InviteCodeUse[]
+  auditLogs      EconomicAuditLog[]
+
+  @@index([email])
+}
+
+model Player {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  alias                   String   @unique
+  aliasNormalized         String   @unique
+  districtId              String
+  seasonId                String
+  cash                    Int      @default(0)
+  prostitutes             Int      @default(0)
+  thugs                   Int      @default(0)
+  rides                   Int      @default(0)
+  glocks                  Int      @default(0)
+  uzis                    Int      @default(0)
+  aks                     Int      @default(0)
+  beer                    Int      @default(0)
+  condoms                 Int      @default(0)
+  hash                    Int      @default(0)
+  shrooms                 Int      @default(0)
+  coke                    Int      @default(0)
+  heroin                  Int      @default(0)
+  prostitutePayoutPercent Int      @default(50)
+  prostituteHappiness     Int      @default(70)
+  thugHappiness           Int      @default(70)
+  isSystemPlayer          Boolean  @default(false)
+  avatar                  String?
+  cartelId                String?
+  bankCash                Int      @default(0)
+  health                  Int      @default(100)
+  lifeStatus              PlayerLifeStatus @default(ACTIVE)
+  travelling              Boolean  @default(false)
+  travelDestination       String?
+  travelArrival           DateTime?
+  protectionStatus        ProtectionLevel @default(NONE)
+  businesses              Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  district   District          @relation(fields: [districtId], references: [id])
+  season     Season            @relation(fields: [seasonId], references: [id])
+  turnState  PlayerTurnState?
+  inventory  PlayerInventory?
+  statusExt  PlayerStatusExt?
+  gameActions GameAction[]
+  auditLogs  EconomicAuditLog[]
+  scoutResults ScoutResult[]
+  rankSnapshots RankSnapshot[]
+  activities Activity[]
+  reports    Report[]
+  attacksLaunched CombatEncounter[] @relation("AttackerEncounters")
+  attacksReceived CombatEncounter[] @relation("DefenderEncounters")
+
+  @@index([aliasNormalized])
+  @@index([seasonId, cash])
+  @@index([seasonId])
+}
+
+model PlayerInventory {
+  id         String   @id @default(cuid())
+  playerId   String   @unique
+  thugs      Int      @default(0)
+  workers    Int      @default(0)
+  weapons    Int      @default(0)
+  vehicles   Int      @default(0)
+  drugs      Int      @default(0)
+  businesses Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model PlayerStatusExt {
+  id              String    @id @default(cuid())
+  playerId        String    @unique
+  notification    String?
+  unreadReports   Int       @default(0)
+  lastSeenAt      DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String           @id @default(cuid())
+  playerId  String
+  category  ActivityCategory
+  message   String
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
+}
+
+model Report {
+  id        String         @id @default(cuid())
+  playerId  String
+  category  ReportCategory
+  title     String
+  summary   String
+  body      String?
+  metadata  Json?
+  read      Boolean        @default(false)
+  createdAt DateTime       @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, read, createdAt])
+}
+
+model CombatEncounter {
+  id                    String         @id @default(cuid())
+  idempotencyKey        String
+  attackerId            String
+  defenderId            String
+  scoutReportId         String
+  attackType            AttackType
+  turnsSpent            Int
+  attackingThugs        Int
+  ridesUsed             Int
+  attackerForceSnapshot Json
+  defenderForceSnapshot Json
+  attackerLosses        Int
+  defenderLosses        Int
+  attackerReturned      Int
+  cashStolen            Int            @default(0)
+  drugsStolen           Json?
+  outcome               CombatOutcome
+  attackerReportId      String?
+  defenderReportId      String?
+  createdAt             DateTime       @default(now())
+
+  attacker Player @relation("AttackerEncounters", fields: [attackerId], references: [id], onDelete: Cascade)
+  defender Player @relation("DefenderEncounters", fields: [defenderId], references: [id], onDelete: Cascade)
+
+  @@unique([attackerId, idempotencyKey])
+  @@index([attackerId, createdAt])
+  @@index([defenderId, createdAt])
+  @@index([attackerId, defenderId, createdAt])
+}
+
+model PlayerTurnState {
+  id                String   @id @default(cuid())
+  playerId          String   @unique
+  currentTurns      Int      @default(0)
+  lastRegeneratedAt DateTime @default(now())
+  turnCap           Int      @default(5000)
+  regenerationRate  Float    @default(0.0000055555555555556)
+  updatedAt         DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model District {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String
+  modifiers   Json
+  active      Boolean @default(true)
+
+  players      Player[]
+  scoutResults ScoutResult[]
+}
+
+model Season {
+  id        String       @id @default(cuid())
+  number    Int          @unique
+  name      String
+  status    SeasonStatus @default(ACTIVE)
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime     @default(now())
+
+  players      Player[]
+  gameActions  GameAction[]
+  rankSnapshots RankSnapshot[]
+}
+
+model InviteCode {
+  id          String    @id @default(cuid())
+  codeHash    String    @unique
+  label       String?
+  active      Boolean   @default(true)
+  expiresAt   DateTime?
+  maximumUses Int       @default(1)
+  currentUses Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  uses InviteCodeUse[]
+}
+
+model InviteCodeUse {
+  id           String   @id @default(cuid())
+  inviteCodeId String
+  userId       String
+  usedAt       DateTime @default(now())
+
+  inviteCode InviteCode @relation(fields: [inviteCodeId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([inviteCodeId, userId])
+}
+
+model GameAction {
+  id              String   @id @default(cuid())
+  playerId        String
+  seasonId        String
+  actionType      String
+  idempotencyKey  String
+  requestPayload  Json
+  resultPayload   Json?
+  turnsSpent      Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@unique([playerId, idempotencyKey])
+  @@index([playerId, createdAt])
+}
+
+model EconomicAuditLog {
+  id          String   @id @default(cuid())
+  playerId    String?
+  userId      String?
+  eventType   String
+  source      String
+  beforeState Json
+  delta       Json
+  afterState  Json
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  player Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([playerId, createdAt])
+}
+
+model ScoutResult {
+  id                     String   @id @default(cuid())
+  playerId               String
+  districtId             String
+  turnsSpent             Int
+  prostitutesFound       Int
+  thugsFound             Int
+  cashEarned             Int
+  prostitutesLost        Int      @default(0)
+  thugsLost              Int      @default(0)
+  cartelCashContribution Int      @default(0)
+  cartelDrugContribution Int      @default(0)
+  createdAt              DateTime @default(now())
+
+  player   Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  district District @relation(fields: [districtId], references: [id])
+
+  @@index([playerId, createdAt])
+}
+
+model RankSnapshot {
+  id        String   @id @default(cuid())
+  playerId  String
+  seasonId  String
+  netWorth  Int
+  rank      Int
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@index([seasonId, netWorth])
+  @@index([playerId, createdAt])
+}
+
+model GameConfigOverride {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  active      Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminUserId String
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([adminUserId, createdAt])
+}

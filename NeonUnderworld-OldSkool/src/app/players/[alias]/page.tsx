@@ -1,0 +1,63 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { GameShell, PageTitle, StatRow } from '@local/components/game';
+import { PublicProfileService } from '@local/server/services/public-profile.service';
+import { ReportService } from '@local/server/services/report.service';
+import { requireGameSession, globalStatsFromContext, formatRelativeTime } from '@local/lib/game-context';
+import { PlayerProfilePanel } from '@local/features/player/PlayerProfilePanel';
+import { OS_TERMS } from '@local/config/terminology';
+
+interface Props {
+  params: Promise<{ alias: string }>;
+}
+
+export default async function PlayerProfilePage({ params }: Props) {
+  const { alias } = await params;
+  const { ctx } = await requireGameSession();
+  const profile = await PublicProfileService.getByAlias(alias);
+  if (!profile) notFound();
+
+  const isSelf = profile.aliasNormalized === ctx.aliasNormalized;
+  const intelReport = isSelf
+    ? null
+    : await ReportService.getIntelReportForTarget(ctx.id, profile.aliasNormalized);
+
+  const existingIntel = intelReport
+    ? {
+        reportId: intelReport.reportId,
+        bands: intelReport.bands,
+        expiresAt: intelReport.intel.expiresAt,
+      }
+    : null;
+
+  return (
+    <GameShell stats={globalStatsFromContext(ctx)} background="intel">
+      <PageTitle icon="player">{profile.alias}</PageTitle>
+
+      <StatRow label={OS_TERMS.rank} value={`#${profile.rank}`} />
+      <StatRow label={OS_TERMS.netWorth} value={`$${profile.netWorth.toLocaleString()}`} />
+      <StatRow label={OS_TERMS.city} value={profile.city} />
+      <StatRow
+        label={OS_TERMS.lastSeen}
+        value={profile.online ? OS_TERMS.online : formatRelativeTime(profile.lastSeen ?? new Date(0))}
+      />
+      {profile.cartelId && (
+        <StatRow label={OS_TERMS.cartel} value="Affiliated" />
+      )}
+
+      {isSelf ? (
+        <p className="g-note">This is you.</p>
+      ) : (
+        <PlayerProfilePanel
+          targetAlias={profile.alias}
+          initialTurns={ctx.turns}
+          existingIntel={existingIntel}
+        />
+      )}
+
+      <p className="g-note">
+        <Link href="/rankings">Rankings</Link>
+      </p>
+    </GameShell>
+  );
+}
