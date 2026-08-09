@@ -11,6 +11,34 @@ const FILTERS: { key: RankingsFilter; label: string }[] = [
   { key: 'old-quarter', label: 'Old Quarter' },
 ];
 
+const DISTRICT_FILTERS = new Set<RankingsFilter>(['neon-strip', 'docklands', 'old-quarter']);
+
+function districtFilter(slug: string): RankingsFilter | null {
+  return DISTRICT_FILTERS.has(slug as RankingsFilter) ? (slug as RankingsFilter) : null;
+}
+
+function defaultFilterForPlayer(districtSlug: string): RankingsFilter {
+  return districtFilter(districtSlug) ?? 'overall';
+}
+
+function resolveFilter(param: string | undefined, districtSlug: string): RankingsFilter {
+  if (param && FILTERS.some((f) => f.key === param)) {
+    return param as RankingsFilter;
+  }
+  return defaultFilterForPlayer(districtSlug);
+}
+
+function orderedFilters(homeDistrict: RankingsFilter): typeof FILTERS {
+  const home = FILTERS.find((f) => f.key === homeDistrict);
+  if (!home || homeDistrict === 'overall') return FILTERS;
+  return [home, ...FILTERS.filter((f) => f.key !== homeDistrict)];
+}
+
+function filterHref(key: RankingsFilter, homeDistrict: RankingsFilter): string {
+  if (key === homeDistrict) return '/rankings';
+  return `/rankings?filter=${key}`;
+}
+
 interface Props {
   searchParams: Promise<{ filter?: string }>;
 }
@@ -23,12 +51,12 @@ function lastSeenLabel(online: boolean, lastSeen: Date | null): string {
 
 export default async function RankingsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const filterParam = params.filter ?? 'overall';
-  const filter = (FILTERS.some((f) => f.key === filterParam) ? filterParam : 'overall') as RankingsFilter;
-
   const { ctx } = await requireGameSession();
   const stats = globalStatsFromContext(ctx);
   const playerId = ctx.id;
+  const homeDistrict = defaultFilterForPlayer(ctx.district.slug);
+  const filter = resolveFilter(params.filter, ctx.district.slug);
+  const filters = orderedFilters(homeDistrict);
 
   const season = await prisma.season.findFirst({ where: { status: 'ACTIVE' } });
 
@@ -48,10 +76,10 @@ export default async function RankingsPage({ searchParams }: Props) {
       <PageTitle icon="rankings">Rankings</PageTitle>
 
       <div className="g-filter-row">
-        {FILTERS.map((f) => (
+        {filters.map((f) => (
           <Link
             key={f.key}
-            href={f.key === 'overall' ? '/rankings' : `/rankings?filter=${f.key}`}
+            href={filterHref(f.key, homeDistrict)}
             className={`g-filter${filter === f.key ? ' g-filter-active' : ''}`}
           >
             {f.label}

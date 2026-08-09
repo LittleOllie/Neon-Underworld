@@ -29,7 +29,7 @@ export function GameShell({
           <LogoutLink />
         </div>
         {stats && (
-          <>
+          <div className="g-header-meta">
             {stats.alias && (
               <div className="g-player-line">
                 {stats.alias}
@@ -37,7 +37,7 @@ export function GameShell({
               </div>
             )}
             <GlobalStatus stats={stats} />
-          </>
+          </div>
         )}
         <GameNav />
       </div>

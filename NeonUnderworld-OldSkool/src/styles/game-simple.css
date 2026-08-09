@@ -96,14 +96,10 @@
 
 .g-nav-mobile {
   display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 200;
+  position: static;
   background: var(--os-bg-header);
-  border-top: 1px solid var(--os-border);
-  padding: 4px 2px calc(4px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 2px;
 }
 
 .g-nav-mobile-inner {
@@ -117,7 +113,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  min-height: 40px;
+  padding: 4px 2px;
   font-size: var(--game-fs-nav-mobile);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -126,11 +123,13 @@
   text-decoration: none;
   background: none;
   border: none;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
 }
 
 .g-nav-mobile .g-nav-active {
   color: var(--game-gold);
+  border-bottom-color: var(--game-gold-dark);
 }
 
 .g-nav-mobile .g-nav-active .g-icon {
@@ -142,7 +141,7 @@
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  padding: 16px 16px calc(72px + env(safe-area-inset-bottom));
+  padding: 16px 16px 24px;
 }
 
 .g-footer {
@@ -711,6 +710,82 @@
   .g-nav-desktop { display: none; }
   .g-nav-mobile { display: block; }
   .g-actions { grid-template-columns: 1fr; }
+
+  .g-brand-row {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+
+  .g-brand {
+    font-size: 15px;
+    letter-spacing: 0.08em;
+  }
+
+  .g-header-meta {
+    padding: 0 12px 4px;
+  }
+
+  .g-player-line {
+    padding: 0 0 4px;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .g-status {
+    padding: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px 6px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .g-status-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .g-status-item .g-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--game-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .g-status-item .g-value {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .g-nav-mobile a,
+  .g-nav-mobile button {
+    min-height: 44px;
+  }
+
+  .g-nav-mobile .g-nav-link-inner {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10px;
+  }
+
+  .g-nav-mobile .g-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .g-main {
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .g-title {
+    margin: 0 0 10px;
+    font-size: clamp(22px, 6vw, 28px);
+  }
+
+  .g-footer {
+    display: none;
+  }
 }
 
 @media (min-width: 769px) {
