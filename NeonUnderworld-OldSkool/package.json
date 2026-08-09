@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3302",
     "build": "next build",
-    "vercel-build": "next build",
+    "vercel-build": "bash scripts/vercel-build.sh",
     "start": "next start -p 3302",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

@@ -1,37 +1,42 @@
 # Deploying Neon Underworld (OldSkool)
 
-The playable game is **OldSkool only**. The repo root holds shared game engine code (`src/lib`, `src/server`, Prisma) — not a deployable Next.js app.
+## Required: Vercel Root Directory
 
-## Vercel setup
+The live site **will 500** unless this is set:
 
-The repo includes a root `vercel.json` that builds **OldSkool** automatically — you do **not** need to change Root Directory for a standard Git deploy.
+1. Vercel → your **neon-underworld** project
+2. **Settings** → **General**
+3. **Root Directory** → **Edit**
+4. Enter: `NeonUnderworld-OldSkool`
+5. Enable **Include source files outside of the Root Directory in the Build Step**
+6. **Save**
 
-Optional (cleaner): set **Root Directory** to `NeonUnderworld-OldSkool` in Project → Settings → General, then enable **Include source files outside of the Root Directory** (OldSkool imports the shared engine from `../src`).
+Then **Deployments** → **Redeploy** the latest commit.
+
+The playable app lives in `NeonUnderworld-OldSkool/`. The repo root is shared engine code only (`src/`, `prisma/`).
 
 ## Environment variables
 
-**Required for the game to work.** Add these in Vercel → Project → Settings → Environment Variables (Production + Preview):
+In **Settings → Environment Variables** (Production + Preview):
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (Neon, Supabase, Vercel Postgres, etc.) |
-| `AUTH_SECRET` | Random 32+ char secret (`openssl rand -base64 32`) |
-| `APP_URL` | Your Vercel URL, e.g. `https://neon-underworld-kappa.vercel.app` |
-
-Without `DATABASE_URL`, the build still completes but registration/login will show a database error until you add it and redeploy.
+| `DATABASE_URL` | Set automatically when Neon is connected |
+| `AUTH_SECRET` | `openssl rand -base64 32` |
+| `APP_URL` | `https://neon-underworld-kappa.vercel.app` |
 
 ## First deploy checklist
 
-1. Root Directory = `NeonUnderworld-OldSkool`
-2. Env vars above are set
-3. Deploy (build runs `prisma migrate deploy` then `next build`)
-4. Seed the production database once from your machine:
+1. Root Directory = `NeonUnderworld-OldSkool` (+ include files outside root)
+2. Neon connected, env vars above set
+3. Deploy succeeds (build log shows `OldSkool build complete`)
+4. Seed once from your Mac:
 
 ```bash
-DATABASE_URL="your-production-url" npm run db:seed
+DATABASE_URL="your-neon-url-from-storage-tab" npm run db:seed
 ```
 
-Default invite code after seed: `NEON-ALPHA-2026`
+Default invite code: `NEON-ALPHA-2026`
 
 ## Local development
 
@@ -39,7 +44,8 @@ Default invite code after seed: `NEON-ALPHA-2026`
 npm install
 cd NeonUnderworld-OldSkool && npm install && cd ..
 cp .env.example .env
-# Edit DATABASE_URL, AUTH_SECRET; set APP_URL=http://localhost:3302 in NeonUnderworld-OldSkool/.env
+cp .env NeonUnderworld-OldSkool/.env
+# APP_URL=http://localhost:3302 in NeonUnderworld-OldSkool/.env
 npm run db:migrate
 npm run db:seed
 npm run dev
