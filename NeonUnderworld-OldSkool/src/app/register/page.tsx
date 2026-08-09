@@ -1,36 +1,23 @@
-import { PublicHomeLayout } from '@local/features/auth/OldSkoolAuth';
+import { AuthShell } from '@local/components/game/AuthShell';
 import { RegisterForm } from '@local/features/auth/RegisterForm';
-import { loadPublicPageData } from '@local/lib/public-page-data';
-
-export const dynamic = 'force-dynamic';
+import { loadRegisterPageData } from '@local/lib/register-page-data';
 
 export default async function RegisterPage() {
-  const data = await loadPublicPageData({ includeDistricts: true });
+  const data = await loadRegisterPageData();
 
   if (!data.ok) {
     return (
-      <PublicHomeLayout leaders={[]} seasonLabel="Neon Underworld">
-        <div className="os-section">
-          <div className="os-section-title">Registration Unavailable</div>
-          <div className="os-section-body">
-            <p role="alert" style={{ color: 'var(--os-red)', lineHeight: 1.5 }}>
-              {data.message}
-            </p>
-          </div>
-        </div>
-      </PublicHomeLayout>
+      <AuthShell title="Register">
+        <p className="g-auth-error" role="alert">
+          {data.message}
+        </p>
+      </AuthShell>
     );
   }
 
   return (
-    <PublicHomeLayout leaders={data.leaders} seasonLabel={data.seasonLabel}>
-      <RegisterForm
-        districts={data.districts.map((d) => ({
-          slug: d.slug,
-          name: d.name,
-          description: d.description,
-        }))}
-      />
-    </PublicHomeLayout>
+    <AuthShell title="Register">
+      <RegisterForm districts={data.districts} />
+    </AuthShell>
   );
 }

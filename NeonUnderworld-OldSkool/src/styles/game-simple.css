@@ -897,3 +897,116 @@
 .g-filter-active .g-icon {
   color: var(--game-gold);
 }
+
+/* ── Auth (login / register) ── */
+.g-auth-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.g-auth-top {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--os-border);
+  background: var(--os-bg-header);
+}
+
+.g-auth-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 32px;
+}
+
+.g-auth-card {
+  width: min(100%, 380px);
+  padding: 20px;
+  border: 1px solid var(--os-border);
+  background: rgba(18, 18, 22, 0.92);
+}
+
+.g-auth-title {
+  margin: 0 0 16px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--os-gold);
+  font-family: Impact, "Arial Black", sans-serif;
+}
+
+.g-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.g-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.g-auth-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.g-auth-districts {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--os-border);
+}
+
+.g-auth-districts legend {
+  padding: 0 4px;
+}
+
+.g-auth-district-option {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.g-auth-district-option:first-of-type {
+  margin-top: 4px;
+}
+
+.g-auth-district-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--game-fs-secondary);
+  color: var(--game-text-secondary);
+}
+
+.g-auth-error {
+  margin: 0;
+  color: var(--os-red);
+  line-height: 1.45;
+}
+
+.g-auth-submit {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 4px;
+}
+
+.g-auth-foot {
+  margin: 0;
+  text-align: center;
+  font-size: var(--game-fs-secondary);
+  color: var(--game-text-secondary);
+}
+
+.g-auth-foot a {
+  color: var(--os-link);
+  text-decoration: none;
+}
+
+.g-auth-foot a:hover {
+  color: var(--os-link-hover);
+  text-decoration: underline;
+}

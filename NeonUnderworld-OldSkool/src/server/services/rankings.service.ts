@@ -1,3 +1,5 @@
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@core/lib/db/prisma';
 import { NetWorthService, type PlayerNetWorthRecord } from './net-worth.service';
 import { PlayerStatusService } from './player-status.service';
@@ -24,6 +26,24 @@ const DISTRICT_FILTERS: Record<Exclude<RankingsFilter, 'overall'>, string> = {
   'old-quarter': 'old-quarter',
 };
 
+const RANK_NET_WORTH_SELECT = {
+  id: true,
+  createdAt: true,
+  cash: true,
+  bankCash: true,
+  prostitutes: true,
+  thugs: true,
+  rides: true,
+  glocks: true,
+  uzis: true,
+  aks: true,
+  hash: true,
+  shrooms: true,
+  coke: true,
+  heroin: true,
+  businesses: true,
+} as const;
+
 function compareRankings(
   a: { netWorth: number; createdAt: Date; id: string },
   b: { netWorth: number; createdAt: Date; id: string },
@@ -33,6 +53,41 @@ function compareRankings(
   if (created !== 0) return created;
   return a.id.localeCompare(b.id);
 }
+
+async function computePlayerRank(playerId: string, seasonId: string): Promise<number> {
+  const snapshot = await prisma.rankSnapshot.findFirst({
+    where: { playerId, seasonId },
+    orderBy: { createdAt: 'desc' },
+    select: { rank: true },
+  });
+  if (snapshot) return snapshot.rank;
+
+  const players = await prisma.player.findMany({
+    where: { seasonId, isSystemPlayer: false },
+    select: RANK_NET_WORTH_SELECT,
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const netWorthMap = NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
+  const ranked = players
+    .map((p) => ({
+      id: p.id,
+      netWorth: netWorthMap.get(p.id) ?? 0,
+      createdAt: p.createdAt,
+    }))
+    .sort(compareRankings);
+
+  const index = ranked.findIndex((row) => row.id === playerId);
+  return index >= 0 ? index + 1 : 0;
+}
+
+const getCachedPlayerRank = cache((playerId: string, seasonId: string) =>
+  unstable_cache(
+    () => computePlayerRank(playerId, seasonId),
+    ['player-rank', playerId, seasonId],
+    { revalidate: 45 },
+  )(),
+);
 
 export const RankingsService = {
   async getSeasonRankings(
@@ -85,9 +140,7 @@ export const RankingsService = {
     return enriched.map((row, i) => ({ ...row, rank: i + 1 }));
   },
 
-  async getPlayerRank(playerId: string, seasonId: string): Promise<number> {
-    const rows = await this.getSeasonRankings(seasonId, 'overall');
-    const found = rows.find((r) => r.id === playerId);
-    return found?.rank ?? 0;
+  getPlayerRank(playerId: string, seasonId: string): Promise<number> {
+    return getCachedPlayerRank(playerId, seasonId);
   },
 };

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@local/lib/auth/config';
 import { PlayerService, type CanonicalPlayerContext } from '@local/server/services/player.service';
@@ -10,16 +11,16 @@ import { collectAttentionItems, prioritizeAttentionItems } from '@local/lib/atte
 
 import { normalizeHiddenBankBalance } from '@local/server/services/bank-normalize.service';
 
-export async function requireGameSession(): Promise<{
+export const requireGameSession = cache(async (): Promise<{
   playerId: string;
   ctx: CanonicalPlayerContext;
-}> {
+}> => {
   const session = await auth();
   if (!session?.user?.playerId) redirect('/login');
   await normalizeHiddenBankBalance(session.user.playerId);
   const ctx = await PlayerService.getCanonicalContext(session.user.playerId);
   return { playerId: session.user.playerId, ctx };
-}
+});
 
 export async function buildAttentionItems(ctx: CanonicalPlayerContext): Promise<AttentionItem[]> {
   const unreadCount = await ReportService.getUnreadCount(ctx.id);

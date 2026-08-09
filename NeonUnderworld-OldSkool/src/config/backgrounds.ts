@@ -50,18 +50,22 @@ export function gameBackgroundLegacySrc(key: GameBackgroundKey): string | null {
 
 /**
  * Bump a page when you replace its image file — busts browser cache for that background only.
- * home: 4 — replaced home.png from home1.png (Aug 2026)
- * intel: 2 — replaced intel.png (Aug 2026)
- * attack: 2 — replaced attack.png (Aug 2026)
- * reports: 2 — replaced reports.png (Aug 2026)
- * guides: 2 — replaced guides.png (Aug 2026)
+ * v5 — webp assets (Aug 2026), ~90% smaller than PNG
  */
 export const GAME_BACKGROUND_REVISION: Partial<Record<GameBackgroundKey, number>> = {
-  home: 4,
-  intel: 2,
-  attack: 2,
-  reports: 2,
-  guides: 2,
+  home: 5,
+  empire: 5,
+  scout: 5,
+  produce: 5,
+  shop: 5,
+  rankings: 5,
+  intel: 5,
+  attack: 5,
+  reports: 5,
+  guides: 5,
+  market: 5,
+  travel: 5,
+  cartel: 5,
 };
 
 export function gameBackgroundUrl(path: string, key: GameBackgroundKey): string {

@@ -30,57 +30,85 @@ export function RegisterForm({ districts }: RegisterFormProps) {
   }
 
   return (
-    <div className="os-section">
-      <div className="os-section-title">New Operator Registration</div>
-      <div className="os-section-body">
-        <form onSubmit={handleSubmit}>
-          <table className="os-table">
-            <tbody>
-              <tr>
-                <td><label htmlFor="inviteCode">Invite code</label></td>
-                <td><input id="inviteCode" name="inviteCode" required className="os-input" style={{ width: '100%' }} placeholder="NEON-ALPHA-2026" /></td>
-              </tr>
-              <tr>
-                <td><label htmlFor="email">Email</label></td>
-                <td><input id="email" name="email" type="email" required className="os-input" style={{ width: '100%' }} autoComplete="email" /></td>
-              </tr>
-              <tr>
-                <td><label htmlFor="password">Password</label></td>
-                <td><input id="password" name="password" type="password" required className="os-input" style={{ width: '100%' }} autoComplete="new-password" /></td>
-              </tr>
-              <tr>
-                <td><label htmlFor="confirmPassword">Confirm</label></td>
-                <td><input id="confirmPassword" name="confirmPassword" type="password" required className="os-input" style={{ width: '100%' }} autoComplete="new-password" /></td>
-              </tr>
-              <tr>
-                <td><label htmlFor="alias">Alias</label></td>
-                <td><input id="alias" name="alias" required className="os-input" style={{ width: '100%' }} autoComplete="username" /></td>
-              </tr>
-            </tbody>
-          </table>
+    <form className="g-auth-form" onSubmit={handleSubmit}>
+      <label className="g-auth-field">
+        <span className="g-field-label">Invite code</span>
+        <input
+          id="inviteCode"
+          name="inviteCode"
+          required
+          className="g-input g-auth-input"
+          placeholder="NEON-ALPHA-2026"
+        />
+      </label>
+      <label className="g-auth-field">
+        <span className="g-field-label">Email</span>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          className="g-input g-auth-input"
+          autoComplete="email"
+        />
+      </label>
+      <label className="g-auth-field">
+        <span className="g-field-label">Password</span>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          className="g-input g-auth-input"
+          autoComplete="new-password"
+        />
+      </label>
+      <label className="g-auth-field">
+        <span className="g-field-label">Confirm password</span>
+        <input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          required
+          className="g-input g-auth-input"
+          autoComplete="new-password"
+        />
+      </label>
+      <label className="g-auth-field">
+        <span className="g-field-label">Alias</span>
+        <input
+          id="alias"
+          name="alias"
+          required
+          className="g-input g-auth-input"
+          autoComplete="username"
+        />
+      </label>
 
-          <fieldset style={{ border: '1px solid var(--os-border)', marginTop: 12, padding: 10 }}>
-            <legend style={{ padding: '0 6px', color: 'var(--os-gold)', fontSize: 13 }}>Select District</legend>
-            {districts.map((d) => (
-              <label key={d.slug} style={{ display: 'block', marginBottom: 8, cursor: 'pointer' }}>
-                <input type="radio" name="districtSlug" value={d.slug} required style={{ marginRight: 8 }} />
-                <strong>{d.name}</strong>
-                <span style={{ display: 'block', marginLeft: 22, fontSize: 12, color: 'var(--os-text-dim)' }}>{d.description}</span>
-              </label>
-            ))}
-          </fieldset>
+      <fieldset className="g-auth-districts">
+        <legend className="g-field-label">District</legend>
+        {districts.map((d) => (
+          <label key={d.slug} className="g-auth-district-option">
+            <input type="radio" name="districtSlug" value={d.slug} required />
+            <span>
+              <strong>{d.name}</strong>
+              <span className="g-auth-district-desc">{d.description}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
-          {error && <p style={{ color: 'var(--os-red)', marginTop: 8 }} role="alert">{error}</p>}
-          <p style={{ marginTop: 10 }}>
-            <button type="submit" className="os-btn os-btn-primary" disabled={loading}>
-              {loading ? 'Processing…' : 'Establish Empire'}
-            </button>
-          </p>
-          <p style={{ fontSize: 12 }}>
-            Already registered? <Link href="/login" className="os-link">Sign in</Link>
-          </p>
-        </form>
-      </div>
-    </div>
+      {error && (
+        <p className="g-auth-error" role="alert">
+          {error}
+        </p>
+      )}
+      <button type="submit" className="g-btn g-auth-submit" disabled={loading}>
+        {loading ? 'Creating account…' : 'Create account'}
+      </button>
+      <p className="g-auth-foot">
+        Already registered? <Link href="/login">Sign in</Link>
+      </p>
+    </form>
   );
 }

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { prisma } from '@core/lib/db/prisma';
 import { formatSeasonStatus } from '@core/lib/game/season-display';
 import {
@@ -167,11 +168,15 @@ function buildCanonicalContext(
   };
 }
 
+const getCanonicalContextCached = cache(async (playerId: string): Promise<CanonicalPlayerContext> => {
+  const player = await loadPlayerRecord(playerId);
+  const rank = await RankingsService.getPlayerRank(playerId, player.seasonId);
+  return buildCanonicalContext(player, rank);
+});
+
 export const PlayerService = {
-  async getCanonicalContext(playerId: string): Promise<CanonicalPlayerContext> {
-    const player = await loadPlayerRecord(playerId);
-    const rank = await RankingsService.getPlayerRank(playerId, player.seasonId);
-    return buildCanonicalContext(player, rank);
+  getCanonicalContext(playerId: string): Promise<CanonicalPlayerContext> {
+    return getCanonicalContextCached(playerId);
   },
 
   async getCommandData(playerId: string): Promise<CommandPageData> {

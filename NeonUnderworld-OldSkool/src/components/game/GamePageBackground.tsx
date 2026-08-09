@@ -14,7 +14,9 @@ import {
   GAME_BACKGROUND_REVISION,
 } from '@local/config/backgrounds';
 
-type SourceStage = 'png' | 'webp' | 'legacy';
+type SourceStage = 'webp' | 'png' | 'legacy';
+
+const loadedBackgroundUrls = new Set<string>();
 
 function srcForStage(key: GameBackgroundKey, stage: SourceStage): string | null {
   if (stage === 'webp') return gameBackgroundSrc(key);
@@ -29,13 +31,19 @@ function imageAlreadyLoaded(img: HTMLImageElement | null): boolean {
 export function GamePageBackground({ background }: { background: GameBackgroundKey }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [active, setActive] = useState(true);
-  const [loaded, setLoaded] = useState(false);
-  /** PNG first — project ships PNG; avoids a 404 webp round-trip on every page load */
-  const [stage, setStage] = useState<SourceStage>('png');
+  const [stage, setStage] = useState<SourceStage>('webp');
   const src = srcForStage(background, stage);
   const srcWithCache = src ? gameBackgroundUrl(src, background) : null;
+  const [loaded, setLoaded] = useState(() =>
+    srcWithCache ? loadedBackgroundUrls.has(srcWithCache) : false,
+  );
 
   useLayoutEffect(() => {
+    if (!srcWithCache) return;
+    if (loadedBackgroundUrls.has(srcWithCache)) {
+      setLoaded(true);
+      return;
+    }
     setLoaded(imageAlreadyLoaded(imgRef.current));
   }, [background, stage, srcWithCache]);
 
@@ -49,12 +57,12 @@ export function GamePageBackground({ background }: { background: GameBackgroundK
   const transform = transformParts.length > 0 ? transformParts.join(' ') : undefined;
 
   function handleError() {
-    if (stage === 'png') {
-      setStage('webp');
+    if (stage === 'webp') {
+      setStage('png');
       setLoaded(false);
       return;
     }
-    if (stage === 'webp') {
+    if (stage === 'png') {
       const legacy = gameBackgroundLegacySrc(background);
       if (legacy) {
         setStage('legacy');
@@ -63,6 +71,11 @@ export function GamePageBackground({ background }: { background: GameBackgroundK
       }
     }
     setActive(false);
+  }
+
+  function handleLoad() {
+    loadedBackgroundUrls.add(srcWithCache!);
+    setLoaded(true);
   }
 
   return (
@@ -78,13 +91,13 @@ export function GamePageBackground({ background }: { background: GameBackgroundK
         src={srcWithCache}
         alt=""
         decoding="async"
-        fetchPriority="high"
+        fetchPriority="low"
         style={{
           objectPosition: gameBackgroundPosition(background),
           transform,
           transformOrigin: gameBackgroundPosition(background),
         }}
-        onLoad={() => setLoaded(true)}
+        onLoad={handleLoad}
         onError={handleError}
       />
       <div className="g-page-bg-overlay" />
