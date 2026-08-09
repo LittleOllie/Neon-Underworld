@@ -39,6 +39,18 @@ DATABASE_URL="your-neon-url-from-storage-tab" npm run db:seed
 
 Default invite code: `NEON-ALPHA-2026`
 
+### Database migrations
+
+Vercel builds **do not** run migrations by default (avoids Prisma P1002 lock timeouts on Neon).
+
+When you change the Prisma schema, migrate from your Mac using Neon’s **direct** connection string:
+
+```bash
+DATABASE_URL="postgresql://...@ep-xxxx.region.aws.neon.tech/neondb?sslmode=require" npx prisma migrate deploy
+```
+
+Or enable one deploy with migrations: set `RUN_DB_MIGRATE=true` in Vercel env vars, deploy, then remove it.
+
 ## Performance (important for Vercel)
 
 Each page navigation hits the server and Neon Postgres. For noticeably faster loads:
@@ -54,9 +66,9 @@ Example shape:
 
 Direct (non-pooled) URLs add latency on every serverless cold start and can exhaust connections under load.
 
-**Do not** point `DATABASE_URL` at the pooler for Vercel builds only — runtime should use pooled. Migrations during build automatically use the direct host (see `scripts/vercel-build.sh`).
+**Do not** run migrations through the pooled URL. Runtime should use pooled; migrate manually with the direct URL when needed.
 
-If a deploy fails with **Prisma P1002** (advisory lock timeout), redeploy once. For repeated failures, add `DATABASE_URL_UNPOOLED` in Vercel using Neon’s **Direct connection** string.
+If a deploy fails with **Prisma P1002**, migrations are no longer run automatically on build — redeploy after this fix or run migrations locally.
 
 ### 2. Playtest NPC seed (optional)
 

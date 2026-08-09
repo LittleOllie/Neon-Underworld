@@ -19,20 +19,25 @@ fi
 echo "==> Building OldSkool"
 cd "$OLDSKOOL"
 
-if [[ -n "${DATABASE_URL:-}" ]]; then
-  # Migrations need a direct Postgres connection. Pooled Neon URLs (-pooler)
-  # cannot acquire pg_advisory_lock and fail with Prisma P1002 on Vercel builds.
+# Migrations are NOT run on every Vercel build — pooled Neon URLs and concurrent
+# deploys often fail with Prisma P1002 (advisory lock timeout). The production DB
+# is already migrated; run migrations manually when the schema changes:
+#
+#   DATABASE_URL="neon-direct-url" npm run db:migrate
+#
+# Or set RUN_DB_MIGRATE=true in Vercel for a one-off deploy after adding migrations.
+if [[ "${RUN_DB_MIGRATE:-}" == "true" && -n "${DATABASE_URL:-}" ]]; then
   MIGRATE_URL="${DATABASE_URL_UNPOOLED:-${DIRECT_DATABASE_URL:-$DATABASE_URL}}"
   if [[ "$MIGRATE_URL" == *"-pooler"* ]]; then
     MIGRATE_URL="${MIGRATE_URL//-pooler/}"
     echo "==> Using direct Neon host for migrations (removed -pooler from URL)"
   fi
 
-  echo "==> Running migrations"
+  echo "==> Running migrations (RUN_DB_MIGRATE=true)"
   export PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT="${PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT:-60000}"
   DATABASE_URL="$MIGRATE_URL" npx prisma migrate deploy --schema="$ROOT/prisma/schema.prisma"
 else
-  echo "WARN: DATABASE_URL not set — skipping migrations"
+  echo "==> Skipping migrations (default). Set RUN_DB_MIGRATE=true to migrate on deploy."
 fi
 
 npm run build
