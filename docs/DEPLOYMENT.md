@@ -38,6 +38,27 @@ DATABASE_URL="your-neon-url-from-storage-tab" npm run db:seed
 
 Default invite code: `NEON-ALPHA-2026`
 
+## Performance (important for Vercel)
+
+Each page navigation hits the server and Neon Postgres. For noticeably faster loads:
+
+### 1. Use Neon’s pooled connection string
+
+In **Vercel → Settings → Environment Variables**, set `DATABASE_URL` to the **pooled** connection string from Neon (hostname contains `-pooler`), not the direct connection.
+
+In Neon: **Dashboard → Connection details → Pooled connection**.
+
+Example shape:
+`postgresql://user:pass@ep-xxxx-pooler.region.aws.neon.tech/neondb?sslmode=require`
+
+Direct (non-pooled) URLs add latency on every serverless cold start and can exhaust connections under load.
+
+### 2. Playtest NPC seed (optional)
+
+```bash
+DATABASE_URL="your-neon-pooled-url" npm run db:seed:playtest-npcs
+```
+
 ## Local development
 
 ```bash

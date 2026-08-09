@@ -5,6 +5,7 @@ export const { auth: middleware } = NextAuth(authConfig);
 
 export const config = {
   matcher: [
+    '/command',
     '/command/:path*',
     '/empire/:path*',
     '/operations/:path*',
@@ -20,5 +21,6 @@ export const config = {
     '/players/:path*',
     '/guides/:path*',
     '/coming/:path*',
+    '/playtest/:path*',
   ],
 };

@@ -89,55 +89,64 @@ const getCachedPlayerRank = cache((playerId: string, seasonId: string) =>
   )(),
 );
 
-export const RankingsService = {
-  async getSeasonRankings(
-    seasonId: string,
-    filter: RankingsFilter = 'overall',
-  ): Promise<RankingRow[]> {
-    const districtSlug =
-      filter === 'overall' ? undefined : DISTRICT_FILTERS[filter];
+async function computeSeasonRankings(
+  seasonId: string,
+  filter: RankingsFilter = 'overall',
+): Promise<RankingRow[]> {
+  const districtSlug = filter === 'overall' ? undefined : DISTRICT_FILTERS[filter];
 
-    const players = await prisma.player.findMany({
-      where: {
-        seasonId,
-        isSystemPlayer: false,
-        ...(districtSlug ? { district: { slug: districtSlug } } : {}),
-      },
-      include: {
-        district: true,
-        user: { select: { lastLoginAt: true } },
-        statusExt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+  const players = await prisma.player.findMany({
+    where: {
+      seasonId,
+      isSystemPlayer: false,
+      ...(districtSlug ? { district: { slug: districtSlug } } : {}),
+    },
+    include: {
+      district: true,
+      user: { select: { lastLoginAt: true } },
+      statusExt: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  });
 
-    const netWorthMap = NetWorthService.calculateForPlayers(
-      players as PlayerNetWorthRecord[],
+  const netWorthMap = NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
+
+  const enriched = players.map((p) => {
+    const lastSeen = PlayerStatusService.resolveLastSeen(
+      p.user.lastLoginAt,
+      p.statusExt?.lastSeenAt,
+      p.updatedAt,
     );
+    return {
+      id: p.id,
+      alias: p.alias,
+      aliasNormalized: p.aliasNormalized,
+      city: p.district.name,
+      citySlug: p.district.slug,
+      cartelId: p.cartelId,
+      netWorth: netWorthMap.get(p.id) ?? 0,
+      lastSeen,
+      online: PlayerStatusService.isOnline(lastSeen),
+      createdAt: p.createdAt,
+    };
+  });
 
-    const enriched = players.map((p) => {
-      const lastSeen = PlayerStatusService.resolveLastSeen(
-        p.user.lastLoginAt,
-        p.statusExt?.lastSeenAt,
-        p.updatedAt,
-      );
-      return {
-        id: p.id,
-        alias: p.alias,
-        aliasNormalized: p.aliasNormalized,
-        city: p.district.name,
-        citySlug: p.district.slug,
-        cartelId: p.cartelId,
-        netWorth: netWorthMap.get(p.id) ?? 0,
-        lastSeen,
-        online: PlayerStatusService.isOnline(lastSeen),
-        createdAt: p.createdAt,
-      };
-    });
+  enriched.sort(compareRankings);
 
-    enriched.sort(compareRankings);
+  return enriched.map((row, i) => ({ ...row, rank: i + 1 }));
+}
 
-    return enriched.map((row, i) => ({ ...row, rank: i + 1 }));
+const getCachedSeasonRankings = cache((seasonId: string, filter: RankingsFilter) =>
+  unstable_cache(
+    () => computeSeasonRankings(seasonId, filter),
+    ['season-rankings', seasonId, filter],
+    { revalidate: 30 },
+  )(),
+);
+
+export const RankingsService = {
+  getSeasonRankings(seasonId: string, filter: RankingsFilter = 'overall'): Promise<RankingRow[]> {
+    return getCachedSeasonRankings(seasonId, filter);
   },
 
   getPlayerRank(playerId: string, seasonId: string): Promise<number> {

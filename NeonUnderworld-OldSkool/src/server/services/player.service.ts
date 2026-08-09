@@ -170,7 +170,22 @@ function buildCanonicalContext(
 
 const getCanonicalContextCached = cache(async (playerId: string): Promise<CanonicalPlayerContext> => {
   const player = await loadPlayerRecord(playerId);
-  const rank = await RankingsService.getPlayerRank(playerId, player.seasonId);
+  const rankPromise = RankingsService.getPlayerRank(playerId, player.seasonId);
+
+  if (player.bankCash > 0) {
+    const amount = player.bankCash;
+    await prisma.player.update({
+      where: { id: playerId },
+      data: {
+        cash: { increment: amount },
+        bankCash: 0,
+      },
+    });
+    player.cash += amount;
+    player.bankCash = 0;
+  }
+
+  const rank = await rankPromise;
   return buildCanonicalContext(player, rank);
 });
 

@@ -9,15 +9,12 @@ import type { GlobalStats } from '@local/components/game/Shell';
 import type { AttentionItem } from '@local/lib/attention-items';
 import { collectAttentionItems, prioritizeAttentionItems } from '@local/lib/attention-items';
 
-import { normalizeHiddenBankBalance } from '@local/server/services/bank-normalize.service';
-
 export const requireGameSession = cache(async (): Promise<{
   playerId: string;
   ctx: CanonicalPlayerContext;
 }> => {
   const session = await auth();
   if (!session?.user?.playerId) redirect('/login');
-  await normalizeHiddenBankBalance(session.user.playerId);
   const ctx = await PlayerService.getCanonicalContext(session.user.playerId);
   return { playerId: session.user.playerId, ctx };
 });

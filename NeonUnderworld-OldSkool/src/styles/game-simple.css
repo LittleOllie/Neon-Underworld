@@ -1010,3 +1010,54 @@
   color: var(--os-link-hover);
   text-decoration: underline;
 }
+
+/* ── Route loading skeleton ── */
+.g-loading-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.g-loading-bar {
+  height: 12px;
+  margin: 0 16px 8px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: g-loading-shimmer 1.2s ease-in-out infinite;
+}
+
+.g-loading-bar--short {
+  width: 55%;
+  margin-bottom: 12px;
+}
+
+.g-loading-title {
+  height: 22px;
+  width: 40%;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  animation: g-loading-shimmer 1.2s ease-in-out infinite;
+}
+
+.g-loading-panel {
+  height: 120px;
+  margin-bottom: 12px;
+  border: 1px solid var(--os-border);
+  background: rgba(18, 18, 22, 0.75);
+  animation: g-loading-shimmer 1.2s ease-in-out infinite;
+}
+
+.g-loading-panel--sm {
+  height: 64px;
+  width: 70%;
+}
+
+@keyframes g-loading-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

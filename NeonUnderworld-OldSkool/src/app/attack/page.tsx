@@ -9,8 +9,8 @@ interface Props {
 
 export default async function AttackPage({ searchParams }: Props) {
   const params = await searchParams;
-  const { playerId, ctx } = await requireGameSession();
-  const data = await getAttackPageData(playerId);
+  const { ctx } = await requireGameSession();
+  const data = await getAttackPageData(ctx);
 
   return (
     <GameShell stats={globalStatsFromContext(ctx)} background="attack">

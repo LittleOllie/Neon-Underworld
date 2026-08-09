@@ -4,8 +4,8 @@ import { EmpireService } from '@local/server/services/empire.service';
 import { EmpireSimpleView } from '@local/features/empire/EmpireSimpleView';
 
 export default async function EmpirePage() {
-  const { playerId, ctx } = await requireGameSession();
-  const data = await EmpireService.getManagementData(playerId);
+  const { ctx } = await requireGameSession();
+  const data = await EmpireService.getManagementDataFromContext(ctx);
 
   return (
     <GameShell stats={globalStatsFromContext(ctx)} background="empire">

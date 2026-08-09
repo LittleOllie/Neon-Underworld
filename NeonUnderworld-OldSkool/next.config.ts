@@ -30,6 +30,19 @@ const nextConfig: NextConfig = {
     return config;
   },
   outputFileTracingRoot: path.join(__dirname, '../'),
+  async headers() {
+    return [
+      {
+        source: '/images/game-backgrounds/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

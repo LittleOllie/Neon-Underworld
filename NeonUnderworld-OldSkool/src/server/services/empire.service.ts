@@ -75,6 +75,25 @@ async function loadPlayerForManagement(playerId: string) {
   });
 }
 
+function inventoryFromContext(ctx: CanonicalPlayerContext): PlayerInventoryRow {
+  return {
+    thugs: ctx.thugs,
+    prostitutes: ctx.prostitutes,
+    glocks: ctx.glocks,
+    uzis: ctx.uzis,
+    aks: ctx.aks,
+    rides: ctx.rides,
+    hash: ctx.hash,
+    shrooms: ctx.shrooms,
+    coke: ctx.coke,
+    heroin: ctx.heroin,
+    businesses: ctx.businesses,
+    condoms: ctx.condoms,
+    beer: ctx.beer,
+    prostitutePayoutPercent: ctx.prostitutePayoutPercent,
+  };
+}
+
 export const EmpireService = {
   aggregateFromPlayer,
 
@@ -150,6 +169,83 @@ export const EmpireService = {
       unarmedThugs: weapons.unarmedThugs,
       bankCash: ctx.bankCash,
       readinessWarningCount: readiness.warningCount,
+    };
+  },
+
+  async getManagementDataFromContext(ctx: CanonicalPlayerContext): Promise<EmpireManagementData> {
+    const inventory = inventoryFromContext(ctx);
+    const netWorth = ctx.netWorth;
+    const weapons = buildWeaponsBreakdown(inventory);
+    const vehicles = buildVehiclesBreakdown(inventory);
+    const drugs = buildDrugsBreakdown(inventory);
+    const businesses = buildBusinessesBreakdown(inventory);
+    const morale = estimateWorkerMorale(inventory);
+    const supplySummary = buildEmpireSupplySummary(inventory);
+    const readiness = calculateOperationalReadiness({
+      workers: inventory.prostitutes,
+      thugs: inventory.thugs,
+      turns: ctx.turns,
+      usableWeapons: weapons.usableWeapons,
+      totalVehicles: vehicles.totalVehicles,
+      totalCapacity: vehicles.totalCapacity,
+      drugUnits: drugs.totalUnits,
+      weaponCount: weapons.totalWeapons,
+      lifeStatus: ctx.lifeStatus,
+      travelling: ctx.travelling,
+      unarmedThugs: weapons.unarmedThugs,
+    });
+
+    const recentActivity = (await ActivityService.getEmpireRecent(ctx.id, 12)).map(toActivitySummary);
+    const liquidTotal = ctx.cash + ctx.bankCash;
+
+    return {
+      player: {
+        id: ctx.id,
+        alias: ctx.alias,
+        city: ctx.district.name,
+        cartelId: ctx.cartelId,
+        cash: ctx.cash,
+        bankCash: ctx.bankCash,
+        netWorth,
+        turns: ctx.turns,
+        turnCap: ctx.turnCap,
+        health: ctx.health,
+        protectionStatus: ctx.protectionStatus,
+        lifeStatus: ctx.lifeStatus,
+        travelling: ctx.travelling,
+        travelDestination: ctx.travelDestination,
+        rank: ctx.rank,
+      },
+      personnel: {
+        thugs: inventory.thugs,
+        workers: inventory.prostitutes,
+        workerPayoutPercent: inventory.prostitutePayoutPercent,
+        estimatedWorkerMorale: morale,
+        armedThugs: weapons.armedThugs,
+        unarmedThugs: weapons.unarmedThugs,
+      },
+      weapons: {
+        totalWeapons: weapons.totalWeapons,
+        usableWeapons: weapons.usableWeapons,
+        surplusWeapons: weapons.surplusWeapons,
+        shortage: weapons.shortage,
+        byType: weapons.byType,
+      },
+      vehicles,
+      drugs,
+      businesses,
+      finances: {
+        cash: ctx.cash,
+        bankCash: ctx.bankCash,
+        liquidTotal,
+        netWorth,
+        estimatedIncomePerCycle: null,
+        estimatedExpensesPerCycle: null,
+      },
+      readiness,
+      supplySummary,
+      statusMeters: buildEmpireStatusMeters(inventory),
+      recentActivity,
     };
   },
 

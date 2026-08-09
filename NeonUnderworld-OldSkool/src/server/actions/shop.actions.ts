@@ -14,6 +14,7 @@ import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
+import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 
 export type { ShopPurchaseResult, ShopCatalogEntry, ShopItemKey };
 
@@ -41,6 +42,43 @@ export interface ShopPageData {
     workers: number;
   };
   recentPurchases: ShopRecentPurchase[];
+}
+
+export async function getShopPageDataFromContext(
+  ctx: CanonicalPlayerContext,
+): Promise<ShopPageData> {
+  const [catalog, activities] = await Promise.all([
+    coreGetShopCatalog(),
+    prisma.activity.findMany({
+      where: { playerId: ctx.id, category: 'SHOP_PURCHASE' },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  return {
+    catalog,
+    cash: ctx.cash,
+    city: ctx.district.name,
+    inventory: {
+      glocks: ctx.glocks,
+      uzis: ctx.uzis,
+      aks: ctx.aks,
+      rides: ctx.rides,
+      condoms: ctx.condoms,
+      hash: ctx.hash,
+      beer: ctx.beer,
+      shrooms: ctx.shrooms,
+      coke: ctx.coke,
+      heroin: ctx.heroin,
+      thugs: ctx.thugs,
+      workers: ctx.prostitutes,
+    },
+    recentPurchases: activities.map((a) => ({
+      message: a.message,
+      createdAt: a.createdAt,
+    })),
+  };
 }
 
 export async function getShopPageData(playerId: string): Promise<ShopPageData> {

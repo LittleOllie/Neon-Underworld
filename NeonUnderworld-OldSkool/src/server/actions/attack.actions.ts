@@ -17,6 +17,7 @@ import {
 import { ActivityService } from '@local/server/services/activity.service';
 import { ReportService } from '@local/server/services/report.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
+import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import { isWithinAttackRange } from '@core/lib/game-engine/combat-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
 import type { CombatPlayerRecord } from '@core/server/services/combat.service';
@@ -166,64 +167,75 @@ function totalDrugs(d: { hash: number; shrooms: number; coke: number; heroin: nu
   return d.hash + d.shrooms + d.coke + d.heroin;
 }
 
-export async function getAttackPageData(playerId: string) {
-  const player = await prisma.player.findUniqueOrThrow({
-    where: { id: playerId },
-    include: { turnState: true, district: true },
+export async function getAttackPageData(ctx: CanonicalPlayerContext) {
+  const intelReports = await ReportService.listValidPlayerIntelReports(ctx.id);
+  const attackerNw = ctx.netWorth;
+  const activeIntel = intelReports.filter((r) => !r.expired);
+  const targetIds = activeIntel.map((r) => r.intel.targetPlayerId);
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [attackCounts, targetPlayers] = await Promise.all([
+    targetIds.length > 0
+      ? prisma.combatEncounter.groupBy({
+          by: ['defenderId'],
+          where: {
+            attackerId: ctx.id,
+            defenderId: { in: targetIds },
+            createdAt: { gte: since24h },
+          },
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
+    targetIds.length > 0
+      ? prisma.player.findMany({
+          where: { id: { in: targetIds } },
+          include: { district: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const attacksByDefender = new Map(
+    attackCounts.map((row) => [row.defenderId, row._count._all]),
+  );
+  const playersById = new Map(targetPlayers.map((p) => [p.id, p]));
+
+  const targets = activeIntel.map((r) => {
+    const attacksOnTarget = attacksByDefender.get(r.intel.targetPlayerId) ?? 0;
+    const targetPlayer = playersById.get(r.intel.targetPlayerId);
+    const targetNw = targetPlayer
+      ? NetWorthService.calculateFromPlayer(targetPlayer)
+      : r.intel.canonicalNetWorthAtScout;
+    const inRange = isWithinAttackRange(attackerNw, targetNw);
+    const sameDistrict = targetPlayer
+      ? targetPlayer.district.slug === ctx.district.slug
+      : false;
+    const eligible = inRange && sameDistrict;
+    const eligibilityNote = !sameDistrict
+      ? 'You can only attack players in your district.'
+      : !inRange
+        ? 'This player is now outside your attack range.'
+        : 'Eligible';
+
+    return {
+      reportId: r.reportId,
+      alias: r.intel.targetAlias,
+      city: r.intel.targetCity,
+      bands: r.bands,
+      netWorthEstimate: r.intel.canonicalNetWorthAtScout,
+      reportAge: r.createdAt.toISOString(),
+      attacksOnTarget,
+      eligible,
+      eligibilityNote,
+    };
   });
 
-  const intelReports = await ReportService.listValidPlayerIntelReports(playerId);
-  const attackerNw = NetWorthService.calculateFromPlayer(player);
-
-  const targets = await Promise.all(
-    intelReports
-      .filter((r) => !r.expired)
-      .map(async (r) => {
-        const attacksOnTarget = await prisma.combatEncounter.count({
-          where: {
-            attackerId: playerId,
-            defenderId: r.intel.targetPlayerId,
-            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-          },
-        });
-
-        const targetPlayer = await prisma.player.findUnique({
-          where: { id: r.intel.targetPlayerId },
-          include: { district: true },
-        });
-        const targetNw = targetPlayer
-          ? NetWorthService.calculateFromPlayer(targetPlayer)
-          : r.intel.canonicalNetWorthAtScout;
-        const inRange = isWithinAttackRange(attackerNw, targetNw);
-        const sameDistrict = targetPlayer?.districtId === player.districtId;
-        const eligible = inRange && sameDistrict;
-        const eligibilityNote = !sameDistrict
-          ? 'You can only attack players in your district.'
-          : !inRange
-            ? 'This player is now outside your attack range.'
-            : 'Eligible';
-
-        return {
-          reportId: r.reportId,
-          alias: r.intel.targetAlias,
-          city: r.intel.targetCity,
-          bands: r.bands,
-          netWorthEstimate: r.intel.canonicalNetWorthAtScout,
-          reportAge: r.createdAt.toISOString(),
-          attacksOnTarget,
-          eligible,
-          eligibilityNote,
-        };
-      }),
-  );
-
   return {
-    thugs: player.thugs,
-    rides: player.rides,
-    glocks: player.glocks,
-    uzis: player.uzis,
-    aks: player.aks,
-    turns: player.turnState?.currentTurns ?? 0,
+    thugs: ctx.thugs,
+    rides: ctx.rides,
+    glocks: ctx.glocks,
+    uzis: ctx.uzis,
+    aks: ctx.aks,
+    turns: ctx.turns,
     targets,
     attackerNetWorth: attackerNw,
   };
