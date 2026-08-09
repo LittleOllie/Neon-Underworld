@@ -10,13 +10,15 @@ Optional (cleaner): set **Root Directory** to `NeonUnderworld-OldSkool` in Proje
 
 ## Environment variables
 
-Set these on the Vercel project (Production + Preview):
+**Required for the game to work.** Add these in Vercel → Project → Settings → Environment Variables (Production + Preview):
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | PostgreSQL connection string (Neon, Supabase, Vercel Postgres, etc.) |
 | `AUTH_SECRET` | Random 32+ char secret (`openssl rand -base64 32`) |
 | `APP_URL` | Your Vercel URL, e.g. `https://neon-underworld-kappa.vercel.app` |
+
+Without `DATABASE_URL`, the build still completes but registration/login will show a database error until you add it and redeploy.
 
 ## First deploy checklist
 
