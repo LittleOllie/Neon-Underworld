@@ -51,10 +51,12 @@ export function AttackForm(props: AttackFormProps) {
   const forceMax = Math.min(props.thugs, ATTACK_RULES.maxAttackingThugs);
   const defaultForce = Math.min(50, forceMax);
 
-  const defaultReportId =
-    props.initialReportId && props.targets.some((t) => t.reportId === props.initialReportId && t.eligible)
-      ? props.initialReportId
-      : props.targets.find((t) => t.eligible)?.reportId ?? '';
+  const defaultReportId = (() => {
+    if (props.initialReportId && props.targets.some((t) => t.reportId === props.initialReportId)) {
+      return props.initialReportId;
+    }
+    return props.targets.find((t) => t.eligible)?.reportId ?? props.targets[0]?.reportId ?? '';
+  })();
 
   const [selectedReportId, setSelectedReportId] = useState(defaultReportId);
   const [attackType, setAttackType] = useState<AttackType>('HOME_INVASION');
@@ -154,7 +156,7 @@ export function AttackForm(props: AttackFormProps) {
         lines={lines}
         actions={[
           {
-            href: `/players/${encodeURIComponent(result.targetAlias)}`,
+            href: `/players/${encodeURIComponent(result.targetAliasNormalized)}`,
             label: 'Back to Target',
             primary: true,
             icon: 'player',

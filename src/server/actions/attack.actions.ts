@@ -27,6 +27,7 @@ export interface AttackLaunchResult {
   weaponCoverage: string;
   forceEstimate: string;
   targetAlias: string;
+  targetAliasNormalized: string;
   attackerReportId: string;
   defenderReportId: string;
   newTurns: number;
@@ -80,6 +81,7 @@ export async function launchAttackAction(
         weaponCoverage: data.weaponCoverage,
         forceEstimate: data.forceEstimate,
         targetAlias: data.targetAlias,
+        targetAliasNormalized: data.targetAliasNormalized,
         attackerReportId: '',
         defenderReportId: '',
         newTurns: data.newTurns,

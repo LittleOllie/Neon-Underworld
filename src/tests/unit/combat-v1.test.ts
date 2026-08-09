@@ -37,6 +37,8 @@ function baseEligibility(overrides: Partial<Parameters<typeof validateAttackElig
   return validateAttackEligibility({
     attackerId: 'attacker-1',
     defenderId: 'defender-1',
+    attackerDistrictId: 'district-1',
+    defenderDistrictId: 'district-1',
     attackType: 'HOME_INVASION',
     attackingThugs: 50,
     attackerNw: 1_000_000,
@@ -61,6 +63,12 @@ describe('Attack eligibility', () => {
 
   it('rejects below 0.5× net worth', () => {
     expect(baseEligibility({ defenderNw: 400_000 })).toMatch(/outside your attack range/i);
+  });
+
+  it('rejects different district', () => {
+    expect(
+      baseEligibility({ attackerDistrictId: 'district-1', defenderDistrictId: 'district-2' }),
+    ).toMatch(/only attack players in your district/i);
   });
 
   it('rejects above 2× net worth', () => {

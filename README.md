@@ -1,28 +1,26 @@
 # Neon Underworld
 
-A premium, mobile-first, turn-based criminal empire strategy game. Sprint 0 + Sprint 1 delivers the foundation and first playable vertical slice.
+Turn-based criminal empire strategy game — **OldSkool Edition** is the only playable client.
 
-## Gameplay loop (Sprint 1)
+The repo root contains the shared game engine (combat, turns, scouting, Prisma schema). The UI lives in `NeonUnderworld-OldSkool/`.
 
-Register → Enter Command Centre → Regenerate and spend turns → Scout → Receive results → View the updated Empire
-
-## Requirements
-
-- Node.js 20+
-- PostgreSQL 16+ (or use Docker Compose)
-
-## Installation
+## Quick start
 
 ```bash
 npm install
-cp .env.example .env   # Edit values as needed
-docker compose up -d   # Start PostgreSQL
+cd NeonUnderworld-OldSkool && npm install && cd ..
+
+cp .env.example .env
+cp .env NeonUnderworld-OldSkool/.env
+# Set APP_URL=http://localhost:3302 in NeonUnderworld-OldSkool/.env
+
+docker compose up -d   # PostgreSQL (optional if you have a local DB)
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3302](http://localhost:3302)
 
 ## Environment variables
 
@@ -30,82 +28,54 @@ Open [http://localhost:3000](http://localhost:3000)
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `AUTH_SECRET` | Auth.js secret (min 32 chars). Generate: `openssl rand -base64 32` |
-| `APP_URL` | Application URL (default `http://localhost:3000`) |
-| `SEED_ADMIN_EMAIL` | Admin account email for seed |
-| `SEED_ADMIN_PASSWORD` | Admin account password for seed |
-| `SEED_INVITE_CODE` | Invite code created by seed |
+| `APP_URL` | `http://localhost:3302` locally; your Vercel URL in production |
+| `SEED_INVITE_CODE` | Invite code created by seed (default `NEON-ALPHA-2026`) |
 
 ## Database
 
 ```bash
-npm run db:generate   # Generate Prisma client
 npm run db:migrate    # Run migrations
-npm run db:seed       # Seed districts, season, admin, system players
-npm run db:studio     # Open Prisma Studio
+npm run db:seed       # Seed districts, season, admin, invite code
+npm run db:seed:dev-pvp  # Optional — local PvP test opponents
+npm run db:studio     # Prisma Studio
 ```
 
-## Development
+## Scripts
 
 ```bash
-npm run dev           # Start dev server (Turbopack)
-npm run lint          # ESLint
-npm run typecheck     # TypeScript
-npm run test          # Vitest unit tests
-npm run test:e2e      # Playwright E2E tests
-npm run build         # Production build
+npm run dev           # OldSkool dev server (port 3302)
+npm run build         # OldSkool production build
+npm run test          # Core engine unit tests
+npm run test:e2e      # OldSkool Playwright tests
+npm run typecheck     # TypeScript (engine + OldSkool)
 ```
 
-## Admin login
+## Deploying to Vercel
 
-After seeding:
+**Important:** set Vercel **Root Directory** to `NeonUnderworld-OldSkool`.
 
-- **Email:** value of `SEED_ADMIN_EMAIL` (default `admin@neonunderworld.local`)
-- **Password:** value of `SEED_ADMIN_PASSWORD` (default `AdminChangeMe123!`)
-- **Admin dashboard:** `/admin`
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for full steps.
 
-## Invite code flow
+## Admin login (after seed)
 
-1. Admin creates invite codes in `/admin` (or use seed code)
-2. New player visits `/register`
-3. Enters invite code, email, password, alias, and district
-4. Account, player, turn state, and starting resources are created atomically
-
-**Seed invite code:** `NEON-ALPHA-2026` (from `SEED_INVITE_CODE`)
-
-## Main routes
-
-| Route | Description |
-|-------|-------------|
-| `/` | Redirect to login or command |
-| `/login` | Sign in |
-| `/register` | Invite-only registration |
-| `/command` | Command Centre (primary screen) |
-| `/empire` | Empire overview |
-| `/rankings` | Season rankings |
-| `/operations/scout` | Scout action |
-| `/players/[alias]` | Public player profile |
-| `/admin` | Admin dashboard |
-| `/market` | Placeholder (alpha) |
-| `/operations` | Operations hub |
-| `/cartel` | Cartel placeholder (alpha) |
-| `/syndicate` | Redirects to `/cartel` |
-
-## Current prototype scope
-
-**Implemented:** Auth, invite registration, districts, turns, scouting, happiness, net worth, rankings, admin, audit logging
-
-**Implemented (OldSkool):** Scout, Produce, City Shop (support only), Empire, Rankings, Reports, Guides, bank, canonical net worth
-
-**Not yet implemented:** Black Market auctions, combat, cartels, travel, brothels, coffee-shop businesses
-
-## Season display
-
-Season duration comes from the database. After UI updates, reseed to apply the **30-day** season:
-
-```bash
-npm run db:seed
-```
+- **Email:** `admin@neonunderworld.local` (or `SEED_ADMIN_EMAIL`)
+- **Password:** `AdminChangeMe123!` (or `SEED_ADMIN_PASSWORD`)
+- **Invite code for new players:** `NEON-ALPHA-2026`
 
 ## Architecture
 
-See `docs/ARCHITECTURE.md`, `docs/GAME_ENGINE.md`, `docs/DESIGN_SYSTEM.md`, and `docs/PREMIUM_UI_PASS.md`.
+| Path | Purpose |
+|------|---------|
+| `src/lib/game-engine/` | Shared rules (combat, turns, net worth, etc.) |
+| `src/server/` | Shared server actions and services |
+| `prisma/` | Database schema and migrations |
+| `NeonUnderworld-OldSkool/` | Next.js UI — the game you play |
+
+OldSkool imports engine code via `@core/*` → `../src/*`. See [NeonUnderworld-OldSkool/docs/SHARED_ARCHITECTURE.md](./NeonUnderworld-OldSkool/docs/SHARED_ARCHITECTURE.md).
+
+## Docs
+
+- [Deployment](./docs/DEPLOYMENT.md)
+- [OldSkool routes](./NeonUnderworld-OldSkool/docs/ROUTES.md)
+- [Gameplay rules](./NeonUnderworld-OldSkool/docs/GAMEPLAY_RULES.md)
+- [Architecture](./docs/ARCHITECTURE.md)

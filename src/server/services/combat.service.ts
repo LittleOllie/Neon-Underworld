@@ -62,6 +62,7 @@ export interface CombatResolutionOutput {
   weaponCoverage: string;
   forceEstimate: string;
   targetAlias: string;
+  targetAliasNormalized: string;
   targetPlayerId: string;
   scoutReportId: string;
   scoutConfidence: number;
@@ -102,7 +103,7 @@ export async function resolveAttackEncounter(
 ): Promise<CombatResolutionOutput> {
   const existing = await prisma.combatEncounter.findUnique({
     where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
-    include: { defender: { select: { alias: true, id: true } } },
+    include: { defender: { select: { alias: true, aliasNormalized: true, id: true } } },
   });
 
   if (existing) {
@@ -141,6 +142,7 @@ export async function resolveAttackEncounter(
       weaponCoverage: '',
       forceEstimate: '',
       targetAlias: existing.defender.alias,
+      targetAliasNormalized: existing.defender.aliasNormalized,
       targetPlayerId: existing.defenderId,
       scoutReportId,
       scoutConfidence: intel?.confidencePercent ?? 0,
@@ -198,6 +200,8 @@ export async function resolveAttackEncounter(
     const eligibilityCode = validateAttackEligibilityCode({
       attackerId,
       defenderId: defender.id,
+      attackerDistrictId: attacker.districtId,
+      defenderDistrictId: defender.districtId,
       attackType,
       attackingThugs,
       attackerNw,
@@ -373,6 +377,7 @@ export async function resolveAttackEncounter(
     weaponCoverage: weaponCoverageBand(result.attackerAlloc.armedThugs, attackingThugs),
     forceEstimate: result.combat.forceEstimate,
     targetAlias: result.defender.alias,
+    targetAliasNormalized: result.defender.aliasNormalized,
     targetPlayerId: result.defender.id,
     scoutReportId,
     scoutConfidence: result.intel.confidencePercent,

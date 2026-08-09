@@ -1,26 +1,26 @@
-# Shared Architecture — Modern + OldSkool
+# Shared Architecture — OldSkool + game engine
 
 ## Principle
 
-**One source of truth** for game logic, database, and authentication rules.
+**One source of truth** for game logic, database, and authentication rules. OldSkool is the only playable UI.
 
 ## Structure
 
 ```
-Neon-Underworld/                 ← modern client (repo root)
+Neon-Underworld/                 ← repo root (game engine, not a deployable app)
   src/
-    lib/game-engine/             ← turns, scouting, net worth, happiness
+    lib/game-engine/             ← turns, scouting, combat, net worth
     lib/db/prisma.ts
     lib/auth/
     server/actions/
     server/queries/
   prisma/schema.prisma
 
-NeonUnderworld-OldSkool/         ← experimental client
+NeonUnderworld-OldSkool/         ← Next.js app (deploy this)
   src/
-    app/                         ← OldSkool routes only
+    app/                         ← routes, login, register, command, …
     components/oldskool/         ← classic UI shell
-    lib/auth/config.ts           ← OldSkool auth (same credentials provider)
+    lib/auth/config.ts           ← auth (same credentials provider)
   next.config.ts                 ← @core alias + externalDir
 ```
 
@@ -38,51 +38,38 @@ Webpack resolves `@/` inside parent modules to `../src/` via dual alias fallback
 
 ## What is NOT duplicated
 
-- Scouting formulas
-- Turn regeneration
-- Happiness logic
-- **City Shop rules and pricing** (`@core/config/game/shop-rules.ts`)
-- Production and worker economics
+- Scouting, combat, and turn formulas
+- Happiness and production logic
+- City Shop rules (`@core/config/game/shop-rules.ts`)
 - Prisma schema / migrations
-- Invite validation
-- Audit logging
-- Server action transaction boundaries (core scout/payout/register)
+- Invite validation and audit logging
+- Server action transaction boundaries
 
-## OldSkool-specific (not shared with Modern UI)
+## OldSkool-specific
 
-- **Net worth** — OldSkool uses `NeonUnderworld-OldSkool/src/config/valuations.ts` and `NetWorthService`. The parent `calculateNetWorth()` excludes bank cash and businesses; OldSkool UI must never use it.
-- **Rankings** — `RankingsService` batch-calculates canonical net worth for all rows.
-- **Reports** — `ReportService` owns private player reports (SCOUT, SYSTEM, …).
-- **Empire management** — `EmpireService.getManagementData()`, `BankService`, `src/config/empire-rules.ts`.
-- **Terminology** — `src/config/terminology.ts` maps DB fields to player-facing labels (Workers, City, Thugs).
-- **Server action wrappers** — client components import `@local/server/actions/*` only, never `@core/server/actions/*` directly.
-
-```typescript
-// ✅ Client component
-import { scoutAction } from '@local/server/actions/scout.actions';
-
-// ❌ Never in client components
-import { scoutAction } from '@core/server/actions/scout.actions';
-```
+- **Net worth** — `NeonUnderworld-OldSkool/src/config/valuations.ts` and `NetWorthService`
+- **Rankings** — `RankingsService` batch-calculates canonical net worth
+- **Reports** — `ReportService` for scout/combat reports
+- **Empire** — `EmpireService`, `BankService`, `src/config/empire-rules.ts`
+- **Terminology** — `src/config/terminology.ts`
+- **Server action wrappers** — client components use `@local/server/actions/*` only
 
 ## Database
 
-Both apps use `DATABASE_URL` pointing at the same PostgreSQL instance. Prisma client is generated from `../prisma/schema.prisma` on OldSkool `postinstall`.
+Single PostgreSQL via `DATABASE_URL`. Prisma client is generated from `../prisma/schema.prisma` on OldSkool `postinstall`.
 
 ## Authentication
 
-- Same `AUTH_SECRET` and credential store
-- Separate JWT session cookies per port (3100 vs 3302)
-- Login required on each client independently
-- Player state is identical after login on either client
+- `AUTH_SECRET` signs JWT sessions
+- Same credential store for all players
+- Set `APP_URL` to your OldSkool origin (local: `http://localhost:3302`)
 
 ## Running
 
-| Script | Command |
-|--------|---------|
-| Modern | `npm run dev:modern` |
-| OldSkool | `npm run dev:oldskool` |
+```bash
+npm run dev    # from repo root → OldSkool on :3302
+```
 
-## Future monorepo
+## Deploying
 
-If import boundaries become fragile, extract `packages/game-engine` and `packages/database`. No migration performed in this sprint — least-risk separate-app approach chosen.
+Vercel **Root Directory** must be `NeonUnderworld-OldSkool`. See [../../docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md).

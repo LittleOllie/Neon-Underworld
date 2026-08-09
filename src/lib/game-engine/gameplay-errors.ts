@@ -11,6 +11,7 @@ export type GameplayErrorCode =
   | 'INVALID_INTEL'
   | 'EXPIRED_INTEL'
   | 'TARGET_OUT_OF_RANGE'
+  | 'TARGET_WRONG_DISTRICT'
   | 'TARGET_UNAVAILABLE'
   | 'PLAYER_TRAVELLING'
   | 'PLAYER_INCAPACITATED'
@@ -29,6 +30,7 @@ export const GAMEPLAY_ERROR_MESSAGES: Record<GameplayErrorCode, string> = {
   INVALID_INTEL: 'This intel is no longer valid. Scout the player again.',
   EXPIRED_INTEL: 'This intel is no longer valid. Scout the player again.',
   TARGET_OUT_OF_RANGE: 'This player is now outside your attack range.',
+  TARGET_WRONG_DISTRICT: 'You can only attack players in your district.',
   TARGET_UNAVAILABLE: 'This player cannot be attacked right now.',
   PLAYER_TRAVELLING: "You can't do that while travelling.",
   PLAYER_INCAPACITATED: "You can't do that right now.",

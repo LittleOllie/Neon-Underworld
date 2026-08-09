@@ -24,6 +24,8 @@ export interface PlayerIntelSnapshot {
 export interface AttackEligibilityInput {
   attackerId: string;
   defenderId: string;
+  attackerDistrictId: string;
+  defenderDistrictId: string;
   attackType: AttackType;
   attackingThugs: number;
   attackerNw: number;
@@ -74,6 +76,9 @@ export function validateAttackEligibilityCode(
   }
   if (input.intelReport && input.intelReport.targetPlayerId !== input.defenderId) {
     return 'INVALID_INTEL';
+  }
+  if (input.attackerDistrictId !== input.defenderDistrictId) {
+    return 'TARGET_WRONG_DISTRICT';
   }
   if (!isWithinAttackRange(input.attackerNw, input.defenderNw)) {
     return 'TARGET_OUT_OF_RANGE';

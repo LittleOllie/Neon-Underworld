@@ -65,6 +65,7 @@ export async function launchAttackAction(
         weaponCoverage: '',
         forceEstimate: '',
         targetAlias: defender.alias,
+        targetAliasNormalized: defender.aliasNormalized,
         attackerReportId: existingEncounter.attackerReportId,
         defenderReportId: existingEncounter.defenderReportId,
         newTurns: 0,
@@ -188,11 +189,19 @@ export async function getAttackPageData(playerId: string) {
 
         const targetPlayer = await prisma.player.findUnique({
           where: { id: r.intel.targetPlayerId },
+          include: { district: true },
         });
         const targetNw = targetPlayer
           ? NetWorthService.calculateFromPlayer(targetPlayer)
           : r.intel.canonicalNetWorthAtScout;
         const inRange = isWithinAttackRange(attackerNw, targetNw);
+        const sameDistrict = targetPlayer?.districtId === player.districtId;
+        const eligible = inRange && sameDistrict;
+        const eligibilityNote = !sameDistrict
+          ? 'You can only attack players in your district.'
+          : !inRange
+            ? 'This player is now outside your attack range.'
+            : 'Eligible';
 
         return {
           reportId: r.reportId,
@@ -202,10 +211,8 @@ export async function getAttackPageData(playerId: string) {
           netWorthEstimate: r.intel.canonicalNetWorthAtScout,
           reportAge: r.createdAt.toISOString(),
           attacksOnTarget,
-          eligible: inRange,
-          eligibilityNote: inRange
-            ? 'Eligible'
-            : 'Outside net-worth range (0.5×–2×)',
+          eligible,
+          eligibilityNote,
         };
       }),
   );

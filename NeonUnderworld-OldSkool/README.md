@@ -1,28 +1,30 @@
 # Neon Underworld — OldSkool Edition
 
-Experimental classic browser-game frontend for Neon Underworld. Runs alongside the modern client without replacing it.
+Classic browser-game frontend for Neon Underworld. This is the **only** playable client.
 
 ## Quick start
 
 ```bash
-# Ensure PostgreSQL is running and migrated (repo root or OldSkool directory)
-npm run db:migrate --prefix ..
-npm run db:seed
-
-# Optional — seed real PvP opponents for local playtesting (not created in production by default)
-npm run db:seed:dev-pvp
-
-# Install OldSkool dependencies (first time)
+# From repo root
+npm install
 cd NeonUnderworld-OldSkool && npm install && cd ..
 
-# Copy environment (shared database + auth secret)
+npm run db:migrate --prefix .
+npm run db:seed --prefix .
+
 cp .env NeonUnderworld-OldSkool/.env
 # Set APP_URL=http://localhost:3302 in NeonUnderworld-OldSkool/.env
 
-# Run both clients (separate terminals)
-npm run dev:modern    # http://localhost:3100
-npm run dev:oldskool  # http://localhost:3302
+npm run dev
 ```
+
+Open [http://localhost:3302](http://localhost:3302)
+
+## Deploying to Vercel
+
+Set **Root Directory** to `NeonUnderworld-OldSkool` in your Vercel project settings.
+
+See [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
 
 ## Background artwork
 
@@ -36,16 +38,15 @@ Legacy folder `public/assets/backgrounds/` is unused — use `public/images/game
 
 | Client   | URL                      |
 |----------|--------------------------|
-| Modern   | http://localhost:3100    |
 | OldSkool | http://localhost:3302    |
 
 ## Environment
 
-Uses the **same** `.env` values as the modern app:
+Uses the **same** `.env` values as the repo root:
 
 - `DATABASE_URL` — shared PostgreSQL
-- `AUTH_SECRET` — must match for credential validation (sessions are port-specific JWT cookies)
-- `APP_URL` — set to `http://localhost:3302` for OldSkool
+- `AUTH_SECRET` — session signing secret
+- `APP_URL` — set to `http://localhost:3302` for local dev
 
 ## Architecture
 
