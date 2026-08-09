@@ -13,7 +13,7 @@ import { REDLITE_TURNS } from '@/config/game/redlite-rules';
 describe('turn regeneration', () => {
   it('uses canonical Redlite turn rules from config', () => {
     expect(TURNS_CONFIG.turnCap).toBe(5000);
-    expect(TURNS_CONFIG.startingTurns).toBe(50);
+    expect(TURNS_CONFIG.startingTurns).toBe(5000);
     expect(REDLITE_TURNS.turnsPerInterval).toBe(2);
     expect(REDLITE_TURNS.intervalMinutes).toBe(6);
     expect(TURNS_CONFIG.regenerationRatePerMs).toBe(REDLITE_TURNS.regenerationRatePerMs);
@@ -80,7 +80,7 @@ describe('turn regeneration', () => {
   it('new accounts use identical rules via createInitialTurnState', () => {
     const initial = createInitialTurnState();
     expect(initial.turnCap).toBe(5000);
-    expect(initial.currentTurns).toBe(50);
+    expect(initial.currentTurns).toBe(5000);
     expect(initial.regenerationRatePerMs).toBe(TURNS_CONFIG.regenerationRatePerMs);
   });
 

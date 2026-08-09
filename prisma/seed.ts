@@ -286,6 +286,10 @@ async function main() {
   console.log('Seed complete.');
   console.log(`Admin: ${adminEmail}`);
   console.log(`Invite code: ${inviteCode}`);
+
+  const { seedPlaytestNpcs } = await import('../scripts/seed-playtest-npcs');
+  console.log('Seeding playtest NPC opponents...');
+  await seedPlaytestNpcs(prisma);
 }
 
 main()
