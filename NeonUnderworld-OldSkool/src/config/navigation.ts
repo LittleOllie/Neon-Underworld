@@ -36,6 +36,7 @@ export interface MoreNavItem {
 }
 
 export const MORE_ITEMS: MoreNavItem[] = [
+  { href: '/how-to-play', label: 'How to Play', icon: 'guides' },
   { href: '/reports', label: 'Reports', icon: 'reports' },
   { href: '/guides', label: 'Guides', icon: 'guides' },
   { href: '/produce', label: 'Produce', icon: 'produce' },

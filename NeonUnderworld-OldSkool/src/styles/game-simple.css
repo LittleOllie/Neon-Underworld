@@ -1011,53 +1011,108 @@
   text-decoration: underline;
 }
 
-/* ── Route loading skeleton ── */
-.g-loading-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
+/* ── Page transitions (no full-page skeleton flash) ── */
+.g-page-transition {
+  min-height: 100%;
+  animation: g-page-in 0.2s ease-out;
 }
 
-.g-loading-bar {
-  height: 12px;
-  margin: 0 16px 8px;
-  border-radius: 2px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
-  background-size: 200% 100%;
-  animation: g-loading-shimmer 1.2s ease-in-out infinite;
+@keyframes g-page-in {
+  from {
+    opacity: 0.88;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.g-loading-bar--short {
-  width: 55%;
-  margin-bottom: 12px;
+.g-nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+  background: rgba(201, 169, 98, 0.12);
 }
 
-.g-loading-title {
-  height: 22px;
-  width: 40%;
-  margin-bottom: 16px;
-  background: rgba(255, 255, 255, 0.06);
-  animation: g-loading-shimmer 1.2s ease-in-out infinite;
+.g-nav-progress::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, var(--os-gold), transparent);
+  transform: translateX(-120%);
 }
 
-.g-loading-panel {
-  height: 120px;
-  margin-bottom: 12px;
-  border: 1px solid var(--os-border);
-  background: rgba(18, 18, 22, 0.75);
-  animation: g-loading-shimmer 1.2s ease-in-out infinite;
+.g-nav-progress.is-loading::after {
+  animation: g-nav-progress-slide 1.1s ease-in-out infinite;
 }
 
-.g-loading-panel--sm {
-  height: 64px;
-  width: 70%;
+.g-nav-progress.is-complete::after {
+  width: 100%;
+  transform: translateX(0);
+  background: var(--os-gold);
+  animation: none;
+  transition: transform 0.18s ease-out, width 0.18s ease-out;
+}
+
+@keyframes g-nav-progress-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
 }
 
 @keyframes g-loading-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+.g-howto-steps,
+.g-howto-list {
+  margin: 8px 0 0;
+  padding-left: 1.25rem;
+  font-size: var(--game-fs-body);
+  line-height: var(--game-lh-guide);
+  color: var(--game-text-primary);
+}
+
+.g-howto-steps li,
+.g-howto-list li {
+  margin-bottom: 10px;
+}
+
+.g-howto-steps li:last-child,
+.g-howto-list li:last-child {
+  margin-bottom: 0;
+}
+
+.g-howto-steps a,
+.g-howto-list a {
+  color: var(--os-link);
+  text-decoration: none;
+}
+
+.g-howto-steps a:hover,
+.g-howto-list a:hover {
+  color: var(--os-link-hover);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g-page-transition {
+    animation: none;
+  }
+
+  .g-nav-progress.is-loading::after {
+    animation: none;
+    transform: translateX(0);
+    width: 100%;
+    opacity: 0.65;
+  }
 }
