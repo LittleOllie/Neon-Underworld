@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3302",
     "build": "next build",
-    "vercel-build": "if [ -n \"$DATABASE_URL\" ]; then prisma migrate deploy --schema=../prisma/schema.prisma; else echo 'WARN: DATABASE_URL not set — skipping migrations. Add it in Vercel env vars and redeploy.'; fi && next build",
+    "vercel-build": "npm run db:generate --prefix .. && if [ -n \"$DATABASE_URL\" ]; then prisma migrate deploy --schema=../prisma/schema.prisma; else echo 'WARN: DATABASE_URL not set — skipping migrations.'; fi && next build",
     "start": "next start -p 3302",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
