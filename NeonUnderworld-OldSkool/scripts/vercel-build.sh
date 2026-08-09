@@ -20,8 +20,17 @@ echo "==> Building OldSkool"
 cd "$OLDSKOOL"
 
 if [[ -n "${DATABASE_URL:-}" ]]; then
+  # Migrations need a direct Postgres connection. Pooled Neon URLs (-pooler)
+  # cannot acquire pg_advisory_lock and fail with Prisma P1002 on Vercel builds.
+  MIGRATE_URL="${DATABASE_URL_UNPOOLED:-${DIRECT_DATABASE_URL:-$DATABASE_URL}}"
+  if [[ "$MIGRATE_URL" == *"-pooler"* ]]; then
+    MIGRATE_URL="${MIGRATE_URL//-pooler/}"
+    echo "==> Using direct Neon host for migrations (removed -pooler from URL)"
+  fi
+
   echo "==> Running migrations"
-  npx prisma migrate deploy --schema="$ROOT/prisma/schema.prisma"
+  export PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT="${PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT:-60000}"
+  DATABASE_URL="$MIGRATE_URL" npx prisma migrate deploy --schema="$ROOT/prisma/schema.prisma"
 else
   echo "WARN: DATABASE_URL not set — skipping migrations"
 fi

@@ -21,7 +21,8 @@ In **Settings → Environment Variables** (Production + Preview):
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | Set automatically when Neon is connected |
+| `DATABASE_URL` | Pooled Neon URL for runtime (hostname contains `-pooler`) |
+| `DATABASE_URL_UNPOOLED` | Optional — direct Neon URL for migrations. If omitted, the build strips `-pooler` from `DATABASE_URL` automatically. |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `APP_URL` | `https://neon-underworld-kappa.vercel.app` |
 
@@ -52,6 +53,10 @@ Example shape:
 `postgresql://user:pass@ep-xxxx-pooler.region.aws.neon.tech/neondb?sslmode=require`
 
 Direct (non-pooled) URLs add latency on every serverless cold start and can exhaust connections under load.
+
+**Do not** point `DATABASE_URL` at the pooler for Vercel builds only — runtime should use pooled. Migrations during build automatically use the direct host (see `scripts/vercel-build.sh`).
+
+If a deploy fails with **Prisma P1002** (advisory lock timeout), redeploy once. For repeated failures, add `DATABASE_URL_UNPOOLED` in Vercel using Neon’s **Direct connection** string.
 
 ### 2. Playtest NPC seed (optional)
 
