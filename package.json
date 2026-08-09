@@ -6,7 +6,7 @@
     "dev": "npm run dev --prefix NeonUnderworld-OldSkool",
     "build": "npm run build --prefix NeonUnderworld-OldSkool",
     "start": "npm run start --prefix NeonUnderworld-OldSkool",
-    "vercel-build": "node -e \"console.error('\\nDeploy OldSkool only: set Vercel Root Directory to NeonUnderworld-OldSkool\\nSee docs/DEPLOYMENT.md\\n'); process.exit(1)\"",
+    "vercel-build": "npm install --prefix NeonUnderworld-OldSkool && npm run vercel-build --prefix NeonUnderworld-OldSkool && rm -rf .next public && cp -R NeonUnderworld-OldSkool/.next .next && cp -R NeonUnderworld-OldSkool/public public",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && npm run typecheck --prefix NeonUnderworld-OldSkool",
     "format": "prettier --write .",

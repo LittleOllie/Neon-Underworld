@@ -4,12 +4,9 @@ The playable game is **OldSkool only**. The repo root holds shared game engine c
 
 ## Vercel setup
 
-In **Project → Settings → General → Root Directory**:
+The repo includes a root `vercel.json` that builds **OldSkool** automatically — you do **not** need to change Root Directory for a standard Git deploy.
 
-1. Set **Root Directory** to `NeonUnderworld-OldSkool`
-2. Save and redeploy
-
-If Root Directory is left blank, Vercel builds the wrong target and routes like `/register` will fail.
+Optional (cleaner): set **Root Directory** to `NeonUnderworld-OldSkool` in Project → Settings → General, then enable **Include source files outside of the Root Directory** (OldSkool imports the shared engine from `../src`).
 
 ## Environment variables
 
