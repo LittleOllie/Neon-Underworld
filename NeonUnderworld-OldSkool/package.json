@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3302",
     "build": "next build",
+    "vercel-build": "prisma migrate deploy --schema=../prisma/schema.prisma && next build",
     "start": "next start -p 3302",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -12,7 +13,7 @@
     "test:e2e": "playwright test",
     "db:seed": "npm run db:seed --prefix ..",
     "db:seed:dev-pvp": "npm run db:seed:dev-pvp --prefix ..",
-    "postinstall": "prisma generate --schema=../prisma/schema.prisma && rm -rf ./node_modules/.prisma/client && cp -R ../node_modules/.prisma/client ./node_modules/.prisma/client"
+    "postinstall": "prisma generate --schema=../prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
