@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   webpack: (config) => {
     const localSrc = path.resolve(__dirname, './src');
     const parentSrc = path.resolve(__dirname, '../src');
+    const localModules = path.resolve(__dirname, './node_modules');
     const parentModules = path.resolve(__dirname, '../node_modules');
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -21,6 +22,11 @@ const nextConfig: NextConfig = {
       '@prisma/client': path.join(parentModules, '@prisma/client'),
       '.prisma/client': path.join(parentModules, '.prisma/client'),
     };
+    config.resolve.modules = [
+      localModules,
+      parentModules,
+      ...(config.resolve.modules ?? []),
+    ];
     return config;
   },
   outputFileTracingRoot: path.join(__dirname, '../'),

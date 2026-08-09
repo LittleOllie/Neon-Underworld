@@ -4,19 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3302",
-    "build": "npx prisma generate --schema=../prisma/schema.prisma && next build",
-    "vercel-build": "if [ -n \"$DATABASE_URL\" ]; then npx prisma migrate deploy --schema=../prisma/schema.prisma; else echo 'WARN: DATABASE_URL not set — skipping migrations.'; fi && npm run build",
+    "build": "next build",
+    "vercel-build": "next build",
     "start": "next start -p 3302",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "db:seed": "npm run db:seed --prefix ..",
-    "db:seed:dev-pvp": "npm run db:seed:dev-pvp --prefix ..",
-    "postinstall": "prisma generate --schema=../prisma/schema.prisma"
+    "db:seed:dev-pvp": "npm run db:seed:dev-pvp --prefix .."
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.2",
     "lucide-react": "^1.31.0",
     "next": "15.5.22",
@@ -24,8 +22,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "uuid": "^11.1.0",
-    "zod": "^3.25.76",
-    "prisma": "^6.19.0"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
