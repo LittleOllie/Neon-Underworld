@@ -465,6 +465,22 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.g-shop-row-highlight {
+  background: rgba(201, 169, 98, 0.08);
+  border-radius: 6px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.g-empire-shop-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
 .g-shop-head {
   display: flex;
   justify-content: space-between;

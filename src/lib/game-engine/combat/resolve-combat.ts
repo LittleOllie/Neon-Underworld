@@ -1,4 +1,4 @@
-import { ATTACK_TYPE_LABELS, type AttackType } from '@/config/game/attack-rules';
+import { ATTACK_RULES, ATTACK_TYPE_LABELS, type AttackType } from '@/config/game/attack-rules';
 import { createCombatRng } from './combat-random';
 import { allocateWeaponsForThugs } from './weapon-allocation';
 import { resolveForceScores, forceEstimate } from './force-score';
@@ -19,6 +19,8 @@ export interface CombatResolutionInput {
   attackingThugs: number;
   attacker: CombatParticipant;
   defender: CombatParticipant;
+  /** Virtual unarmed thugs from cartel mates — force only, no casualties or weapon draw */
+  cartelSupportThugs?: number;
   seed: number;
 }
 
@@ -51,11 +53,11 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     aks: input.defender.aks,
   });
 
-  const { ratio } = resolveForceScores(
-    attackerAlloc.totalStrength,
-    defenderAlloc.totalStrength,
-    rng,
-  );
+  const cartelSupport = Math.max(0, input.cartelSupportThugs ?? 0);
+  const cartelSupportStrength = cartelSupport * ATTACK_RULES.weapons.unarmedStrength;
+  const defenderStrength = defenderAlloc.totalStrength + cartelSupportStrength;
+
+  const { ratio } = resolveForceScores(attackerAlloc.totalStrength, defenderStrength, rng);
 
   const casualties = resolveCasualties(
     input.attackingThugs,
@@ -108,7 +110,7 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     drugsStolen: theft.drugsStolen,
     outcome,
     outcomeLabel,
-    forceEstimate: forceEstimate(attackerAlloc.totalStrength, defenderAlloc.totalStrength),
+    forceEstimate: forceEstimate(attackerAlloc.totalStrength, defenderStrength),
     attackerForceSnapshot: {
       allocation: attackerAlloc,
       thugsSent: input.attackingThugs,
@@ -116,6 +118,7 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     defenderForceSnapshot: {
       allocation: defenderAlloc,
       thugsDefending: input.defender.thugs,
+      cartelSupportThugs: cartelSupport,
     },
   };
 }

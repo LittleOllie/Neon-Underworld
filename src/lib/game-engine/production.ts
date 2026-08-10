@@ -1,6 +1,7 @@
 import { PRODUCTION_CONFIG } from '@/config/game/balance';
 import {
   calculateDepartureRisk,
+  happinessEfficiencyModifier,
 } from '@/lib/game-engine/happiness';
 import { createSeededRng } from '@/lib/game-engine/rng';
 import { grossWorkerCash, playerCashFromGross } from '@/lib/game-engine/worker-economics';
@@ -35,11 +36,15 @@ export function resolveProduction(input: ProductionInput): ProductionOutcome {
   const rng = createSeededRng(input.seed);
   const variance = rng.nextFloat(0.85, 1.15);
 
+  const thugEfficiency = happinessEfficiencyModifier(input.thugHappiness);
+  const workerEfficiency = happinessEfficiencyModifier(input.prostituteHappiness);
+
   const rawUnits =
     input.turnsSpent *
     input.thugCount *
     PRODUCTION_CONFIG.baseDrugUnitsPerTurnPerThug *
-    variance;
+    variance *
+    thugEfficiency;
 
   const drugUnitsProduced = clamp(
     Math.floor(rawUnits),
@@ -52,7 +57,9 @@ export function resolveProduction(input: ProductionInput): ProductionOutcome {
     input.turnsSpent,
     PRODUCTION_CONFIG.cashPerProstitutePerTurn,
   );
-  const cashEarned = playerCashFromGross(grossCash, input.prostitutePayoutPercent);
+  const cashEarned = Math.floor(
+    playerCashFromGross(grossCash, input.prostitutePayoutPercent) * workerEfficiency,
+  );
 
   const { prostitutesLost, thugsLost } = calculateDepartureRisk(
     input.turnsSpent,
@@ -60,6 +67,7 @@ export function resolveProduction(input: ProductionInput): ProductionOutcome {
     input.thugHappiness,
     input.prostituteCount,
     input.thugCount,
+    rng,
   );
 
   const summary = buildProductionSummary({
@@ -104,10 +112,10 @@ function buildProductionSummary(params: {
   }
 
   if (params.prostitutesLost > 0) {
-    parts.push(`${params.prostitutesLost} workers walked out due to low morale.`);
+    parts.push(`${params.prostitutesLost} workers walked out because morale became critically low.`);
   }
   if (params.thugsLost > 0) {
-    parts.push(`${params.thugsLost} thugs left the organisation.`);
+    parts.push(`${params.thugsLost} thugs walked out because morale became critically low.`);
   }
 
   return parts.join(' ');

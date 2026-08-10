@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -23,6 +23,7 @@ import {
 
 type ShopFormProps = ShopPageData & {
   initialTab?: OldSkoolShopTab;
+  highlightItem?: string | null;
 };
 
 export function ShopForm({
@@ -30,8 +31,10 @@ export function ShopForm({
   cash: initialCash,
   inventory: initialInventory,
   initialTab = 'weapons',
+  highlightItem = null,
 }: ShopFormProps) {
   const router = useRouter();
+  const highlightRef = useRef<HTMLDivElement | null>(null);
   const [cash, setCash] = useState(initialCash);
   const [inventory, setInventory] = useState(initialInventory);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
@@ -39,6 +42,12 @@ export function ShopForm({
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ name: string; qty: number; cost: number } | null>(null);
+
+  useEffect(() => {
+    if (highlightItem && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [highlightItem, tab]);
 
   const items = useMemo(() => {
     const tabDef = OLDSKOOL_SHOP_TABS.find((t) => t.id === tab) ?? OLDSKOOL_SHOP_TABS[0];
@@ -126,7 +135,11 @@ export function ShopForm({
         const cannotAfford = total !== null && total > cash;
 
         return (
-          <div key={entry.key} className="g-shop-row">
+          <div
+            key={entry.key}
+            ref={highlightItem === entry.key ? highlightRef : undefined}
+            className={`g-shop-row${highlightItem === entry.key ? ' g-shop-row-highlight' : ''}`}
+          >
             <div className="g-shop-head">
               <span className="g-label">{entry.displayName}</span>
               <GameValue>${entry.unitPrice.toLocaleString()} each</GameValue>

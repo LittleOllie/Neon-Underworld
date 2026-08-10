@@ -43,9 +43,9 @@ export const MORE_ITEMS: MoreNavItem[] = [
   { href: '/shop', label: 'Shop', icon: 'shop' },
   { href: '/rankings', label: 'Rankings', icon: 'rankings' },
   { href: '/playtest/turns', label: 'Add Turns', icon: 'produce' },
-  { href: '/coming/market', label: 'Market', icon: 'market', unavailable: 'Coming Soon' },
-  { href: '/coming/travel', label: 'Travel', icon: 'travel', unavailable: 'Coming Soon' },
-  { href: '/coming/cartel', label: 'Cartel', icon: 'cartel', unavailable: 'Coming Soon' },
+  { href: '/travel', label: 'Travel', icon: 'travel' },
+  { href: '/market', label: 'Market', icon: 'market' },
+  { href: '/cartels', label: 'Cartels', icon: 'cartel' },
   { href: '#logout', label: 'Logout', action: 'logout' },
 ];
 

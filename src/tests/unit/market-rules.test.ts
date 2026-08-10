@@ -1,0 +1,38 @@
+import { describe, it, expect } from 'vitest';
+import {
+  MARKET_RULES,
+  isMarketTradableItem,
+  minimumNextBid,
+} from '@/config/game/market-rules';
+
+describe('market rules', () => {
+  it('allows shop inventory items only', () => {
+    expect(isMarketTradableItem('ak')).toBe(true);
+    expect(isMarketTradableItem('ride')).toBe(true);
+    expect(isMarketTradableItem('beer')).toBe(true);
+    expect(isMarketTradableItem('whore')).toBe(false);
+    expect(isMarketTradableItem('thug')).toBe(false);
+  });
+
+  it('enforces minimum starting price', () => {
+    expect(MARKET_RULES.minStartingPrice).toBeGreaterThanOrEqual(10);
+  });
+
+  it('first bid equals starting price', () => {
+    expect(minimumNextBid(null, 10_000)).toBe(10_000);
+  });
+
+  it('subsequent bids require 20% increment', () => {
+    expect(minimumNextBid(10_000, 10_000)).toBe(12_000);
+    expect(minimumNextBid(12_500, 10_000)).toBe(15_000);
+  });
+
+  it('allows standard auction durations', () => {
+    expect(MARKET_RULES.allowedDurationMinutes).toEqual([30, 60, 180, 360, 720, 1440]);
+    expect(MARKET_RULES.minDurationMinutes).toBe(30);
+  });
+
+  it('market is global', () => {
+    expect(MARKET_RULES.global).toBe(true);
+  });
+});

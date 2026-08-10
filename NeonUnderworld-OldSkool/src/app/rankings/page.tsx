@@ -97,7 +97,7 @@ export default async function RankingsPage({ searchParams }: Props) {
               <span className="g-rank-num">#{p.rank}</span>
               <span className="g-rank-name">
                 {p.alias} (you)
-                <span className="g-inbox-meta"> · {p.city}</span>
+                <span className="g-inbox-meta"> · {p.city}{p.cartelTag ? ` · [${p.cartelTag}]` : ''}</span>
               </span>
               <span className="g-rank-worth">${p.netWorth.toLocaleString()}</span>
             </div>
@@ -115,7 +115,8 @@ export default async function RankingsPage({ searchParams }: Props) {
               {p.alias}
               <span className="g-inbox-meta">
                 {' '}
-                · {p.city} · {status}
+                · {p.city}
+                {p.cartelTag ? ` · [${p.cartelTag}]` : ''} · {status}
               </span>
             </span>
             <span className="g-rank-worth">${p.netWorth.toLocaleString()}</span>

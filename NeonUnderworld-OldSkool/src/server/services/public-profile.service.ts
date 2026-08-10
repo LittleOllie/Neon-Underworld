@@ -15,6 +15,8 @@ export interface PublicProfile {
   lastSeen: Date | null;
   online: boolean;
   cartelId: string | null;
+  cartelName: string | null;
+  cartelTag: string | null;
 }
 
 export const PublicProfileService = {
@@ -24,6 +26,7 @@ export const PublicProfileService = {
       include: {
         district: true,
         season: true,
+        cartel: { select: { name: true, tag: true } },
         user: { select: { lastLoginAt: true } },
         statusExt: true,
       },
@@ -51,6 +54,8 @@ export const PublicProfileService = {
       lastSeen,
       online: PlayerStatusService.isOnline(lastSeen),
       cartelId: player.cartelId,
+      cartelName: player.cartel?.name ?? null,
+      cartelTag: player.cartel?.tag ?? null,
     };
   },
 };

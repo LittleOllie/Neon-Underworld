@@ -23,6 +23,7 @@ import {
 } from '@/lib/game-engine/errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
+import { CartelService } from '@/server/services/cartel.service';
 import type { ActionResult } from './auth.actions';
 
 export interface ProduceResultData {
@@ -30,6 +31,7 @@ export interface ProduceResultData {
   drugType: ProductionDrug;
   drugUnitsProduced: number;
   cashEarned: number;
+  cartelContribution?: number;
   workerRevenueGross: number;
   workerPayoutShare: number;
   playerShare: number;
@@ -129,7 +131,12 @@ export async function produceAction(
       const newDrugCount = (beforeResources[drugField] as number) + outcome.drugUnitsProduced;
       const newProstitutes = Math.max(0, player.prostitutes - outcome.prostitutesLost);
       const newThugs = Math.max(0, player.thugs - outcome.thugsLost);
-      const newCash = player.cash + outcome.cashEarned;
+      const incomeSplit = await CartelService.applyIncomeContribution(
+        tx,
+        playerId,
+        outcome.cashEarned,
+      );
+      const newCash = player.cash + incomeSplit.playerCash;
 
       const afterResources = {
         ...beforeResources,
@@ -187,7 +194,8 @@ export async function produceAction(
         turnsSpent: parsed.data.turns,
         drugType: parsed.data.drugType,
         drugUnitsProduced: outcome.drugUnitsProduced,
-        cashEarned: outcome.cashEarned,
+        cashEarned: incomeSplit.playerCash,
+        cartelContribution: incomeSplit.cartelCash,
         workerRevenueGross: workerCash.gross,
         workerPayoutShare: workerCash.workerShare,
         playerShare: workerCash.playerShare,

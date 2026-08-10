@@ -16,17 +16,17 @@ const NAV_OPS = [
   { href: '/produce', label: 'Produce' },
   { href: '/shop', label: 'City Shop' },
   { href: '/attack', label: 'Attack' },
-  { href: '/coming/travel', label: 'Travel', soon: true },
+  { href: '/travel', label: 'Travel' },
   { href: '/reports', label: 'Reports' },
 ];
 
 const NAV_ECON = [
-  { href: '/coming/market', label: 'Black Market', soon: true },
+  { href: '/market', label: 'Black Market' },
   { href: '/coming/businesses', label: 'Businesses', soon: true },
 ];
 
 const NAV_SOCIAL = [
-  { href: '/coming/cartel', label: 'Cartel', soon: true },
+  { href: '/cartels', label: 'Cartel' },
   { href: '/coming/messages', label: 'Messages', soon: true },
   { href: '/coming/online', label: 'Online Players', soon: true },
 ];

@@ -61,8 +61,12 @@ describe('Attack eligibility', () => {
     expect(baseEligibility({ attackerId: 'same', defenderId: 'same' })).toMatch(/cannot be found/i);
   });
 
-  it('rejects below 0.5× net worth', () => {
-    expect(baseEligibility({ defenderNw: 400_000 })).toMatch(/outside your attack range/i);
+  it('rejects below 50% net worth floor', () => {
+    expect(baseEligibility({ defenderNw: 400_000 })).toMatch(/below your attack range/i);
+  });
+
+  it('rejects target just below 50% floor', () => {
+    expect(baseEligibility({ defenderNw: 499_999 })).toMatch(/below your attack range/i);
   });
 
   it('rejects different district', () => {
@@ -71,16 +75,17 @@ describe('Attack eligibility', () => {
     ).toMatch(/only attack players in your district/i);
   });
 
-  it('rejects above 2× net worth', () => {
-    expect(baseEligibility({ defenderNw: 2_500_000 })).toMatch(/outside your attack range/i);
+  it('allows targets above attacker net worth (no upper cap)', () => {
+    expect(baseEligibility({ defenderNw: 2_500_000 })).toBeNull();
+    expect(baseEligibility({ defenderNw: 10_000_000 })).toBeNull();
   });
 
   it('accepts exact lower boundary', () => {
     expect(baseEligibility({ defenderNw: 500_000 })).toBeNull();
   });
 
-  it('accepts exact upper boundary', () => {
-    expect(baseEligibility({ defenderNw: 2_000_000 })).toBeNull();
+  it('accepts equal net worth', () => {
+    expect(baseEligibility({ defenderNw: 1_000_000 })).toBeNull();
   });
 
   it('rejects expired scout report', () => {
@@ -295,9 +300,12 @@ describe('Economy conservation', () => {
 });
 
 describe('Attack range helper', () => {
-  it('matches redlite 0.5×–2× rule', () => {
+  it('requires target at least 50% of attacker net worth with no upper cap', () => {
     expect(isWithinAttackRange(1_000_000, 500_000)).toBe(true);
-    expect(isWithinAttackRange(1_000_000, 2_000_000)).toBe(true);
     expect(isWithinAttackRange(1_000_000, 499_999)).toBe(false);
+    expect(isWithinAttackRange(1_000_000, 2_000_000)).toBe(true);
+    expect(isWithinAttackRange(1_000_000, 10_000_000)).toBe(true);
+    expect(isWithinAttackRange(200_000, 100_000)).toBe(true);
+    expect(isWithinAttackRange(200_000, 99_999)).toBe(false);
   });
 });

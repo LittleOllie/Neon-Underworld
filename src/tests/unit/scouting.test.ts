@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveScouting, validateScoutAmount } from '@/lib/game-engine/scouting';
+import { happinessEfficiencyModifier } from '@/lib/game-engine/happiness';
 import { createSeededRng, deriveScoutSeed } from '@/lib/game-engine/rng';
 import type { DistrictModifiers } from '@/config/game/balance';
 import { REDLITE_SCOUT_AREAS } from '@/config/game/redlite-rules';
@@ -105,18 +106,20 @@ describe('scouting engine', () => {
     expect(s1).not.toBe(s3);
   });
 
-  it('generates cash from existing prostitutes', () => {
+  it('generates cash from existing prostitutes scaled by crew happiness', () => {
+    const happiness = 70;
     const result = resolveScouting({
       turnsSpent: 100,
       districtModifiers: defaultModifiers,
-      prostituteHappiness: 70,
-      thugHappiness: 70,
+      prostituteHappiness: happiness,
+      thugHappiness: happiness,
       prostituteCount: 10,
       thugCount: 0,
       prostitutePayoutPercent: 0,
       seed: 42,
     });
-    expect(result.cashEarned).toBe(12000);
+    const expected = Math.floor(12000 * happinessEfficiencyModifier(happiness));
+    expect(result.cashEarned).toBe(expected);
   });
 });
 

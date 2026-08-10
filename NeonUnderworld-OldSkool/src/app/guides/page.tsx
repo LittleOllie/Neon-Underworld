@@ -67,13 +67,13 @@ export default async function GuidesPage() {
 
       <Divider />
 
-      <SectionLabel>Coming Soon</SectionLabel>
+      <SectionLabel>More Systems</SectionLabel>
       <p className="g-note g-guide-body">
-        <Link href="/coming/market">Market</Link>
+        <Link href="/market">Market</Link>
         {' · '}
-        <Link href="/coming/travel">Travel</Link>
+        <Link href="/travel">Travel</Link>
         {' · '}
-        <Link href="/coming/cartel">Cartel</Link>
+        <Link href="/cartels">Cartel</Link>
       </p>
     </GameShell>
   );

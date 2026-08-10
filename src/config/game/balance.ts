@@ -82,9 +82,18 @@ export const SCOUTING_CONFIG = {
   prostituteHappinessWarningThreshold: 45,
   prostituteHappinessCriticalThreshold: 30,
   thugHappinessWarningThreshold: 40,
-  /** Base departure chance per turn when happiness is critical (0-1) */
-  prostituteDepartureRatePerTurn: 0.0008,
-  thugDepartureRatePerTurn: 0.0003,
+  thugHappinessCriticalThreshold: 25,
+  /** No walkout risk at or above this happiness */
+  walkoutHealthyThreshold: 80,
+  walkoutModerateThreshold: 60,
+  walkoutLowThreshold: 40,
+  /** Base per-turn walkout probability when happiness is critical (0–1) */
+  prostituteDepartureRatePerTurn: 0.003,
+  thugDepartureRatePerTurn: 0.0025,
+  /** Moderate/low tier multipliers applied to base rate */
+  walkoutModerateRateMultiplier: 0.15,
+  walkoutLowRateMultiplier: 0.45,
+  walkoutCriticalRateMultiplier: 1,
   /** New players with fewer than this many prostitutes get reduced departure risk */
   newPlayerProtectionProstituteCount: 5,
   newPlayerDepartureMultiplier: 0.25,
@@ -109,6 +118,19 @@ export const HAPPINESS_CONFIG = {
     akCoverage: 3,
     beerPerWorker: 1,
   },
+} as const;
+
+/** Crew efficiency from happiness score — smooth bands, no harsh cliff near 100%. */
+export const HAPPINESS_EFFICIENCY = {
+  excellentMin: 80,
+  goodMin: 60,
+  reducedMin: 40,
+  poorMin: 20,
+  atExcellent: 1,
+  atGood: 0.92,
+  atReduced: 0.82,
+  atPoor: 0.7,
+  atSevere: 0.55,
 } as const;
 
 export const AUTH_CONFIG = {

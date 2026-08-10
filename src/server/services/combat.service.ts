@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { CartelService } from '@/server/services/cartel.service';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
 import {
   validateAttackEligibilityCode,
@@ -172,7 +173,7 @@ export async function resolveAttackEncounter(
       where: { id: attackerId },
       include: { turnState: true, district: true, season: true },
     });
-    if (!attacker.turnState) throw new Error('Turn state missing');
+    if (!attacker.turnState) throw new GameplayError('TARGET_UNAVAILABLE', 'Your account is not ready for combat. Refresh and try again.');
     if (attacker.season.status !== 'ACTIVE') throw new SeasonInactiveError();
 
     let intel: PlayerIntelSnapshot | null = null;
@@ -251,11 +252,16 @@ export async function resolveAttackEncounter(
     const { newState: turnStateAfter } = consumeTurns(settled, turnCost);
 
     const defenderThugsBefore = defender.thugs;
+    let cartelSupportThugs = 0;
+    if (ATTACK_RULES.cartelDefenceActive && defender.cartelId && !defender.travelling) {
+      cartelSupportThugs = await CartelService.getDefenceSupportInTx(tx, defender.id);
+    }
     const seed = deriveCombatSeed(attackerId, defender.id, idempotencyKey);
     const combat = resolveCombat({
       attackType,
       attackingThugs,
       seed,
+      cartelSupportThugs,
       attacker: {
         thugs: attacker.thugs,
         glocks: attacker.glocks,

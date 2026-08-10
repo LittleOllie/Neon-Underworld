@@ -11,10 +11,10 @@ describe('GameplayError', () => {
     expect(GAMEPLAY_ERROR_MESSAGES.INSUFFICIENT_CASH).toBe("You don't have enough cash.");
     expect(GAMEPLAY_ERROR_MESSAGES.INSUFFICIENT_TURNS).toBe("You don't have enough turns.");
     expect(GAMEPLAY_ERROR_MESSAGES.INSUFFICIENT_RIDES).toBe(
-      "You don't have enough rides for this attack.",
+      "You don't have enough rides for this.",
     );
     expect(GAMEPLAY_ERROR_MESSAGES.TARGET_OUT_OF_RANGE).toBe(
-      'This player is now outside your attack range.',
+      'That player is below your attack range.',
     );
   });
 
@@ -36,10 +36,11 @@ describe('GameplayError', () => {
     expect(mapped?.gameplayCode).toBe('PLAYER_TRAVELLING');
   });
 
-  it('does not expose internal errors', () => {
-    expect(toUserMessage(new Error('Turn state not found'))).toBe(
-      'An unexpected error occurred. Please try again.',
-    );
+  it('maps turn state failures to useful messages', () => {
+    expect(toUserMessage(new Error('Turn state missing'))).toMatch(/not ready for combat/i);
+  });
+
+  it('does not expose raw internal errors', () => {
     expect(toUserMessage(new Error('PrismaClientKnownRequestError'))).toBe(
       'An unexpected error occurred. Please try again.',
     );

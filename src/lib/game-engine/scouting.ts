@@ -5,6 +5,7 @@ import { getScoutArea } from '@/config/game/redlite-rules';
 import {
   calculateDepartureRisk,
   happinessRecruitmentModifier,
+  happinessEfficiencyModifier,
 } from '@/lib/game-engine/happiness';
 import { createSeededRng } from '@/lib/game-engine/rng';
 import { grossWorkerCash, playerCashFromGross } from '@/lib/game-engine/worker-economics';
@@ -84,7 +85,12 @@ export function resolveScouting(input: ScoutInput): ScoutOutcome {
   thugsFound = clamp(thugsFound, 0, SCOUTING_CONFIG.maxThugsPerAction);
 
   const grossCash = grossWorkerCash(input.prostituteCount, input.turnsSpent);
-  const cashEarned = playerCashFromGross(grossCash, input.prostitutePayoutPercent);
+  const crewEfficiency = happinessEfficiencyModifier(
+    (input.prostituteHappiness + input.thugHappiness) / 2,
+  );
+  const cashEarned = Math.floor(
+    playerCashFromGross(grossCash, input.prostitutePayoutPercent) * crewEfficiency,
+  );
 
   const { prostitutesLost, thugsLost } = calculateDepartureRisk(
     input.turnsSpent,
@@ -92,6 +98,7 @@ export function resolveScouting(input: ScoutInput): ScoutOutcome {
     input.thugHappiness,
     input.prostituteCount,
     input.thugCount,
+    rng,
   );
 
   const summary = buildScoutSummary({
@@ -142,11 +149,11 @@ function buildScoutSummary(params: {
   }
 
   if (params.prostitutesLost > 0) {
-    parts.push(`${params.prostitutesLost} ${params.prostitutesLabel ?? 'prostitutes'} departed due to low morale.`);
+    parts.push(`${params.prostitutesLost} ${params.prostitutesLabel ?? 'prostitutes'} walked out because morale became critically low.`);
   }
 
   if (params.thugsLost > 0) {
-    parts.push(`${params.thugsLost} thugs left the organisation.`);
+    parts.push(`${params.thugsLost} thugs walked out because morale became critically low.`);
   }
 
   return parts.join(' ');

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { StatusBar } from '@local/components/game/StatusBar';
 import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
@@ -9,9 +10,18 @@ import { Divider } from '@local/components/game/Divider';
 import { PayoutForm } from '@local/features/empire/PayoutForm';
 import type { EmpireManagementData } from '@local/domain/empire.model';
 import { OS_TERMS } from '@local/config/terminology';
+import { shopHrefForItem } from '@local/config/shop-display';
 
 interface Props {
   data: EmpireManagementData;
+}
+
+function ShopSupplyLink({ itemKey, label }: { itemKey: string; label: React.ReactNode }) {
+  return (
+    <Link href={shopHrefForItem(itemKey)} className="g-empire-shop-link">
+      {label}
+    </Link>
+  );
 }
 
 export function EmpireSimpleView({ data }: Props) {
@@ -31,7 +41,12 @@ export function EmpireSimpleView({ data }: Props) {
       <StatRow label="Payout" value={`${data.personnel.workerPayoutPercent}%`} />
       <StatRow
         label="Supplies"
-        value={<StatusValueFromLabel label={suppliesLabel} />}
+        value={
+          <ShopSupplyLink
+            itemKey="condom"
+            label={<StatusValueFromLabel label={suppliesLabel} />}
+          />
+        }
         valueTone="inherit"
       />
 
@@ -47,7 +62,16 @@ export function EmpireSimpleView({ data }: Props) {
         label="Armed"
         value={`${data.personnel.armedThugs} / ${data.personnel.thugs}`}
       />
-      <StatRow label="Beer" value={<StatusValueFromLabel label={beerLabel} />} valueTone="inherit" />
+      <StatRow
+        label="Beer"
+        value={
+          <ShopSupplyLink
+            itemKey="beer"
+            label={<StatusValueFromLabel label={beerLabel} />}
+          />
+        }
+        valueTone="inherit"
+      />
 
       <Divider />
 

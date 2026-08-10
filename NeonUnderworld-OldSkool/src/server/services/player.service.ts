@@ -25,7 +25,7 @@ export interface CanonicalPlayerContext {
   season: { number: number; startsAt: Date; endsAt: Date };
   seasonDisplay: ReturnType<typeof formatSeasonStatus>;
   daysRemaining: number;
-  district: { name: string; slug: string; description: string };
+  district: { id: string; name: string; slug: string; description: string };
   cash: number;
   bankCash: number;
   prostitutes: number;
@@ -55,6 +55,8 @@ export interface CanonicalPlayerContext {
   lastSeen: Date | null;
   online: boolean;
   cartelId: string | null;
+  cartelName: string | null;
+  cartelTag: string | null;
   avatar: string | null;
   health: number;
   lifeStatus: string;
@@ -71,6 +73,7 @@ async function loadPlayerRecord(playerId: string) {
       district: true,
       season: true,
       turnState: true,
+      cartel: { select: { name: true, tag: true } },
       user: { select: { lastLoginAt: true } },
       statusExt: true,
     },
@@ -114,6 +117,7 @@ function buildCanonicalContext(
     seasonDisplay,
     daysRemaining: seasonDisplay.daysRemaining,
     district: {
+      id: player.districtId,
       name: player.district.name,
       slug: player.district.slug,
       description: player.district.description,
@@ -158,6 +162,8 @@ function buildCanonicalContext(
     lastSeen,
     online: PlayerStatusService.isOnline(lastSeen),
     cartelId: player.cartelId,
+    cartelName: player.cartel?.name ?? null,
+    cartelTag: player.cartel?.tag ?? null,
     avatar: player.avatar,
     health: player.health,
     lifeStatus: player.lifeStatus,
@@ -210,7 +216,7 @@ export const PlayerService = {
       city: ctx.district.name,
       citySlug: ctx.district.slug,
       cartelId: ctx.cartelId,
-      cartelName: ctx.cartelId ? 'Affiliated' : null,
+      cartelName: ctx.cartelName,
       rank: ctx.rank,
       netWorth: ctx.netWorth,
       cash: ctx.cash,

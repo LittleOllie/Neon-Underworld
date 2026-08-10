@@ -23,10 +23,10 @@ describe('game backgrounds config', () => {
 
   it('appends cache-bust revision for replaced images', () => {
     expect(gameBackgroundUrl(`${GAME_BACKGROUND_DIR}/intel.png`, 'intel')).toBe(
-      `${GAME_BACKGROUND_DIR}/intel.png?v=2`,
+      `${GAME_BACKGROUND_DIR}/intel.png?v=5`,
     );
     expect(gameBackgroundUrl(`${GAME_BACKGROUND_DIR}/home.png`, 'home')).toBe(
-      `${GAME_BACKGROUND_DIR}/home.png?v=4`,
+      `${GAME_BACKGROUND_DIR}/home.png?v=5`,
     );
   });
 

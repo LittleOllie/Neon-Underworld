@@ -26,6 +26,7 @@ import {
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { DistrictModifiers } from '@/config/game/balance';
+import { CartelService } from '@/server/services/cartel.service';
 import type { ActionResult } from './auth.actions';
 
 export interface ScoutResultData {
@@ -33,6 +34,7 @@ export interface ScoutResultData {
   prostitutesFound: number;
   thugsFound: number;
   cashEarned: number;
+  cartelContribution?: number;
   prostitutesLost: number;
   thugsLost: number;
   netWorthChange: number;
@@ -136,7 +138,12 @@ export async function scoutAction(
       const beforeResources = playerToResources(player);
       const newProstitutes = Math.max(0, player.prostitutes + scoutOutcome.prostitutesFound - scoutOutcome.prostitutesLost);
       const newThugs = Math.max(0, player.thugs + scoutOutcome.thugsFound - scoutOutcome.thugsLost);
-      const newCash = player.cash + scoutOutcome.cashEarned;
+      const incomeSplit = await CartelService.applyIncomeContribution(
+        tx,
+        playerId,
+        scoutOutcome.cashEarned,
+      );
+      const newCash = player.cash + incomeSplit.playerCash;
 
       const afterResources = {
         ...beforeResources,
@@ -200,7 +207,8 @@ export async function scoutAction(
         turnsSpent: parsed.data.turns,
         prostitutesFound: scoutOutcome.prostitutesFound,
         thugsFound: scoutOutcome.thugsFound,
-        cashEarned: scoutOutcome.cashEarned,
+        cashEarned: incomeSplit.playerCash,
+        cartelContribution: incomeSplit.cartelCash,
         prostitutesLost: scoutOutcome.prostitutesLost,
         thugsLost: scoutOutcome.thugsLost,
         netWorthChange: nwChange,

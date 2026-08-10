@@ -29,6 +29,7 @@ export default async function AttackPage({ searchParams }: Props) {
         turns={data.turns}
         targets={data.targets}
         initialReportId={initialReportId}
+        attackRangeMinNetWorth={data.attackRangeMinNetWorth}
       />
     </GameShell>
   );

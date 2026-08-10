@@ -121,3 +121,42 @@ export function validateAttackEligibility(input: AttackEligibilityInput): string
   if (!code) return null;
   return GAMEPLAY_ERROR_MESSAGES[code];
 }
+
+/** Lightweight target preview for attack UI — omits force/turn/ride checks. */
+export interface AttackTargetPreviewInput {
+  attackerId: string;
+  defenderId: string;
+  attackerDistrictId: string;
+  defenderDistrictId: string;
+  attackerNw: number;
+  defenderNw: number;
+  defenderLifeStatus: string;
+  defenderTravelling: boolean;
+  attacksOnTargetLast24h: number;
+}
+
+export function evaluateAttackTargetPreview(input: AttackTargetPreviewInput): {
+  eligible: boolean;
+  code: GameplayErrorCode | null;
+  message: string | null;
+} {
+  if (input.attackerId === input.defenderId) {
+    return { eligible: false, code: 'INVALID_TARGET', message: GAMEPLAY_ERROR_MESSAGES.INVALID_TARGET };
+  }
+  if (ATTACK_RULES.blockedDefenderLifeStatuses.includes(input.defenderLifeStatus as never)) {
+    return { eligible: false, code: 'TARGET_UNAVAILABLE', message: GAMEPLAY_ERROR_MESSAGES.TARGET_UNAVAILABLE };
+  }
+  if (input.defenderTravelling) {
+    return { eligible: false, code: 'TARGET_UNAVAILABLE', message: GAMEPLAY_ERROR_MESSAGES.TARGET_UNAVAILABLE };
+  }
+  if (input.attackerDistrictId !== input.defenderDistrictId) {
+    return { eligible: false, code: 'TARGET_WRONG_DISTRICT', message: GAMEPLAY_ERROR_MESSAGES.TARGET_WRONG_DISTRICT };
+  }
+  if (!isWithinAttackRange(input.attackerNw, input.defenderNw)) {
+    return { eligible: false, code: 'TARGET_OUT_OF_RANGE', message: GAMEPLAY_ERROR_MESSAGES.TARGET_OUT_OF_RANGE };
+  }
+  if (input.attacksOnTargetLast24h >= ATTACK_RULES.targetAttackCapPer24h) {
+    return { eligible: false, code: 'TARGET_UNAVAILABLE', message: GAMEPLAY_ERROR_MESSAGES.TARGET_UNAVAILABLE };
+  }
+  return { eligible: true, code: null, message: null };
+}

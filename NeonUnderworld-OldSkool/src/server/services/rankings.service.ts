@@ -14,6 +14,7 @@ export interface RankingRow {
   city: string;
   citySlug: string;
   cartelId: string | null;
+  cartelTag: string | null;
   netWorth: number;
   lastSeen: Date | null;
   online: boolean;
@@ -55,13 +56,6 @@ function compareRankings(
 }
 
 async function computePlayerRank(playerId: string, seasonId: string): Promise<number> {
-  const snapshot = await prisma.rankSnapshot.findFirst({
-    where: { playerId, seasonId },
-    orderBy: { createdAt: 'desc' },
-    select: { rank: true },
-  });
-  if (snapshot) return snapshot.rank;
-
   const players = await prisma.player.findMany({
     where: { seasonId, isSystemPlayer: false },
     select: RANK_NET_WORTH_SELECT,
@@ -103,6 +97,7 @@ async function computeSeasonRankings(
     },
     include: {
       district: true,
+      cartel: { select: { tag: true } },
       user: { select: { lastLoginAt: true } },
       statusExt: true,
     },
@@ -124,6 +119,7 @@ async function computeSeasonRankings(
       city: p.district.name,
       citySlug: p.district.slug,
       cartelId: p.cartelId,
+      cartelTag: p.cartel?.tag ?? null,
       netWorth: netWorthMap.get(p.id) ?? 0,
       lastSeen,
       online: PlayerStatusService.isOnline(lastSeen),

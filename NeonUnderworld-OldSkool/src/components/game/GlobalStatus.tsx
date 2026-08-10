@@ -1,4 +1,5 @@
 import { formatTurnsExact } from '@local/server/domain/status-presentation';
+import { formatRank } from '@local/lib/format-rank';
 import { GameLabel, GameValue } from './GameValue';
 
 export interface GlobalStats {
@@ -17,7 +18,7 @@ export function GlobalStatus({ stats }: { stats: GlobalStats }) {
     { label: 'Cash', value: `$${stats.cash.toLocaleString()}` },
     { label: 'Turns', value: formatTurnsExact(stats.turns, stats.turnCap) },
     { label: 'Net Worth', value: `$${stats.netWorth.toLocaleString()}` },
-    { label: 'Rank', value: `#${stats.rank}` },
+    { label: 'Rank', value: formatRank(stats.rank) },
   ];
 
   return (

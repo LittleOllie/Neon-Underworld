@@ -77,6 +77,47 @@ export const directAttackLaunchSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
+export const travelSchema = z.object({
+  destinationDistrictSlug: z.enum(['neon-strip', 'docklands', 'old-quarter']),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const marketListingSchema = z.object({
+  itemKey: z.enum([
+    'glock', 'uzi', 'ak', 'ride',
+    'hash', 'shroom', 'coke', 'heroin', 'beer', 'condom',
+  ]),
+  quantity: z.number().int().min(1).max(1000),
+  startingPrice: z.number().int().min(10),
+  durationMinutes: z.union([
+    z.literal(30), z.literal(60), z.literal(180),
+    z.literal(360), z.literal(720), z.literal(1440),
+  ]),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const marketBidSchema = z.object({
+  listingId: z.string().min(1),
+  amount: z.number().int().min(10),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const cartelCreateSchema = z.object({
+  name: z.string().min(3).max(32),
+  tag: z.string().min(2).max(6),
+});
+
+export const cartelInviteSchema = z.object({
+  inviteeAlias: z.string().min(2).max(32),
+});
+
+export const cartelDonationSchema = z.object({
+  percent: z.union([
+    z.literal(0), z.literal(10), z.literal(20),
+    z.literal(30), z.literal(40), z.literal(50), z.literal(60),
+  ]),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;

@@ -1,4 +1,4 @@
-import { HAPPINESS_CONFIG, SCOUTING_CONFIG } from '@/config/game/balance';
+import { HAPPINESS_CONFIG, SCOUTING_CONFIG, HAPPINESS_EFFICIENCY } from '@/config/game/balance';
 import type { DistrictModifiers } from '@/config/game/balance';
 
 export interface ProstituteHappinessInput {
@@ -127,29 +127,105 @@ export function happinessRecruitmentModifier(prostituteHappiness: number, thugHa
   return happinessRecruitmentMin + normalized * (happinessRecruitmentMax - happinessRecruitmentMin);
 }
 
+/** Smooth efficiency curve for scout cash and produce output. 100% ≈ full, low morale reduces returns. */
+export function happinessEfficiencyModifier(score: number): number {
+  const s = clamp(score, 0, 100);
+  const cfg = HAPPINESS_EFFICIENCY;
+  if (s >= cfg.excellentMin) {
+    const t = (s - cfg.excellentMin) / (100 - cfg.excellentMin);
+    return cfg.atGood + t * (cfg.atExcellent - cfg.atGood);
+  }
+  if (s >= cfg.goodMin) {
+    const t = (s - cfg.goodMin) / (cfg.excellentMin - cfg.goodMin);
+    return cfg.atReduced + t * (cfg.atGood - cfg.atReduced);
+  }
+  if (s >= cfg.reducedMin) {
+    const t = (s - cfg.reducedMin) / (cfg.goodMin - cfg.reducedMin);
+    return cfg.atPoor + t * (cfg.atReduced - cfg.atPoor);
+  }
+  if (s >= cfg.poorMin) {
+    const t = (s - cfg.poorMin) / (cfg.reducedMin - cfg.poorMin);
+    return cfg.atSevere + t * (cfg.atPoor - cfg.atSevere);
+  }
+  return cfg.atSevere;
+}
+
+function walkoutRateForHappiness(happiness: number, baseRate: number): number {
+  const cfg = SCOUTING_CONFIG;
+  if (happiness >= cfg.walkoutHealthyThreshold) return 0;
+  if (happiness >= cfg.walkoutModerateThreshold) {
+    return baseRate * cfg.walkoutModerateRateMultiplier;
+  }
+  if (happiness >= cfg.walkoutLowThreshold) {
+    return baseRate * cfg.walkoutLowRateMultiplier;
+  }
+  return baseRate * cfg.walkoutCriticalRateMultiplier;
+}
+
+function rollWalkouts(
+  crewCount: number,
+  turnsSpent: number,
+  ratePerTurn: number,
+  rng?: { next(): number },
+): number {
+  if (ratePerTurn <= 0 || crewCount <= 0 || turnsSpent <= 0) return 0;
+
+  if (!rng) {
+    return Math.min(crewCount, Math.floor(crewCount * ratePerTurn * turnsSpent));
+  }
+
+  let lost = 0;
+  let remaining = crewCount;
+  for (let turn = 0; turn < turnsSpent; turn++) {
+    for (let i = 0; i < remaining; i++) {
+      if (rng.next() < ratePerTurn) {
+        lost++;
+        remaining--;
+        if (remaining <= 0) break;
+      }
+    }
+    if (remaining <= 0) break;
+  }
+  return lost;
+}
+
 export function calculateDepartureRisk(
   turnsSpent: number,
   prostituteHappiness: number,
   thugHappiness: number,
   prostituteCount: number,
   thugCount: number,
+  rng?: { next(): number },
 ): { prostitutesLost: number; thugsLost: number } {
-  let prostituteRate = 0;
-  let thugRate = 0;
+  let prostituteRate = walkoutRateForHappiness(
+    prostituteHappiness,
+    SCOUTING_CONFIG.prostituteDepartureRatePerTurn,
+  );
+  let thugRate = walkoutRateForHappiness(thugHappiness, SCOUTING_CONFIG.thugDepartureRatePerTurn);
 
-  if (prostituteHappiness < SCOUTING_CONFIG.prostituteHappinessCriticalThreshold && prostituteCount > 0) {
-    prostituteRate = SCOUTING_CONFIG.prostituteDepartureRatePerTurn;
-    if (prostituteCount < SCOUTING_CONFIG.newPlayerProtectionProstituteCount) {
-      prostituteRate *= SCOUTING_CONFIG.newPlayerDepartureMultiplier;
-    }
+  if (
+    prostituteCount > 0 &&
+    prostituteCount < SCOUTING_CONFIG.newPlayerProtectionProstituteCount &&
+    prostituteHappiness < SCOUTING_CONFIG.prostituteHappinessCriticalThreshold
+  ) {
+    prostituteRate *= SCOUTING_CONFIG.newPlayerDepartureMultiplier;
   }
 
-  if (thugHappiness < SCOUTING_CONFIG.thugHappinessWarningThreshold && thugCount > 0) {
-    thugRate = SCOUTING_CONFIG.thugDepartureRatePerTurn;
+  if (thugHappiness >= SCOUTING_CONFIG.thugHappinessCriticalThreshold) {
+    thugRate = 0;
+  } else if (thugHappiness < SCOUTING_CONFIG.thugHappinessWarningThreshold) {
+    thugRate = Math.max(thugRate, SCOUTING_CONFIG.thugDepartureRatePerTurn * SCOUTING_CONFIG.walkoutLowRateMultiplier);
   }
 
-  const prostitutesLost = prostituteRate > 0 ? Math.min(prostituteCount, Math.floor(prostituteCount * prostituteRate * turnsSpent)) : 0;
-  const thugsLost = thugRate > 0 ? Math.min(thugCount, Math.floor(thugCount * thugRate * turnsSpent)) : 0;
+  if (prostituteHappiness >= SCOUTING_CONFIG.prostituteHappinessCriticalThreshold) {
+    prostituteRate = 0;
+  }
+
+  const prostitutesLost =
+    prostituteRate > 0
+      ? rollWalkouts(prostituteCount, turnsSpent, prostituteRate, rng)
+      : 0;
+  const thugsLost = thugRate > 0 ? rollWalkouts(thugCount, turnsSpent, thugRate, rng) : 0;
 
   return { prostitutesLost, thugsLost };
 }

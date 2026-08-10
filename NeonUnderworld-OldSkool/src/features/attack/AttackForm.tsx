@@ -38,6 +38,7 @@ interface AttackFormProps {
   turns: number;
   targets: AttackTargetRow[];
   initialReportId?: string;
+  attackRangeMinNetWorth?: number;
 }
 
 const ATTACK_TYPES: AttackType[] = ['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS'];
@@ -129,18 +130,25 @@ export function AttackForm(props: AttackFormProps) {
     if (!selectedReportId || !canAttack) return;
     setLoading(true);
     setError('');
-    const directTarget = parseDirectAttackReportId(selectedReportId);
-    const response = directTarget
-      ? await launchDirectAttackAction(directTarget, attackType, force, uuidv4())
-      : await launchAttackAction(selectedReportId, attackType, force, uuidv4());
-    setLoading(false);
-    if (!response.success) {
-      setError(response.error);
+    try {
+      const directTarget = parseDirectAttackReportId(selectedReportId);
+      const response = directTarget
+        ? await launchDirectAttackAction(directTarget, attackType, force, uuidv4())
+        : await launchAttackAction(selectedReportId, attackType, force, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        setConfirming(false);
+        return;
+      }
+      setResult(response.data);
+      router.refresh();
+    } catch (err) {
+      setError('Something went wrong launching the attack. Try again.');
       setConfirming(false);
-      return;
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setResult(response.data);
-    router.refresh();
   }
 
   if (result) {
@@ -188,6 +196,12 @@ export function AttackForm(props: AttackFormProps) {
 
   return (
     <>
+      {props.attackRangeMinNetWorth != null && props.attackRangeMinNetWorth > 0 && (
+        <p className="g-note">
+          Attack range: targets worth at least ${props.attackRangeMinNetWorth.toLocaleString()}+
+        </p>
+      )}
+
       <label htmlFor="attackTarget" className="g-section-label">
         Target
       </label>

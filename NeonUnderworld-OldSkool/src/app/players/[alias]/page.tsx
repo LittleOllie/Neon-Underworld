@@ -5,6 +5,7 @@ import { PublicProfileService } from '@local/server/services/public-profile.serv
 import { ReportService } from '@local/server/services/report.service';
 import { requireGameSession, globalStatsFromContext, formatRelativeTime } from '@local/lib/game-context';
 import { PlayerProfilePanel } from '@local/features/player/PlayerProfilePanel';
+import { formatRank } from '@local/lib/format-rank';
 import { OS_TERMS } from '@local/config/terminology';
 
 interface Props {
@@ -34,15 +35,18 @@ export default async function PlayerProfilePage({ params }: Props) {
     <GameShell stats={globalStatsFromContext(ctx)} background="intel">
       <PageTitle icon="player">{profile.alias}</PageTitle>
 
-      <StatRow label={OS_TERMS.rank} value={`#${profile.rank}`} />
+      <StatRow label={OS_TERMS.rank} value={formatRank(profile.rank)} />
       <StatRow label={OS_TERMS.netWorth} value={`$${profile.netWorth.toLocaleString()}`} />
       <StatRow label={OS_TERMS.city} value={profile.city} />
       <StatRow
         label={OS_TERMS.lastSeen}
         value={profile.online ? OS_TERMS.online : formatRelativeTime(profile.lastSeen ?? new Date(0))}
       />
-      {profile.cartelId && (
-        <StatRow label={OS_TERMS.cartel} value="Affiliated" />
+      {profile.cartelName && (
+        <StatRow
+          label={OS_TERMS.cartel}
+          value={`[${profile.cartelTag}] ${profile.cartelName}`}
+        />
       )}
 
       {isSelf ? (

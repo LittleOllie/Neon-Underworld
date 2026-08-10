@@ -91,9 +91,8 @@ export default async function HowToPlayPage() {
       </ol>
       <p className="g-note g-guide-body">
         Attacks only work against players in <strong>your same district</strong> whose net worth is
-        between {REDLITE_ATTACK.minNetWorthMultiplier * 100}% and{' '}
-        {REDLITE_ATTACK.maxNetWorthMultiplier * 100}% of yours. Check Reports if a target goes out
-        of range.
+        at least {REDLITE_ATTACK.minNetWorthMultiplier * 100}% of yours. You can punch upward — there
+        is no upper limit on richer targets.
       </p>
 
       <Divider />

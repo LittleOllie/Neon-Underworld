@@ -3,7 +3,6 @@ import { REDLITE_ATTACK, REDLITE_VEHICLES, REDLITE_WEAPONS } from './redlite-rul
 /** Neon Underworld Attack v1 — single source of truth */
 export const ATTACK_RULES = {
   netWorthMinMultiplier: REDLITE_ATTACK.minNetWorthMultiplier,
-  netWorthMaxMultiplier: REDLITE_ATTACK.maxNetWorthMultiplier,
 
   /** 1 ride per 5 attacking thugs (Neon simplification — all v1 mobile attacks) */
   thugsPerRide: REDLITE_VEHICLES.thugsPerRide,
@@ -54,8 +53,8 @@ export const ATTACK_RULES = {
   randomVarianceMin: 0.88,
   randomVarianceMax: 1.12,
 
-  /** Cartel defence — not active in v1 */
-  cartelDefenceActive: false,
+/** Cartel defence — virtual thug support from same-city mates */
+  cartelDefenceActive: true,
 } as const;
 
 export type AttackType = keyof typeof ATTACK_RULES.turnCosts;

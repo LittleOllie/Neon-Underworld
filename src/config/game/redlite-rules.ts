@@ -128,20 +128,24 @@ export const REDLITE_VEHICLES = {
   rideValue: 2000,
 } as const;
 
-/** Attack net worth range: half to double (guide §7) */
+/** Attack net worth floor: targets must be at least half the attacker's net worth. No upper cap. */
+export const ATTACK_MIN_TARGET_NET_WORTH_RATIO = 0.5;
+
 export const REDLITE_ATTACK = {
-  minNetWorthMultiplier: 0.5,
-  maxNetWorthMultiplier: 2,
+  minNetWorthMultiplier: ATTACK_MIN_TARGET_NET_WORTH_RATIO,
 } as const;
+
+export function minAttackTargetNetWorth(attackerNetWorth: number): number {
+  if (attackerNetWorth <= 0) return 0;
+  return Math.ceil(attackerNetWorth * ATTACK_MIN_TARGET_NET_WORTH_RATIO);
+}
 
 export function isWithinAttackRange(
   attackerNetWorth: number,
   targetNetWorth: number,
 ): boolean {
   if (attackerNetWorth <= 0) return false;
-  const min = attackerNetWorth * REDLITE_ATTACK.minNetWorthMultiplier;
-  const max = attackerNetWorth * REDLITE_ATTACK.maxNetWorthMultiplier;
-  return targetNetWorth >= min && targetNetWorth <= max;
+  return targetNetWorth >= minAttackTargetNetWorth(attackerNetWorth);
 }
 
 /** Cartels (guide §6) */
@@ -155,6 +159,9 @@ export const REDLITE_CARTEL = {
 /** Travel (guide §8) */
 export const REDLITE_TRAVEL = {
   turnCost: 10,
+  /** Crew (thugs + workers) per ride when relocating */
+  crewPerRide: REDLITE_VEHICLES.thugsPerRide,
+  minRidesRequired: 1,
   travelsPerRoundMember: 90,
   travelsPerRoundNonMember: 20,
   thugTrainCost: 200,

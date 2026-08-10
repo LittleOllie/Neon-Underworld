@@ -63,6 +63,20 @@ enum ReportCategory {
   SYSTEM
 }
 
+enum CartelInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum MarketListingStatus {
+  ACTIVE
+  SETTLED
+  EXPIRED
+  CANCELLED
+}
+
 enum AttackType {
   DRIVE_BY
   HOME_INVASION
@@ -119,6 +133,7 @@ model Player {
   isSystemPlayer          Boolean  @default(false)
   avatar                  String?
   cartelId                String?
+  cartelDonationPercent   Int      @default(0)
   bankCash                Int      @default(0)
   health                  Int      @default(100)
   lifeStatus              PlayerLifeStatus @default(ACTIVE)
@@ -144,7 +159,14 @@ model Player {
   reports    Report[]
   attacksLaunched CombatEncounter[] @relation("AttackerEncounters")
   attacksReceived CombatEncounter[] @relation("DefenderEncounters")
+  cartel            Cartel?           @relation("CartelMembers", fields: [cartelId], references: [id], onDelete: SetNull)
+  cartelInvitesSent CartelInvite[]    @relation("CartelInviter")
+  cartelInvitesRecv CartelInvite[]    @relation("CartelInvitee")
+  marketListings    MarketListing[]   @relation("MarketSeller")
+  marketBids        MarketBid[]       @relation("MarketBidder")
+  marketWins        MarketListing[]   @relation("MarketHighestBidder")
 
+  @@index([cartelId])
   @@index([aliasNormalized])
   @@index([seasonId, cash])
   @@index([seasonId])
@@ -388,4 +410,76 @@ model AdminAuditLog {
   createdAt  DateTime @default(now())
 
   @@index([adminUserId, createdAt])
+}
+
+model Cartel {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  tag          String   @unique
+  leaderId     String
+  treasuryCash Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  members Player[]       @relation("CartelMembers")
+  invites CartelInvite[]
+
+  @@index([leaderId])
+}
+
+model CartelInvite {
+  id        String             @id @default(cuid())
+  cartelId  String
+  inviterId String
+  inviteeId String
+  status    CartelInviteStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  cartel  Cartel @relation(fields: [cartelId], references: [id], onDelete: Cascade)
+  inviter Player @relation("CartelInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee Player @relation("CartelInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@index([inviteeId, status])
+  @@index([cartelId, status])
+}
+
+model MarketListing {
+  id              String               @id @default(cuid())
+  sellerId        String
+  itemKey         String
+  quantity        Int
+  startingPrice   Int
+  currentBid      Int?
+  highestBidderId String?
+  endsAt          DateTime
+  status          MarketListingStatus  @default(ACTIVE)
+  settledAt       DateTime?
+  settlementKey   String?              @unique
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  seller        Player      @relation("MarketSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  highestBidder Player?     @relation("MarketHighestBidder", fields: [highestBidderId], references: [id], onDelete: SetNull)
+  bids          MarketBid[]
+
+  @@index([status, endsAt])
+  @@index([sellerId, status])
+  @@index([itemKey, status])
+}
+
+model MarketBid {
+  id             String   @id @default(cuid())
+  listingId      String
+  bidderId       String
+  amount         Int
+  idempotencyKey String
+  createdAt      DateTime @default(now())
+
+  listing MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bidder  Player        @relation("MarketBidder", fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@unique([bidderId, idempotencyKey])
+  @@index([listingId, createdAt])
 }
