@@ -6,20 +6,32 @@ import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { scoutAction, type OldSkoolScoutResult } from '@local/server/actions/scout.actions';
 import { getScoutAreaDisplays } from '@core/lib/game-engine/scout-display';
+import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
 import type { RedliteScoutAreaSlug } from '@core/config/game/redlite-rules';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
-import { ActionResult } from '@local/components/game/ActionResult';
+import { ActionResult, type ActionResultLine } from '@local/components/game/ActionResult';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
 
 interface ScoutFormProps {
   initialTurns: number;
+  prostituteHappiness: number;
+  thugHappiness: number;
+  prostituteCount: number;
+  thugCount: number;
 }
 
 const AREA_DISPLAYS = getScoutAreaDisplays();
 
-export function ScoutForm({ initialTurns }: ScoutFormProps) {
+export function ScoutForm({
+  initialTurns,
+  prostituteHappiness,
+  thugHappiness,
+  prostituteCount,
+  thugCount,
+}: ScoutFormProps) {
   const router = useRouter();
   const [turns, setTurns] = useState(initialTurns);
   const [amountRaw, setAmountRaw] = useState('25');
@@ -55,15 +67,29 @@ export function ScoutForm({ initialTurns }: ScoutFormProps) {
   }
 
   if (result) {
+    const lines: ActionResultLine[] = [
+      { text: `+${result.prostitutesFound} ${workersLabel(result.prostitutesFound)}`, tone: 'positive' },
+      { text: `+${result.thugsFound} ${thugsLabel(result.thugsFound)}`, tone: 'positive' },
+      { text: `+$${result.cashEarned.toLocaleString()} retained income`, tone: 'positive' },
+    ];
+    if (result.prostitutesLost > 0) {
+      lines.push({
+        text: `${result.prostitutesLost} ${workersLabel(result.prostitutesLost)} walked out`,
+        tone: 'negative',
+      });
+    }
+    if (result.thugsLost > 0) {
+      lines.push({
+        text: `${result.thugsLost} ${thugsLabel(result.thugsLost)} walked out`,
+        tone: 'negative',
+      });
+    }
+    lines.push({ text: `${result.turnsSpent} turns used` });
+
     return (
       <ActionResult
         title="Scout Complete"
-        lines={[
-          { text: `+${result.prostitutesFound} ${workersLabel(result.prostitutesFound)}`, tone: 'positive' },
-          { text: `+${result.thugsFound} ${thugsLabel(result.thugsFound)}`, tone: 'positive' },
-          { text: `+$${result.cashEarned.toLocaleString()} retained income`, tone: 'positive' },
-          { text: `${result.turnsSpent} turns used` },
-        ]}
+        lines={lines}
         actions={[
           {
             label: 'Scout Again',
@@ -106,8 +132,25 @@ export function ScoutForm({ initialTurns }: ScoutFormProps) {
 
       {error && <p className="g-error">{error}</p>}
 
-      <PrimaryButton className="g-btn-full" icon="scout" onClick={handleScout} disabled={loading}>
-        {loading ? 'Scouting…' : 'Scout'}
+      {(() => {
+        const walkout = assessScoutWalkoutRisk(
+          amount,
+          prostituteHappiness,
+          thugHappiness,
+          prostituteCount,
+          thugCount,
+        );
+        if (walkout.level === 'none') return null;
+        return (
+          <p className={`g-note${walkout.level === 'critical' ? ' g-error' : ''}`} role="alert">
+            {walkout.level === 'critical' ? 'LOW MORALE — ' : ''}
+            {walkout.message}
+          </p>
+        );
+      })()}
+
+      <PrimaryButton className="g-btn-full" icon="scout" onClick={handleScout} disabled={loading} pending={loading}>
+        {loading ? ACTION_PENDING.scout : 'Scout'}
       </PrimaryButton>
     </>
   );

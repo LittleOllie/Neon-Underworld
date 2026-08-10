@@ -8,13 +8,11 @@ import {
 import { formatTimeUntilNextTurn } from '@core/lib/game-engine/turns';
 import { TurnService } from './turn.service';
 import { NetWorthService } from './net-worth.service';
-import { EmpireService } from './empire.service';
 import { ActivityService } from './activity.service';
-import { OnlineService } from './online.service';
 import { RankingsService } from './rankings.service';
 import { ReportService } from './report.service';
 import { PlayerStatusService } from './player-status.service';
-import type { CommandPageData, PlayerModel, ReportPreview } from '@local/domain/player.model';
+import type { ReportPreview } from '@local/domain/player.model';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 
 export interface CanonicalPlayerContext {
@@ -198,64 +196,6 @@ const getCanonicalContextCached = cache(async (playerId: string): Promise<Canoni
 export const PlayerService = {
   getCanonicalContext(playerId: string): Promise<CanonicalPlayerContext> {
     return getCanonicalContextCached(playerId);
-  },
-
-  async getCommandData(playerId: string): Promise<CommandPageData> {
-    const player = await loadPlayerRecord(playerId);
-    const rank = await RankingsService.getPlayerRank(playerId, player.seasonId);
-    const ctx = buildCanonicalContext(player, rank);
-
-    await ActivityService.ensureFeed(playerId);
-    const empire = await EmpireService.syncInventory(playerId);
-    await PlayerStatusService.touchLastSeen(playerId);
-
-    const playerModel: PlayerModel = {
-      id: ctx.id,
-      username: ctx.alias,
-      avatar: ctx.avatar,
-      city: ctx.district.name,
-      citySlug: ctx.district.slug,
-      cartelId: ctx.cartelId,
-      cartelName: ctx.cartelName,
-      rank: ctx.rank,
-      netWorth: ctx.netWorth,
-      cash: ctx.cash,
-      bankCash: ctx.bankCash,
-      turns: ctx.turns,
-      maxTurns: ctx.turnCap,
-      turnsLastUpdated: player.turnState!.lastRegeneratedAt,
-      health: ctx.health,
-      status: ctx.lifeStatus as PlayerModel['status'],
-      travelling: ctx.travelling,
-      travelDestination: ctx.travelDestination,
-      travelArrival: ctx.travelArrival,
-      protectionStatus: ctx.protectionStatus as PlayerModel['protectionStatus'],
-      online: ctx.online,
-      lastSeen: ctx.lastSeen,
-      seasonLabel: ctx.seasonDisplay.label,
-      seasonDay: ctx.seasonDisplay.dayLabel,
-      roundNumber: ctx.season.number,
-    };
-
-    const [activities, reports, onlinePlayers, unreadReportCount] = await Promise.all([
-      ActivityService.getRecent(playerId, 12),
-      ReportService.getRecent(playerId, 3),
-      OnlineService.getRecentPlayers(player.seasonId, 8),
-      ReportService.getUnreadCount(playerId),
-    ]);
-
-    const empireBrief = EmpireService.buildCommandBrief(ctx);
-
-    return {
-      player: playerModel,
-      empire,
-      empireBrief,
-      activities,
-      reports,
-      unreadReportCount,
-      notification: player.statusExt?.notification ?? null,
-      onlinePlayers,
-    };
   },
 
   async getRecentReports(playerId: string, limit = 5): Promise<ReportPreview[]> {

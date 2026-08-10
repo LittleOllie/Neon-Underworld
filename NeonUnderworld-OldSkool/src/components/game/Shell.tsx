@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { LogoutLink } from '@local/components/oldskool/LogoutLink';
 import type { GameBackgroundKey } from '@local/config/backgrounds';
+import { getBackgroundForPath } from '@local/config/route-backgrounds';
 import { GlobalStatus, type GlobalStats } from './GlobalStatus';
 import { GameNav } from './GameNav';
 import { GamePageBackground } from './GamePageBackground';
@@ -15,12 +17,18 @@ export function GameShell({
   children,
 }: {
   stats?: GlobalStats;
+  /** Explicit override; otherwise derived from current pathname. */
   background?: GameBackgroundKey;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const resolvedBackground = background ?? getBackgroundForPath(pathname);
+
   return (
-    <div className={`g-shell${background ? ' g-shell--bg' : ''}`}>
-      {background && <GamePageBackground key={background} background={background} />}
+    <div className={`g-shell${resolvedBackground ? ' g-shell--bg' : ''}`}>
+      {resolvedBackground && (
+        <GamePageBackground key={resolvedBackground} background={resolvedBackground} />
+      )}
       <div className="g-top">
         <div className="g-brand-row">
           <Link href="/command" className="g-brand">

@@ -9,7 +9,9 @@ import {
   type TravelPageData,
   type TravelResult,
 } from '@local/server/actions/travel.actions';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
+import { TravelPendingOverlay } from '@local/components/game/TravelPendingOverlay';
 import { ActionResult } from '@local/components/game/ActionResult';
 import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
@@ -26,6 +28,9 @@ export function TravelForm(props: Props) {
 
   const ridesShort = Math.max(0, data.ridesRequired - data.ridesOwned);
   const turnsShort = data.turnsAvailable < data.turnCost;
+  const pendingDestination = loading
+    ? data.destinations.find((d) => d.slug === loading)?.name ?? loading
+    : null;
 
   async function handleTravel(slug: string) {
     setLoading(slug);
@@ -70,6 +75,10 @@ export function TravelForm(props: Props) {
 
   return (
     <>
+      {pendingDestination && (
+        <TravelPendingOverlay destination={pendingDestination} visible />
+      )}
+
       <SectionLabel>CURRENT CITY</SectionLabel>
       <div className="g-area-row g-area-row-selected">
         <div className="g-area-name">{data.currentCity.toUpperCase()}</div>
@@ -97,6 +106,7 @@ export function TravelForm(props: Props) {
 
       {data.destinations.map((dest) => {
         const blocked = ridesShort > 0 || turnsShort;
+        const isPending = loading === dest.slug;
         return (
           <div key={dest.slug} className="g-area-row">
             <div className="g-area-name">{dest.name}</div>
@@ -104,9 +114,10 @@ export function TravelForm(props: Props) {
             <PrimaryButton
               icon="travel"
               disabled={blocked || loading !== null}
+              pending={isPending}
               onClick={() => handleTravel(dest.slug)}
             >
-              {loading === dest.slug ? 'Travelling…' : 'Travel'}
+              {isPending ? ACTION_PENDING.travel(dest.name) : 'Travel'}
             </PrimaryButton>
           </div>
         );

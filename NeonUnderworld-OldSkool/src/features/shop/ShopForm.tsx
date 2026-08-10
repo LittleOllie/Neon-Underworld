@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import {
   shopPurchaseAction,
   type ShopCatalogEntry,
@@ -164,8 +165,9 @@ export function ShopForm({
                 icon="shop"
                 onClick={() => handleBuy(entry)}
                 disabled={loading === entry.key || cannotAfford || qty === null}
+                pending={loading === entry.key}
               >
-                {loading === entry.key ? '…' : 'Buy'}
+                {loading === entry.key ? ACTION_PENDING.shopPurchase : 'Buy'}
               </PrimaryButton>
             </div>
             {cannotAfford && <p className="g-error">Not enough cash.</p>}

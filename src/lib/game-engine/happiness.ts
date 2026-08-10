@@ -189,6 +189,69 @@ function rollWalkouts(
   return lost;
 }
 
+function capWalkoutLosses(lost: number, crewCount: number): number {
+  if (crewCount <= 0) return 0;
+  const maxLoss = Math.ceil(crewCount * SCOUTING_CONFIG.maxWalkoutFractionPerAction);
+  return Math.min(lost, maxLoss, crewCount);
+}
+
+export function assessScoutWalkoutRisk(
+  turnsSpent: number,
+  prostituteHappiness: number,
+  thugHappiness: number,
+  prostituteCount: number,
+  thugCount: number,
+): { level: 'none' | 'warning' | 'critical'; message?: string } {
+  if (turnsSpent <= 0) return { level: 'none' };
+
+  const prostituteRisk = walkoutRateForHappiness(
+    prostituteHappiness,
+    SCOUTING_CONFIG.prostituteDepartureRatePerTurn,
+  );
+  const thugRisk = walkoutRateForHappiness(
+    thugHappiness,
+    SCOUTING_CONFIG.thugDepartureRatePerTurn,
+  );
+
+  const workerCritical =
+    prostituteCount > 0 &&
+    prostituteHappiness < SCOUTING_CONFIG.prostituteHappinessCriticalThreshold &&
+    prostituteRisk > 0;
+  const thugCritical =
+    thugCount > 0 &&
+    thugHappiness < SCOUTING_CONFIG.thugHappinessCriticalThreshold &&
+    thugRisk > 0;
+
+  if (workerCritical || thugCritical) {
+    const parts: string[] = [];
+    if (workerCritical) {
+      parts.push('workers are critically unhappy and may leave');
+    }
+    if (thugCritical) {
+      parts.push('thugs are critically unhappy and may leave');
+    }
+    return {
+      level: 'critical',
+      message: `Low morale — ${parts.join('; ')} during a large action.`,
+    };
+  }
+
+  const workerWarning =
+    prostituteCount > 0 &&
+    prostituteHappiness < SCOUTING_CONFIG.prostituteHappinessWarningThreshold;
+  const thugWarning =
+    thugCount > 0 && thugHappiness < SCOUTING_CONFIG.thugHappinessWarningThreshold;
+
+  if ((workerWarning || thugWarning) && turnsSpent >= 100) {
+    return {
+      level: 'warning',
+      message: 'Morale is low. A large action increases walkout risk.',
+    };
+  }
+
+  return { level: 'none' };
+}
+
 export function calculateDepartureRisk(
   turnsSpent: number,
   prostituteHappiness: number,
@@ -197,6 +260,10 @@ export function calculateDepartureRisk(
   thugCount: number,
   rng?: { next(): number },
 ): { prostitutesLost: number; thugsLost: number } {
+  if (prostituteHappiness >= SCOUTING_CONFIG.walkoutHealthyThreshold) {
+    return { prostitutesLost: 0, thugsLost: 0 };
+  }
+
   let prostituteRate = walkoutRateForHappiness(
     prostituteHappiness,
     SCOUTING_CONFIG.prostituteDepartureRatePerTurn,
@@ -211,21 +278,26 @@ export function calculateDepartureRisk(
     prostituteRate *= SCOUTING_CONFIG.newPlayerDepartureMultiplier;
   }
 
-  if (thugHappiness >= SCOUTING_CONFIG.thugHappinessCriticalThreshold) {
+  if (thugHappiness >= SCOUTING_CONFIG.walkoutHealthyThreshold) {
     thugRate = 0;
   } else if (thugHappiness < SCOUTING_CONFIG.thugHappinessWarningThreshold) {
-    thugRate = Math.max(thugRate, SCOUTING_CONFIG.thugDepartureRatePerTurn * SCOUTING_CONFIG.walkoutLowRateMultiplier);
-  }
-
-  if (prostituteHappiness >= SCOUTING_CONFIG.prostituteHappinessCriticalThreshold) {
-    prostituteRate = 0;
+    thugRate = Math.max(
+      thugRate,
+      SCOUTING_CONFIG.thugDepartureRatePerTurn * SCOUTING_CONFIG.walkoutLowRateMultiplier,
+    );
   }
 
   const prostitutesLost =
     prostituteRate > 0
-      ? rollWalkouts(prostituteCount, turnsSpent, prostituteRate, rng)
+      ? capWalkoutLosses(
+          rollWalkouts(prostituteCount, turnsSpent, prostituteRate, rng),
+          prostituteCount,
+        )
       : 0;
-  const thugsLost = thugRate > 0 ? rollWalkouts(thugCount, turnsSpent, thugRate, rng) : 0;
+  const thugsLost =
+    thugRate > 0
+      ? capWalkoutLosses(rollWalkouts(thugCount, turnsSpent, thugRate, rng), thugCount)
+      : 0;
 
   return { prostitutesLost, thugsLost };
 }

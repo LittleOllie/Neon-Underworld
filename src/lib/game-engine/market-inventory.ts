@@ -1,19 +1,34 @@
-import { getCityShopItem, type PlayerShopFields, type ShopItemKey } from '@/config/game/shop-rules';
+import {
+  getCityShopItem,
+  getPersonnelItem,
+  type ItemCatalogKey,
+  type PlayerShopFields,
+} from '@/config/game/shop-rules';
+
+export type MarketPlayerInventory = PlayerShopFields & {
+  prostitutes: number;
+  thugs: number;
+};
 
 export function readPlayerItemQuantity(
-  player: PlayerShopFields,
-  itemKey: ShopItemKey,
+  player: MarketPlayerInventory,
+  itemKey: ItemCatalogKey,
 ): number {
-  const rule = getCityShopItem(itemKey);
-  if (!rule) return 0;
-  return player[rule.field];
+  const shop = getCityShopItem(itemKey);
+  if (shop) return player[shop.field];
+  const personnel = getPersonnelItem(itemKey);
+  if (personnel) return player[personnel.field];
+  return 0;
 }
 
-export function playerItemDelta(
-  itemKey: ShopItemKey,
+/** Prisma atomic increment payload — use with adjustPlayerItem after balance checks. */
+export function playerItemIncrement(
+  itemKey: ItemCatalogKey,
   delta: number,
-): Partial<Record<keyof PlayerShopFields, number>> {
-  const rule = getCityShopItem(itemKey);
-  if (!rule) return {};
-  return { [rule.field]: delta };
+): Record<string, { increment: number }> {
+  const shop = getCityShopItem(itemKey);
+  if (shop) return { [shop.field]: { increment: delta } };
+  const personnel = getPersonnelItem(itemKey);
+  if (personnel) return { [personnel.field]: { increment: delta } };
+  return {};
 }

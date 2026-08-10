@@ -69,6 +69,8 @@ describe('navigation shell config', () => {
     expect(MOBILE_NAV.some((n) => n.label === 'Attack')).toBe(false);
     expect(MORE_ITEMS.some((n) => n.href === '/bank')).toBe(false);
     expect(MORE_ITEMS.some((n) => n.href === '/reports')).toBe(true);
+    expect(MORE_ITEMS.some((n) => n.href === '/attack')).toBe(true);
+    expect(MORE_ITEMS.some((n) => n.href === '/playtest/turns')).toBe(false);
   });
 
   it('marks active routes correctly', () => {

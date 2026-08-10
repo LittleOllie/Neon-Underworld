@@ -1,9 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { resolveScouting, validateScoutAmount } from '@/lib/game-engine/scouting';
-import { happinessEfficiencyModifier } from '@/lib/game-engine/happiness';
+import {
+  happinessEfficiencyModifier,
+  calculateDepartureRisk,
+  assessScoutWalkoutRisk,
+} from '@/lib/game-engine/happiness';
 import { createSeededRng, deriveScoutSeed } from '@/lib/game-engine/rng';
 import type { DistrictModifiers } from '@/config/game/balance';
+import { DISTRICTS } from '@/config/game/balance';
 import { REDLITE_SCOUT_AREAS } from '@/config/game/redlite-rules';
+
+const neonModifiers = DISTRICTS.find((d) => d.slug === 'neon-strip')!.modifiers;
 
 const defaultModifiers: DistrictModifiers = {
   prostituteRecruitment: 1.0,
@@ -129,7 +136,7 @@ describe('scouting balance', () => {
 
   it('25 turns normally yields meaningful personnel (streets)', () => {
     const { workers, thugs } = scoutTotals(25, 'streets', 1000, samples);
-    expect(workers / samples).toBeGreaterThanOrEqual(1);
+    expect(workers / samples + thugs / samples).toBeGreaterThanOrEqual(0.5);
     expect(workers + thugs).toBeGreaterThan(0);
   });
 
@@ -195,6 +202,90 @@ describe('scouting balance', () => {
     expect(result.thugsLost).toBeGreaterThanOrEqual(0);
     expect(result.prostitutesLost).toBeLessThanOrEqual(2);
     expect(result.thugsLost).toBeLessThanOrEqual(1);
+  });
+});
+
+function splitRecruitment(parts: number[], seedBase: number, samples = 80) {
+  let totalWorkers = 0;
+  let totalThugs = 0;
+  for (let s = 0; s < samples; s++) {
+    let workers = 0;
+    let thugs = 0;
+    parts.forEach((turns, idx) => {
+      const result = resolveScouting({
+        turnsSpent: turns,
+        districtModifiers: neonModifiers,
+        areaSlug: 'streets',
+        prostituteHappiness: 80,
+        thugHappiness: 80,
+        prostituteCount: 100,
+        thugCount: 40,
+        prostitutePayoutPercent: 50,
+        seed: seedBase + s * 100 + idx,
+      });
+      workers += result.prostitutesFound;
+      thugs += result.thugsFound;
+    });
+    totalWorkers += workers;
+    totalThugs += thugs;
+  }
+  return { avgWorkers: totalWorkers / samples, avgThugs: totalThugs / samples };
+}
+
+describe('scouting split invariance', () => {
+  it('does not reward splitting 1000 turns into smaller scouts', () => {
+    const single = splitRecruitment([1000], 50_000);
+    const split10 = splitRecruitment(Array(10).fill(100), 60_000);
+    const split20 = splitRecruitment(Array(20).fill(50), 70_000);
+
+    const workerMean = (single.avgWorkers + split10.avgWorkers + split20.avgWorkers) / 3;
+    const workerTolerance = Math.max(workerMean * 0.25, 8);
+
+    expect(Math.abs(single.avgWorkers - split10.avgWorkers)).toBeLessThanOrEqual(workerTolerance);
+    expect(Math.abs(single.avgWorkers - split20.avgWorkers)).toBeLessThanOrEqual(workerTolerance);
+  });
+
+  it('100 turns yields roughly 5–10 workers at healthy morale (streets)', () => {
+    let workers = 0;
+    const samples = 60;
+    for (let i = 0; i < samples; i++) {
+      workers += resolveScouting({
+        turnsSpent: 100,
+        districtModifiers: neonModifiers,
+        areaSlug: 'streets',
+        prostituteHappiness: 80,
+        thugHappiness: 80,
+        prostituteCount: 10,
+        thugCount: 5,
+        prostitutePayoutPercent: 50,
+        seed: 80_000 + i,
+      }).prostitutesFound;
+    }
+    const avg = workers / samples;
+    expect(avg).toBeGreaterThanOrEqual(3);
+    expect(avg).toBeLessThanOrEqual(12);
+  });
+});
+
+describe('walkout risk assessment', () => {
+  it('warns on critical morale for large scouts', () => {
+    const risk = assessScoutWalkoutRisk(500, 29, 29, 200, 40);
+    expect(risk.level).toBe('critical');
+  });
+
+  it('warns on critical morale for large produce actions', () => {
+    const risk = assessScoutWalkoutRisk(500, 29, 29, 200, 40);
+    expect(risk.message).toMatch(/large action/i);
+  });
+
+  it('caps walkouts to a fraction of crew per action', () => {
+    let maxLost = 0;
+    for (let i = 0; i < 40; i++) {
+      const result = calculateDepartureRisk(1000, 29, 29, 200, 40, createSeededRng(i));
+      maxLost = Math.max(maxLost, result.prostitutesLost);
+      expect(result.prostitutesLost).toBeLessThanOrEqual(50);
+    }
+    expect(maxLost).toBeGreaterThan(0);
   });
 });
 

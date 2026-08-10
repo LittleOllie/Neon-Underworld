@@ -5,15 +5,21 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { produceAction, type OldSkoolProduceResult } from '@local/server/actions/produce.actions';
+import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
-import { ActionResult } from '@local/components/game/ActionResult';
+import { ActionResult, type ActionResultLine } from '@local/components/game/ActionResult';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
+import { workersLabel, thugsLabel } from '@local/config/terminology';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 interface ProduceFormProps {
   initialTurns: number;
   thugCount: number;
+  prostituteCount: number;
+  prostituteHappiness: number;
+  thugHappiness: number;
 }
 
 const DRUGS: { key: ProductionDrug; label: string }[] = [
@@ -23,7 +29,13 @@ const DRUGS: { key: ProductionDrug; label: string }[] = [
   { key: 'heroin', label: 'Heroin' },
 ];
 
-export function ProduceForm({ initialTurns, thugCount }: ProduceFormProps) {
+export function ProduceForm({
+  initialTurns,
+  thugCount,
+  prostituteCount,
+  prostituteHappiness,
+  thugHappiness,
+}: ProduceFormProps) {
   const router = useRouter();
   const [turns, setTurns] = useState(initialTurns);
   const [amountRaw, setAmountRaw] = useState('100');
@@ -63,14 +75,28 @@ export function ProduceForm({ initialTurns, thugCount }: ProduceFormProps) {
   }
 
   if (result) {
+    const lines: ActionResultLine[] = [
+      { text: `+${result.drugUnitsProduced.toLocaleString()} ${result.drugType}`, tone: 'positive' },
+      { text: `+$${result.playerShare.toLocaleString()} your share`, tone: 'positive' },
+    ];
+    if (result.prostitutesLost > 0) {
+      lines.push({
+        text: `${result.prostitutesLost} ${workersLabel(result.prostitutesLost)} walked out`,
+        tone: 'negative',
+      });
+    }
+    if (result.thugsLost > 0) {
+      lines.push({
+        text: `${result.thugsLost} ${thugsLabel(result.thugsLost)} walked out`,
+        tone: 'negative',
+      });
+    }
+    lines.push({ text: `${result.turnsSpent} turns used` });
+
     return (
       <ActionResult
         title="Production Complete"
-        lines={[
-          { text: `+${result.drugUnitsProduced.toLocaleString()} ${result.drugType}`, tone: 'positive' },
-          { text: `+$${result.playerShare.toLocaleString()} your share`, tone: 'positive' },
-          { text: `${result.turnsSpent} turns used` },
-        ]}
+        lines={lines}
         actions={[
           {
             label: 'Produce Again',
@@ -82,6 +108,14 @@ export function ProduceForm({ initialTurns, thugCount }: ProduceFormProps) {
       />
     );
   }
+
+  const walkout = assessScoutWalkoutRisk(
+    amount,
+    prostituteHappiness,
+    thugHappiness,
+    prostituteCount,
+    thugCount,
+  );
 
   return (
     <>
@@ -114,13 +148,21 @@ export function ProduceForm({ initialTurns, thugCount }: ProduceFormProps) {
 
       {error && <p className="g-error">{error}</p>}
 
+      {walkout.level !== 'none' && (
+        <p className={`g-note${walkout.level === 'critical' ? ' g-error' : ''}`} role="alert">
+          {walkout.level === 'critical' ? 'LOW MORALE — ' : ''}
+          {walkout.message}
+        </p>
+      )}
+
       <PrimaryButton
         className="g-btn-full"
         icon="produce"
         onClick={handleProduce}
         disabled={loading || thugCount === 0}
+        pending={loading}
       >
-        {loading ? 'Producing…' : 'Produce'}
+        {loading ? ACTION_PENDING.produce : 'Produce'}
       </PrimaryButton>
     </>
   );

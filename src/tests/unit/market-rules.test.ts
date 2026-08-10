@@ -2,16 +2,25 @@ import { describe, it, expect } from 'vitest';
 import {
   MARKET_RULES,
   isMarketTradableItem,
+  marketFilterCategory,
+  marketItemDisplayName,
   minimumNextBid,
 } from '@/config/game/market-rules';
 
 describe('market rules', () => {
-  it('allows shop inventory items only', () => {
+  it('allows shop inventory and personnel', () => {
     expect(isMarketTradableItem('ak')).toBe(true);
     expect(isMarketTradableItem('ride')).toBe(true);
     expect(isMarketTradableItem('beer')).toBe(true);
-    expect(isMarketTradableItem('whore')).toBe(false);
-    expect(isMarketTradableItem('thug')).toBe(false);
+    expect(isMarketTradableItem('whore')).toBe(true);
+    expect(isMarketTradableItem('thug')).toBe(true);
+    expect(isMarketTradableItem('cash')).toBe(false);
+  });
+
+  it('classifies personnel filter category', () => {
+    expect(marketFilterCategory('whore')).toBe('personnel');
+    expect(marketFilterCategory('thug')).toBe('personnel');
+    expect(marketItemDisplayName('whore')).toBe('Worker');
   });
 
   it('enforces minimum starting price', () => {

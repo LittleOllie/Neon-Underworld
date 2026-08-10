@@ -24,7 +24,19 @@ export interface TravelResult {
   destinationName: string;
   turnsSpent: number;
   newTurns: number;
+  ridesRequired: number;
+  ridesRemaining: number;
   message: string;
+}
+
+function isCompletedTravelPayload(payload: unknown): payload is TravelResult {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'destinationSlug' in payload &&
+    typeof (payload as TravelResult).destinationSlug === 'string' &&
+    (payload as TravelResult).destinationSlug.length > 0
+  );
 }
 
 export async function travelAction(
@@ -38,8 +50,8 @@ export async function travelAction(
     const existing = await prisma.gameAction.findUnique({
       where: { playerId_idempotencyKey: { playerId, idempotencyKey } },
     });
-    if (existing?.resultPayload) {
-      return { success: true, data: existing.resultPayload as unknown as TravelResult };
+    if (existing && isCompletedTravelPayload(existing.resultPayload)) {
+      return { success: true, data: existing.resultPayload };
     }
 
     const destination = DISTRICTS.find((d) => d.slug === destinationDistrictSlug);
@@ -114,6 +126,16 @@ export async function travelAction(
         },
       });
 
+      const resultData: TravelResult = {
+        destinationSlug: destDistrict.slug,
+        destinationName: destDistrict.name,
+        turnsSpent: turnCost,
+        newTurns: newState.currentTurns,
+        ridesRequired: ridesNeeded,
+        ridesRemaining: player.rides,
+        message: `You travelled to ${destDistrict.name}.`,
+      };
+
       await tx.gameAction.create({
         data: {
           playerId,
@@ -121,23 +143,12 @@ export async function travelAction(
           actionType: 'TRAVEL',
           idempotencyKey,
           requestPayload: { destinationDistrictSlug } as object,
-          resultPayload: {} as object,
+          resultPayload: resultData as object,
           turnsSpent: turnCost,
         },
       });
 
-      return {
-        destinationSlug: destDistrict.slug,
-        destinationName: destDistrict.name,
-        turnsSpent: turnCost,
-        newTurns: newState.currentTurns,
-        message: `You travelled to ${destDistrict.name}.`,
-      };
-    });
-
-    await prisma.gameAction.update({
-      where: { playerId_idempotencyKey: { playerId, idempotencyKey } },
-      data: { resultPayload: data as object },
+      return resultData;
     });
 
     return { success: true, data };

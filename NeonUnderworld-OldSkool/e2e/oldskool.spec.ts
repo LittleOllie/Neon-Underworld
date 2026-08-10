@@ -1,19 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@neonunderworld.local';
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'AdminChangeMe123!';
-
-async function login(page: import('@playwright/test').Page) {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(ADMIN_EMAIL);
-  await page.getByLabel('Password').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: /Enter District Network/i }).click();
-  await expect(page).toHaveURL(/\/command/, { timeout: 15000 });
-}
-
-function parseMoney(text: string | null) {
-  return Number((text ?? '0').replace(/[^0-9]/g, ''));
-}
+import { login } from './helpers';
 
 test.describe('OldSkool gameplay flow', () => {
   test('login → home → scout → report → empire → rankings consistency', async ({ page }) => {
@@ -46,9 +32,10 @@ test.describe('OldSkool gameplay flow', () => {
 test.describe('OldSkool public pages', () => {
   test('login page loads', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.getByRole('heading', { name: 'NEON UNDERWORLD', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'NEON UNDERWORLD' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Enter District Network/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Sign in$/i })).toBeVisible();
   });
 
   test('rankings requires login', async ({ page }) => {

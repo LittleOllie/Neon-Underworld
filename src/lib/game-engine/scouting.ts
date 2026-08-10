@@ -81,9 +81,6 @@ export function resolveScouting(input: ScoutInput): ScoutOutcome {
     if (rng.next() < thugChance) thugsFound++;
   }
 
-  prostitutesFound = clamp(prostitutesFound, 0, SCOUTING_CONFIG.maxProstitutesPerAction);
-  thugsFound = clamp(thugsFound, 0, SCOUTING_CONFIG.maxThugsPerAction);
-
   const grossCash = grossWorkerCash(input.prostituteCount, input.turnsSpent);
   const crewEfficiency = happinessEfficiencyModifier(
     (input.prostituteHappiness + input.thugHappiness) / 2,

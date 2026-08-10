@@ -35,4 +35,8 @@ describe('travel rules', () => {
     expect(dests).toHaveLength(DISTRICTS.length - 1);
     expect(dests.every((d) => d.slug !== 'neon-strip')).toBe(true);
   });
+
+  it('documents reusable rides — capacity check only, no consumption', () => {
+    expect(REDLITE_TRAVEL.thugsInRidesFree).toBe(true);
+  });
 });

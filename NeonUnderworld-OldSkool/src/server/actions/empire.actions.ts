@@ -7,6 +7,8 @@ import { auth } from '@local/lib/auth/config';
 import { ActivityService } from '@local/server/services/activity.service';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { validatePayoutPercent } from '@local/server/domain/empire-calculations';
+import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
+import { prisma } from '@core/lib/db/prisma';
 
 export async function updatePayoutAction(
   payoutPercent: number,
@@ -31,6 +33,11 @@ export async function updatePayoutAction(
           estimatedMorale: result.data.prostituteHappiness,
         },
       );
+      const player = await prisma.player.findUniqueOrThrow({
+        where: { id: playerId },
+        select: { seasonId: true },
+      });
+      revalidatePlayerGameplayCache(playerId, player.seasonId);
     }
     revalidatePath('/empire');
     revalidatePath('/command');

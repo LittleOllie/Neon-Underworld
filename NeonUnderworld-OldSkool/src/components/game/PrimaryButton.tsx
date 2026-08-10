@@ -7,6 +7,7 @@ export function PrimaryButton({
   children,
   type = 'button',
   disabled,
+  pending,
   variant,
   className,
   icon,
@@ -16,6 +17,7 @@ export function PrimaryButton({
   variant?: 'danger' | 'secondary';
   icon?: GameIconName;
   iconTone?: GameIconTone;
+  pending?: boolean;
 }) {
   const classes = [
     'g-btn',
@@ -34,7 +36,13 @@ export function PrimaryButton({
         : 'default';
 
   return (
-    <button type={type} className={classes} disabled={disabled} {...rest}>
+    <button
+      type={type}
+      className={classes}
+      disabled={disabled}
+      aria-busy={pending || undefined}
+      {...rest}
+    >
       <ButtonContent icon={icon} iconTone={tone}>
         {children}
       </ButtonContent>

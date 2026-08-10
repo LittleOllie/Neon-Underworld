@@ -3,20 +3,21 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@core/lib/db/prisma';
 import { TURNS_CONFIG } from '@core/config/game/balance';
+import { isPlaytestTurnsEnabled } from '@core/config/game/playtest';
 import { settleTurnRegeneration } from '@core/lib/game-engine/turns';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 
 export type PlaytestTurnGrant = '500' | '1000' | 'fill';
 
-function playtestTurnsEnabled(): boolean {
-  return process.env.PLAYTEST_TURNS !== 'false';
+export async function isPlaytestTurnsAvailable(): Promise<boolean> {
+  return isPlaytestTurnsEnabled();
 }
 
 export async function grantPlaytestTurnsAction(
   grant: PlaytestTurnGrant,
 ): Promise<ActionResult<{ newTurns: number }>> {
-  if (!playtestTurnsEnabled()) {
+  if (!isPlaytestTurnsEnabled()) {
     return { success: false, error: 'Playtest turn grants are disabled.' };
   }
 

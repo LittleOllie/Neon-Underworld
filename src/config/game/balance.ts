@@ -71,13 +71,11 @@ export const STARTING_RESOURCES = {
 
 export const SCOUTING_CONFIG = {
   /** Per-turn recruitment chance before district/area/happiness modifiers (0–1 scale). */
-  baseProstitutesPerTurn: 0.12,
-  baseThugsPerTurn: 0.11,
+  baseProstitutesPerTurn: 0.04,
+  baseThugsPerTurn: 0.042,
   varianceMin: 0.6,
   varianceMax: 1.4,
   cashPerProstitutePerTurn: REDLITE_PRODUCTION.cashPerProstitutePerTurn,
-  maxProstitutesPerAction: 50,
-  maxThugsPerAction: 40,
   /** Below this happiness, departure risk increases */
   prostituteHappinessWarningThreshold: 45,
   prostituteHappinessCriticalThreshold: 30,
@@ -88,12 +86,14 @@ export const SCOUTING_CONFIG = {
   walkoutModerateThreshold: 60,
   walkoutLowThreshold: 40,
   /** Base per-turn walkout probability when happiness is critical (0–1) */
-  prostituteDepartureRatePerTurn: 0.003,
-  thugDepartureRatePerTurn: 0.0025,
+  prostituteDepartureRatePerTurn: 0.0012,
+  thugDepartureRatePerTurn: 0.001,
   /** Moderate/low tier multipliers applied to base rate */
-  walkoutModerateRateMultiplier: 0.15,
-  walkoutLowRateMultiplier: 0.45,
+  walkoutModerateRateMultiplier: 0.12,
+  walkoutLowRateMultiplier: 0.35,
   walkoutCriticalRateMultiplier: 1,
+  /** Max fraction of crew that can leave from one Scout/Produce action */
+  maxWalkoutFractionPerAction: 0.25,
   /** New players with fewer than this many prostitutes get reduced departure risk */
   newPlayerProtectionProstituteCount: 5,
   newPlayerDepartureMultiplier: 0.25,

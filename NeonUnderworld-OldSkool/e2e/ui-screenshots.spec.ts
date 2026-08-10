@@ -1,18 +1,8 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
-
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@neonunderworld.local';
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'AdminChangeMe123!';
+import { login } from './helpers';
 
 const OUT = path.join(__dirname, '../screenshots/ui-review');
-
-async function login(page: import('@playwright/test').Page) {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(ADMIN_EMAIL);
-  await page.getByLabel('Password').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: /Enter District Network/i }).click();
-  await expect(page).toHaveURL(/\/command/, { timeout: 15000 });
-}
 
 test.describe('UI review screenshots', () => {
   test('capture desktop and mobile pages', async ({ browser }) => {

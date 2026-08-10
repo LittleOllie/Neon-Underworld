@@ -1,10 +1,8 @@
 import { prisma } from '@core/lib/db/prisma';
 import type { EmpireSummary } from '@local/domain/player.model';
 import type { CommandEmpireBrief, EmpireManagementData } from '@local/domain/empire.model';
-import { toActivitySummary } from '@local/domain/empire.model';
 import { NetWorthService } from './net-worth.service';
 import { TurnService } from './turn.service';
-import { ActivityService } from './activity.service';
 import { RankingsService } from './rankings.service';
 import type { CanonicalPlayerContext } from './player.service';
 import {
@@ -195,7 +193,6 @@ export const EmpireService = {
       unarmedThugs: weapons.unarmedThugs,
     });
 
-    const recentActivity = (await ActivityService.getEmpireRecent(ctx.id, 12)).map(toActivitySummary);
     const liquidTotal = ctx.cash + ctx.bankCash;
 
     return {
@@ -245,7 +242,7 @@ export const EmpireService = {
       readiness,
       supplySummary,
       statusMeters: buildEmpireStatusMeters(inventory),
-      recentActivity,
+      recentActivity: [],
     };
   },
 
@@ -283,8 +280,6 @@ export const EmpireService = {
       travelling: player.travelling,
       unarmedThugs: weapons.unarmedThugs,
     });
-
-    const recentActivity = (await ActivityService.getEmpireRecent(playerId, 12)).map(toActivitySummary);
 
     const rank = await RankingsService.getPlayerRank(playerId, player.seasonId);
 
@@ -337,7 +332,7 @@ export const EmpireService = {
       readiness,
       supplySummary,
       statusMeters: buildEmpireStatusMeters(inventory),
-      recentActivity,
+      recentActivity: [],
     };
   },
 };

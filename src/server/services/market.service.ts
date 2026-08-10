@@ -3,12 +3,14 @@ import type { Prisma } from '@prisma/client';
 import {
   MARKET_RULES,
   isMarketTradableItem,
+  listingMatchesMarketFilter,
   marketItemDisplayName,
   minimumNextBid,
   type MarketDurationMinutes,
+  type MarketFilterCategory,
+  type MarketTradableItemKey,
 } from '@/config/game/market-rules';
-import { getCityShopItem, type ShopItemKey } from '@/config/game/shop-rules';
-import { readPlayerItemQuantity, playerItemDelta } from '@/lib/game-engine/market-inventory';
+import { readPlayerItemQuantity, playerItemIncrement } from '@/lib/game-engine/market-inventory';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 
@@ -17,6 +19,8 @@ type Tx = Prisma.TransactionClient;
 type PlayerInventory = {
   id: string;
   cash: number;
+  prostitutes: number;
+  thugs: number;
   glocks: number;
   uzis: number;
   aks: number;
@@ -32,35 +36,47 @@ type PlayerInventory = {
 async function adjustPlayerItem(
   tx: Tx,
   playerId: string,
-  itemKey: ShopItemKey,
+  itemKey: MarketTradableItemKey,
   delta: number,
 ): Promise<void> {
-  const rule = getCityShopItem(itemKey);
-  if (!rule) throw new GameplayError('MARKET_ITEM_NOT_TRADABLE');
+  if (!isMarketTradableItem(itemKey)) throw new GameplayError('MARKET_ITEM_NOT_TRADABLE');
   const player = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
   const current = readPlayerItemQuantity(player, itemKey);
   const next = current + delta;
   if (next < 0) throw new GameplayError('MARKET_INSUFFICIENT_QUANTITY');
   await tx.player.update({
     where: { id: playerId },
-    data: playerItemDelta(itemKey, next - current) as Prisma.PlayerUpdateInput,
+    data: playerItemIncrement(itemKey, delta) as Prisma.PlayerUpdateInput,
   });
 }
 
-export async function settleExpiredMarketListings(now = new Date()): Promise<number> {
+export interface MarketSettlementResult {
+  settledCount: number;
+  affectedPlayerIds: string[];
+}
+
+export async function settleExpiredMarketListings(
+  now = new Date(),
+): Promise<MarketSettlementResult> {
   const expired = await prisma.marketListing.findMany({
     where: { status: 'ACTIVE', endsAt: { lte: now } },
     take: 50,
   });
 
-  let settled = 0;
+  let settledCount = 0;
+  const affectedPlayerIds = new Set<string>();
+
   for (const listing of expired) {
     await prisma.$transaction(async (tx) => {
       const did = await settleListingTx(tx, listing.id, now);
-      if (did) settled++;
+      if (did) {
+        settledCount++;
+        affectedPlayerIds.add(listing.sellerId);
+        if (listing.highestBidderId) affectedPlayerIds.add(listing.highestBidderId);
+      }
     });
   }
-  return settled;
+  return { settledCount, affectedPlayerIds: [...affectedPlayerIds] };
 }
 
 async function settleListingTx(tx: Tx, listingId: string, now: Date): Promise<boolean> {
@@ -78,7 +94,7 @@ async function settleListingTx(tx: Tx, listingId: string, now: Date): Promise<bo
   });
   if (result.count === 0) return false;
 
-  const itemKey = listing.itemKey as ShopItemKey;
+  const itemKey = listing.itemKey as MarketTradableItemKey;
   if (listing.highestBidderId && listing.currentBid != null) {
     await adjustPlayerItem(tx, listing.highestBidderId, itemKey, listing.quantity);
     await tx.player.update({
@@ -96,7 +112,7 @@ export const MarketService = {
     return settleExpiredMarketListings(now);
   },
 
-  async getBrowseListings(filter: 'all' | 'weapons' | 'rides' | 'drugs' | 'supplies' = 'all') {
+  async getBrowseListings(filter: MarketFilterCategory | 'all' = 'all') {
     await settleExpiredMarketListings();
     const listings = await prisma.marketListing.findMany({
       where: { status: 'ACTIVE', endsAt: { gt: new Date() } },
@@ -106,16 +122,7 @@ export const MarketService = {
     });
 
     return listings
-      .filter((l) => {
-        if (filter === 'all') return true;
-        const key = l.itemKey as ShopItemKey;
-        const item = getCityShopItem(key);
-        if (!item) return false;
-        if (filter === 'weapons') return item.category === 'weapons';
-        if (filter === 'rides') return item.category === 'vehicles';
-        if (filter === 'drugs') return item.category === 'drugs';
-        return item.category === 'worker_supplies' || item.category === 'thug_supplies';
-      })
+      .filter((l) => listingMatchesMarketFilter(l.itemKey, filter))
       .map((l) => ({
         id: l.id,
         itemKey: l.itemKey,
@@ -214,7 +221,7 @@ export const MarketService = {
       });
 
       return created;
-    });
+    }, { isolationLevel: 'Serializable' });
 
     return { listingId: listing.id };
   },
@@ -227,45 +234,61 @@ export const MarketService = {
     });
     if (existingBid) return { bidId: existingBid.id, amount: existingBid.amount };
 
-    return prisma.$transaction(async (tx) => {
-      const listing = await tx.marketListing.findUnique({ where: { id: listingId } });
-      if (!listing || listing.status !== 'ACTIVE') throw new GameplayError('MARKET_LISTING_ENDED');
-      if (listing.endsAt <= new Date()) {
-        throw new GameplayError('MARKET_LISTING_ENDED');
-      }
-      if (listing.sellerId === playerId) throw new GameplayError('MARKET_CANNOT_BID_OWN_LISTING');
+    const now = new Date();
+    return prisma.$transaction(
+      async (tx) => {
+        const listing = await tx.marketListing.findUnique({ where: { id: listingId } });
+        if (!listing || listing.status !== 'ACTIVE') throw new GameplayError('MARKET_LISTING_ENDED');
+        if (listing.endsAt <= now) {
+          throw new GameplayError('MARKET_LISTING_ENDED');
+        }
+        if (listing.sellerId === playerId) throw new GameplayError('MARKET_CANNOT_BID_OWN_LISTING');
 
-      const minBid = minimumNextBid(listing.currentBid, listing.startingPrice);
-      if (amount < minBid) {
-        throw new GameplayError('MARKET_BID_TOO_LOW', `Minimum bid is $${minBid.toLocaleString()}.`);
-      }
+        const minBid = minimumNextBid(listing.currentBid, listing.startingPrice);
+        if (amount < minBid) {
+          throw new GameplayError('MARKET_BID_TOO_LOW', `Minimum bid is $${minBid.toLocaleString()}.`);
+        }
 
-      const bidder = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
-      assertPlayerCanPerformAction(bidder);
-      if (bidder.cash < amount) throw new GameplayError('INSUFFICIENT_CASH');
+        const bidder = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
+        assertPlayerCanPerformAction(bidder);
+        if (bidder.cash < amount) throw new GameplayError('INSUFFICIENT_CASH');
 
-      if (listing.highestBidderId && listing.currentBid) {
+        if (listing.highestBidderId && listing.currentBid) {
+          await tx.player.update({
+            where: { id: listing.highestBidderId },
+            data: { cash: { increment: listing.currentBid } },
+          });
+        }
+
         await tx.player.update({
-          where: { id: listing.highestBidderId },
-          data: { cash: { increment: listing.currentBid } },
+          where: { id: playerId },
+          data: { cash: { decrement: amount } },
         });
-      }
 
-      await tx.player.update({
-        where: { id: playerId },
-        data: { cash: { decrement: amount } },
-      });
+        const bid = await tx.marketBid.create({
+          data: { listingId, bidderId: playerId, amount, idempotencyKey },
+        });
 
-      const bid = await tx.marketBid.create({
-        data: { listingId, bidderId: playerId, amount, idempotencyKey },
-      });
+        const updated = await tx.marketListing.updateMany({
+          where: {
+            id: listingId,
+            status: 'ACTIVE',
+            endsAt: { gt: now },
+            OR: [
+              { currentBid: null },
+              { currentBid: { lt: amount } },
+            ],
+          },
+          data: { currentBid: amount, highestBidderId: playerId },
+        });
 
-      await tx.marketListing.update({
-        where: { id: listingId },
-        data: { currentBid: amount, highestBidderId: playerId },
-      });
+        if (updated.count === 0) {
+          throw new GameplayError('MARKET_BID_TOO_LOW', 'Another bid was accepted first. Try again.');
+        }
 
-      return { bidId: bid.id, amount };
-    });
+        return { bidId: bid.id, amount };
+      },
+      { isolationLevel: 'Serializable' },
+    );
   },
 };

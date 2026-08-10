@@ -8,6 +8,7 @@ import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
+import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 export type { ProduceResultData };
@@ -38,6 +39,8 @@ export async function produceAction(
     `Production complete: +${result.data.drugUnitsProduced} ${result.data.drugType}, +$${result.data.cashEarned.toLocaleString()} cash.`,
     { production: result.data },
   );
+
+  revalidatePlayerGameplayCache(playerId, updated.seasonId);
 
   return {
     success: true,

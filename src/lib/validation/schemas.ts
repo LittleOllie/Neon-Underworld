@@ -86,6 +86,7 @@ export const marketListingSchema = z.object({
   itemKey: z.enum([
     'glock', 'uzi', 'ak', 'ride',
     'hash', 'shroom', 'coke', 'heroin', 'beer', 'condom',
+    'whore', 'thug',
   ]),
   quantity: z.number().int().min(1).max(1000),
   startingPrice: z.number().int().min(10),

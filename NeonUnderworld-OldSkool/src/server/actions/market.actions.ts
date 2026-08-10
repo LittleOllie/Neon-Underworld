@@ -1,18 +1,29 @@
 'use server';
 
 import { MarketService } from '@core/server/services/market.service';
-import { MARKET_RULES, marketItemDisplayName, type MarketDurationMinutes } from '@core/config/game/market-rules';
+import { MARKET_RULES, marketItemDisplayName, type MarketDurationMinutes, type MarketFilterCategory, type MarketTradableItemKey } from '@core/config/game/market-rules';
 import { readPlayerItemQuantity } from '@core/lib/game-engine/market-inventory';
-import type { ShopItemKey } from '@core/config/game/shop-rules';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 import { prisma } from '@core/lib/db/prisma';
 import { GameplayError, toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
+import {
+  revalidatePlayerGameplayCache,
+  revalidatePlayersGameplayCache,
+} from '@local/server/services/gameplay-cache';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
+import { isRoutePrefetch } from '@local/lib/is-route-prefetch';
 
-export type MarketFilter = 'all' | 'weapons' | 'rides' | 'drugs' | 'supplies';
+async function settleMarketAndRefreshCaches(): Promise<void> {
+  const result = await MarketService.settleExpired();
+  if (result.affectedPlayerIds.length > 0) {
+    await revalidatePlayersGameplayCache(result.affectedPlayerIds);
+  }
+}
+
+export type MarketFilter = MarketFilterCategory | 'all';
 
 export interface MarketListingCard {
   id: string;
@@ -30,7 +41,7 @@ export interface MarketPageData {
   cash: number;
   listings: MarketListingCard[];
   myAuctions: Awaited<ReturnType<typeof MarketService.getMyAuctions>>;
-  tradableInventory: Array<{ key: ShopItemKey; name: string; quantity: number }>;
+  tradableInventory: Array<{ key: MarketTradableItemKey; name: string; quantity: number }>;
   durations: readonly MarketDurationMinutes[];
   minStartingPrice: number;
 }
@@ -39,17 +50,19 @@ export async function getMarketPageDataFromContext(
   ctx: CanonicalPlayerContext,
   filter: MarketFilter = 'all',
 ): Promise<MarketPageData> {
+  if (!(await isRoutePrefetch())) {
+    await settleMarketAndRefreshCaches();
+  }
   const [listings, myAuctions] = await Promise.all([
     MarketService.getBrowseListings(filter),
     MarketService.getMyAuctions(ctx.id),
   ]);
 
-  const player = await prisma.player.findUniqueOrThrow({ where: { id: ctx.id } });
   const tradableInventory = MARKET_RULES.tradableItemKeys
     .map((key) => ({
       key,
       name: marketItemDisplayName(key),
-      quantity: readPlayerItemQuantity(player, key),
+      quantity: readPlayerItemQuantity(ctx, key),
     }))
     .filter((i) => i.quantity > 0);
 
@@ -91,6 +104,12 @@ export async function createMarketListingAction(
       { listingId: result.listingId, itemKey, quantity, startingPrice },
     );
 
+    const player = await prisma.player.findUniqueOrThrow({
+      where: { id: playerId },
+      select: { seasonId: true },
+    });
+    revalidatePlayerGameplayCache(playerId, player.seasonId);
+
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
@@ -130,6 +149,20 @@ export async function placeMarketBidAction(
         `You were outbid on ${listing.quantity}× ${marketItemDisplayName(listing.itemKey)}.`,
         { listingId, amount },
       );
+    }
+
+    await settleMarketAndRefreshCaches();
+    const player = await prisma.player.findUniqueOrThrow({
+      where: { id: playerId },
+      select: { seasonId: true },
+    });
+    revalidatePlayerGameplayCache(playerId, player.seasonId);
+    if (previousBidderId && previousBidderId !== playerId) {
+      const previous = await prisma.player.findUnique({
+        where: { id: previousBidderId },
+        select: { seasonId: true },
+      });
+      if (previous) revalidatePlayerGameplayCache(previousBidderId, previous.seasonId);
     }
 
     return { success: true, data: result };

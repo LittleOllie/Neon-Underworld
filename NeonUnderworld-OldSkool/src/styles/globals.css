@@ -23,8 +23,17 @@
   --os-sidebar-width: 188px;
 }
 
+html.nu-root {
+  background: #050506;
+}
+
+html.nu-root,
+body.nu-body {
+  min-height: 100%;
+}
+
 body {
-  background: var(--os-bg);
+  background: #050506;
   color: var(--os-text);
   font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
   font-size: 13px;

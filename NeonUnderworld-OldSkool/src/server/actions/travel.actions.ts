@@ -12,6 +12,8 @@ import { auth } from '@local/lib/auth/config';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
+import { prisma } from '@core/lib/db/prisma';
+import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 
 export type { TravelResult };
 
@@ -60,6 +62,8 @@ export async function travelAction(
       result.data.message,
       { travel: result.data },
     );
+    const player = await prisma.player.findUnique({ where: { id: playerId }, select: { seasonId: true } });
+    if (player) revalidatePlayerGameplayCache(playerId, player.seasonId);
   }
 
   return result;

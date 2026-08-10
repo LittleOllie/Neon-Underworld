@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { settleTurnRegeneration, formatTimeUntilNextTurn } from '@/lib/game-engine/turns';
-import { calculateNetWorth } from '@/lib/game-engine/net-worth';
-import { playerToResources } from '@/lib/game-engine/state';
+import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonical-net-worth';
 import {
   calculateProstituteHappiness,
   calculateThugHappiness,
@@ -28,7 +27,7 @@ export async function getPlayerState(playerId: string) {
     regenerationRatePerMs: player.turnState.regenerationRate,
   });
 
-  const netWorth = calculateNetWorth(playerToResources(player));
+  const netWorth = calculateCanonicalNetWorthFromPlayer(player);
   const rank = await getPlayerRank(playerId, player.seasonId);
 
   const prostituteHappiness = calculateProstituteHappiness({
@@ -69,7 +68,7 @@ export async function getPlayerState(playerId: string) {
     const prevNw = previousRankSnapshot[1]!.netWorth;
     const allPlayers = await prisma.player.findMany({ where: { seasonId: player.seasonId } });
     const prevRanked = allPlayers
-      .map((p) => ({ id: p.id, nw: calculateNetWorth(playerToResources(p)) }))
+      .map((p) => ({ id: p.id, nw: calculateCanonicalNetWorthFromPlayer(p) }))
       .sort((a, b) => b.nw - a.nw);
     const prevRankIdx = prevRanked.findIndex((p) => p.id === playerId);
     const oldRank = prevRankIdx >= 0 ? prevRankIdx + 1 : rank;
@@ -118,7 +117,7 @@ export async function getPlayerRank(playerId: string, seasonId: string): Promise
 
   const allPlayers = await prisma.player.findMany({ where: { seasonId } });
   const ranked = allPlayers
-    .map((p) => ({ id: p.id, netWorth: calculateNetWorth(playerToResources(p)) }))
+    .map((p) => ({ id: p.id, netWorth: calculateCanonicalNetWorthFromPlayer(p) }))
     .sort((a, b) => b.netWorth - a.netWorth);
 
   const idx = ranked.findIndex((p) => p.id === playerId);
@@ -138,7 +137,7 @@ export async function getRankings(seasonId: string, page = 1, pageSize = 25) {
     aliasNormalized: p.aliasNormalized,
     district: p.district.name,
     districtSlug: p.district.slug,
-    netWorth: calculateNetWorth(playerToResources(p)),
+    netWorth: calculateCanonicalNetWorthFromPlayer(p),
     isSystemPlayer: p.isSystemPlayer,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
@@ -175,7 +174,7 @@ export async function getPublicProfile(aliasNormalized: string) {
 
   if (!player) return null;
 
-  const netWorth = calculateNetWorth(playerToResources(player));
+  const netWorth = calculateCanonicalNetWorthFromPlayer(player);
   const rank = await getPlayerRank(player.id, player.seasonId);
 
   const recentSnapshots = await prisma.rankSnapshot.findMany({

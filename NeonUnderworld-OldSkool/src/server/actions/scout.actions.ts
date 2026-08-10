@@ -8,6 +8,7 @@ import { ACTIVITY_TYPES, buildScoutActivityMessage } from '@local/config/activit
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
+import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 
 export type { ScoutResultData };
 
@@ -47,6 +48,8 @@ export async function scoutAction(
     buildScoutActivityMessage(result.data),
     { scout: result.data },
   );
+
+  revalidatePlayerGameplayCache(playerId, updated.seasonId);
 
   return {
     success: true,

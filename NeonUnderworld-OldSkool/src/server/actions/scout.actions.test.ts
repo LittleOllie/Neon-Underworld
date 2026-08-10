@@ -29,6 +29,10 @@ vi.mock('@core/server/actions/scout.actions', () => ({
   scoutAction: (...args: unknown[]) => mockCoreScout(...args),
 }));
 
+vi.mock('@local/server/services/gameplay-cache', () => ({
+  revalidatePlayerGameplayCache: vi.fn(),
+}));
+
 vi.mock('@local/lib/auth/config', () => ({
   auth: () => mockAuth(),
 }));
@@ -38,6 +42,7 @@ describe('scoutAction — district scout', () => {
     vi.clearAllMocks();
     mockAuth.mockResolvedValue({ user: { playerId: 'player-1' } });
     mockFindUniqueOrThrow.mockResolvedValue({
+      seasonId: 'season-1',
       district: { name: 'Neon Strip', slug: 'neon-strip' },
       cash: 1000,
       bankCash: 0,

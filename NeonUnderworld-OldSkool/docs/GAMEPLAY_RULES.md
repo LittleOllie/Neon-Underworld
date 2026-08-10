@@ -43,8 +43,29 @@ Legacy `PlayerTurnState` rows are migrated via `20260807010000_canonical_turn_st
 ## Scout
 
 - Five areas per city with distinct Worker/Thug tendencies (High / Medium / Low — no raw multipliers in UI)
-- Turn spend selectable; worker cash generated during turn use respects payout
+- Turn spend selectable (1–5,000 per action); recruitment scales linearly with turns — **no per-action hard caps**
+- Base recruitment tuned for ~5–10 Workers / ~4–8 Thugs per 100 turns at healthy morale (varies by area/district/happiness)
+- Worker cash during scouting uses **starting roster** for that action (recruits from the same action do not boost cash)
+- Low morale can cause walkouts; large spends show a warning before confirm; losses capped per action
 - Creates `SCOUT` activity and private scout report
+
+## Travel
+
+- Instant relocation between cities for 10 turns
+- Requires sufficient **ride capacity** for your crew (1 ride per 5 crew, minimum 1)
+- **Rides are reusable** — travel checks capacity but does not consume/destroy vehicles
+
+## Market
+
+- Global player auctions for tradable items (weapons, rides, supplies, drugs, workers, thugs)
+- 20% minimum bid increment; lazy settlement when listings expire
+- Inventory escrowed on list; returned unsold or delivered to winning bidder exactly once
+
+## Cartels
+
+- Invite-only groups, max 5 members
+- Optional cash donation 0–60% on income
+- Combined cartel net worth contributes to virtual defence
 
 ## Produce
 
@@ -94,7 +115,7 @@ Central config: `@core/config/game/attack-rules.ts`
 ### Prerequisites
 
 - Valid **player intel** Scout report (5 turns to gather; 48h expiry)
-- Target within **0.5×–2×** canonical net worth (bank included in NW; banking does not remove you from range)
+- Target net worth must be **≥ 50% of attacker's** canonical net worth (no upper cap; bank included)
 - Sufficient turns, thugs, and rides
 
 ### Attack types
@@ -122,6 +143,6 @@ Central config: `@core/config/game/attack-rules.ts`
 
 Player-to-player auctions only — no Buy Now. Personnel, rides, weapons, drugs may be listed. Tradability metadata preserved in `shop-rules.ts` / personnel catalog.
 
-## Unavailable this sprint
+## Unavailable / deferred
 
-Travel, cartels UI, brothel/coffee-shop attacks, steal workers, jack vehicles, tag-team, player death, hospital/jail timers, Black Market, business attacks.
+Brothel/coffee-shop attacks, steal workers, jack vehicles, tag-team, player death, hospital/jail timers, business attacks.

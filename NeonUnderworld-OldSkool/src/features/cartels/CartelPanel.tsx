@@ -12,6 +12,7 @@ import {
   setCartelDonationAction,
   type CartelPageData,
 } from '@local/server/actions/cartel.actions';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
@@ -23,17 +24,17 @@ export function CartelPanel(initial: Props) {
   const router = useRouter();
   const [data, setData] = useState(initial);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [inviteAlias, setInviteAlias] = useState('');
   const [showCreate, setShowCreate] = useState(false);
 
   async function handleCreate() {
-    setLoading(true);
+    setLoading('create');
     setError('');
     const response = await createCartelAction(name, tag);
-    setLoading(false);
+    setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
@@ -42,9 +43,9 @@ export function CartelPanel(initial: Props) {
   }
 
   async function handleAccept(inviteId: string) {
-    setLoading(true);
+    setLoading('accept');
     const response = await acceptCartelInviteAction(inviteId);
-    setLoading(false);
+    setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
@@ -61,10 +62,10 @@ export function CartelPanel(initial: Props) {
   }
 
   async function handleInvite() {
-    setLoading(true);
+    setLoading('invite');
     setError('');
     const response = await inviteToCartelAction(inviteAlias);
-    setLoading(false);
+    setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
@@ -73,9 +74,9 @@ export function CartelPanel(initial: Props) {
   }
 
   async function handleLeave() {
-    setLoading(true);
+    setLoading('leave');
     const response = await leaveCartelAction();
-    setLoading(false);
+    setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
@@ -84,9 +85,9 @@ export function CartelPanel(initial: Props) {
   }
 
   async function handleRemove(memberId: string) {
-    setLoading(true);
+    setLoading('remove');
     const response = await removeCartelMemberAction(memberId);
-    setLoading(false);
+    setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
@@ -117,10 +118,15 @@ export function CartelPanel(initial: Props) {
               {inv.cartelName} [{inv.cartelTag}]
             </div>
             <div className="g-area-meta">Invited by {inv.inviterAlias}</div>
-            <PrimaryButton icon="cartel" disabled={loading} onClick={() => handleAccept(inv.id)}>
-              Accept
+            <PrimaryButton
+              icon="cartel"
+              disabled={loading !== null}
+              pending={loading === 'accept'}
+              onClick={() => handleAccept(inv.id)}
+            >
+              {loading === 'accept' ? ACTION_PENDING.cartelJoin : 'Accept'}
             </PrimaryButton>
-            <PrimaryButton disabled={loading} onClick={() => handleDecline(inv.id)}>
+            <PrimaryButton disabled={loading !== null} onClick={() => handleDecline(inv.id)}>
               Decline
             </PrimaryButton>
           </div>
@@ -168,15 +174,16 @@ export function CartelPanel(initial: Props) {
             />
             <PrimaryButton
               icon="cartel"
-              disabled={loading || !inviteAlias.trim()}
+              disabled={loading !== null || !inviteAlias.trim()}
+              pending={loading === 'invite'}
               onClick={handleInvite}
             >
-              Send Invite
+              {loading === 'invite' ? ACTION_PENDING.cartelInvite : 'Send Invite'}
             </PrimaryButton>
             {c.members
               .filter((m) => !m.isLeader)
               .map((m) => (
-                <PrimaryButton key={m.id} disabled={loading} onClick={() => handleRemove(m.id)}>
+                <PrimaryButton key={m.id} disabled={loading !== null} onClick={() => handleRemove(m.id)}>
                   Remove {m.alias}
                 </PrimaryButton>
               ))}
@@ -202,7 +209,7 @@ export function CartelPanel(initial: Props) {
         <Divider />
 
         {error && <p className="g-note g-note-error">{error}</p>}
-        <PrimaryButton disabled={loading} onClick={handleLeave}>
+        <PrimaryButton disabled={loading !== null} onClick={handleLeave}>
           Leave Cartel
         </PrimaryButton>
       </>
@@ -217,7 +224,7 @@ export function CartelPanel(initial: Props) {
 
       {!showCreate ? (
         <>
-          <PrimaryButton icon="cartel" disabled={loading} onClick={() => setShowCreate(true)}>
+          <PrimaryButton icon="cartel" disabled={loading !== null} onClick={() => setShowCreate(true)}>
             Create Cartel
           </PrimaryButton>
           <Divider />
@@ -251,12 +258,13 @@ export function CartelPanel(initial: Props) {
           />
           <PrimaryButton
             icon="cartel"
-            disabled={loading || name.length < 3 || tag.length < 2}
+            disabled={loading !== null || name.length < 3 || tag.length < 2}
+            pending={loading === 'create'}
             onClick={handleCreate}
           >
-            {loading ? 'Creating…' : 'Create'}
+            {loading === 'create' ? ACTION_PENDING.cartelCreate : 'Create'}
           </PrimaryButton>
-          <PrimaryButton disabled={loading} onClick={() => setShowCreate(false)}>
+          <PrimaryButton disabled={loading !== null} onClick={() => setShowCreate(false)}>
             Cancel
           </PrimaryButton>
         </>

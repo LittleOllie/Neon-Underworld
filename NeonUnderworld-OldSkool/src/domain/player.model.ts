@@ -64,16 +64,3 @@ export interface OnlinePlayer {
   lastSeen: Date | null;
   online: boolean;
 }
-
-import type { CommandEmpireBrief } from '@local/domain/empire.model';
-
-export interface CommandPageData {
-  player: PlayerModel;
-  empire: EmpireSummary;
-  empireBrief: CommandEmpireBrief;
-  activities: ActivityItem[];
-  reports: ReportPreview[];
-  unreadReportCount: number;
-  notification: string | null;
-  onlinePlayers: OnlinePlayer[];
-}

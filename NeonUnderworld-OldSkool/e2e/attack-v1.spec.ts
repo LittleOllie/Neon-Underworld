@@ -1,17 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
-
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@neonunderworld.local';
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'AdminChangeMe123!';
-
-async function login(page: import('@playwright/test').Page) {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(ADMIN_EMAIL);
-  await page.getByLabel('Password').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: /Enter District Network/i }).click();
-  await expect(page).toHaveURL(/\/command/, { timeout: 15000 });
-}
+import { login } from './helpers';
 
 test.describe('Attack v1 — empty state', () => {
   test.beforeAll(() => {

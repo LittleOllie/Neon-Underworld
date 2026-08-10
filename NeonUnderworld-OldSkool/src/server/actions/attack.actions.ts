@@ -23,6 +23,7 @@ import { toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { evaluateAttackTargetPreview } from '@core/lib/game-engine/combat/eligibility';
 import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
+import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
 import type { CombatPlayerRecord } from '@core/server/services/combat.service';
 import { directAttackReportId } from '@local/features/attack/direct-attack';
 
@@ -105,6 +106,8 @@ async function finalizeAttackLaunch(
         ? 'You were attacked. Drug stock was raided.'
         : 'You were attacked. New defence report available.';
   await PlayerStatusService.setNotification(defender.id, defenderNotification);
+
+  await revalidatePlayersGameplayCache([attackerId, defender.id]);
 
   return {
     success: true,

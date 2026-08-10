@@ -25,6 +25,8 @@ In **Settings → Environment Variables** (Production + Preview):
 | `DATABASE_URL_UNPOOLED` | Optional — direct Neon URL for migrations. If omitted, the build strips `-pooler` from `DATABASE_URL` automatically. |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `APP_URL` | `https://neon-underworld-kappa.vercel.app` |
+| `PLAYTEST_TURNS` | Optional — set to `true` only in non-production playtest environments to enable More → Add Turns. **Omit or leave unset in production.** |
+| `NEXT_PUBLIC_PLAYTEST_TURNS` | Optional — set to `true` alongside `PLAYTEST_TURNS` to show the Add Turns link in the More menu (client UI). |
 
 ## First deploy checklist
 

@@ -10,6 +10,8 @@ import {
   type MarketPageData,
 } from '@local/server/actions/market.actions';
 import type { MarketDurationMinutes } from '@core/config/game/market-rules';
+import { marketFilterCategory } from '@core/config/game/market-rules';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { StatRow } from '@local/components/game/StatRow';
@@ -22,6 +24,7 @@ const FILTERS: { key: MarketFilter; label: string }[] = [
   { key: 'rides', label: 'Rides' },
   { key: 'drugs', label: 'Drugs' },
   { key: 'supplies', label: 'Supplies' },
+  { key: 'personnel', label: 'Crew' },
 ];
 
 const TABS = ['browse', 'sell', 'mine'] as const;
@@ -54,13 +57,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
 
   const filteredListings = useMemo(() => {
     if (filter === 'all') return data.listings;
-    return data.listings.filter((l) => {
-      const key = l.itemKey;
-      if (filter === 'weapons') return ['glock', 'uzi', 'ak'].includes(key);
-      if (filter === 'rides') return key === 'ride';
-      if (filter === 'drugs') return ['shroom', 'coke', 'heroin'].includes(key);
-      return ['beer', 'condom', 'hash'].includes(key);
-    });
+    return data.listings.filter((l) => marketFilterCategory(l.itemKey) === filter);
   }, [data.listings, filter]);
 
   async function handleBid(listingId: string, minNextBid: number) {
@@ -161,7 +158,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 disabled={loading !== null || data.cash < l.minNextBid}
                 onClick={() => handleBid(l.id, l.minNextBid)}
               >
-                {loading === l.id ? 'Bidding…' : 'Bid'}
+                {loading === l.id ? ACTION_PENDING.marketBid : 'Bid'}
               </PrimaryButton>
             </div>
           ))}
@@ -215,7 +212,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 disabled={loading !== null}
                 onClick={handleCreateListing}
               >
-                {loading === 'sell' ? 'Listing…' : 'Create Auction'}
+                {loading === 'sell' ? ACTION_PENDING.marketList : 'Create Auction'}
               </PrimaryButton>
             </>
           )}

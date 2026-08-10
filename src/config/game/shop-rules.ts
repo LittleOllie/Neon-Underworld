@@ -247,6 +247,10 @@ export function isPersonnelItem(key: string): key is TradablePersonnelKey {
   return key === 'whore' || key === 'thug';
 }
 
+export function getPersonnelItem(key: string): PersonnelItemRule | undefined {
+  return PERSONNEL_CATALOG.find((i) => i.key === key);
+}
+
 export function getShopItemsByCategory(): Record<ShopCategory, ShopItemRule[]> {
   const grouped = {} as Record<ShopCategory, ShopItemRule[]>;
   for (const cat of SHOP_CATEGORY_ORDER) {

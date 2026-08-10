@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import {
   ATTACK_RULES,
   ATTACK_TYPE_LABELS,
@@ -288,9 +289,10 @@ export function AttackForm(props: AttackFormProps) {
             icon="attack"
             iconTone="danger"
             disabled={loading || !canAttack}
+            pending={loading}
             onClick={handleLaunch}
           >
-            {loading ? 'Launching…' : 'Confirm Attack'}
+            {loading ? ACTION_PENDING.attack : 'Confirm Attack'}
           </PrimaryButton>
           <PrimaryButton
             className="g-btn-full g-btn-secondary"

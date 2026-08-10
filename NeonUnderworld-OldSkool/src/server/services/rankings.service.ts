@@ -3,6 +3,10 @@ import { unstable_cache } from 'next/cache';
 import { prisma } from '@core/lib/db/prisma';
 import { NetWorthService, type PlayerNetWorthRecord } from './net-worth.service';
 import { PlayerStatusService } from './player-status.service';
+import {
+  playerRankCacheTag,
+  seasonRankingsCacheTag,
+} from './gameplay-cache';
 
 export type RankingsFilter = 'overall' | 'neon-strip' | 'docklands' | 'old-quarter';
 
@@ -79,7 +83,7 @@ const getCachedPlayerRank = cache((playerId: string, seasonId: string) =>
   unstable_cache(
     () => computePlayerRank(playerId, seasonId),
     ['player-rank', playerId, seasonId],
-    { revalidate: 45 },
+    { revalidate: 45, tags: [playerRankCacheTag(playerId)] },
   )(),
 );
 
@@ -136,7 +140,7 @@ const getCachedSeasonRankings = cache((seasonId: string, filter: RankingsFilter)
   unstable_cache(
     () => computeSeasonRankings(seasonId, filter),
     ['season-rankings', seasonId, filter],
-    { revalidate: 30 },
+    { revalidate: 30, tags: [seasonRankingsCacheTag(seasonId)] },
   )(),
 );
 

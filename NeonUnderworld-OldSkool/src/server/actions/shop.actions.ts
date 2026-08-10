@@ -14,6 +14,7 @@ import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
+import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 
 export type { ShopPurchaseResult, ShopCatalogEntry, ShopItemKey };
@@ -142,6 +143,8 @@ export async function shopPurchaseAction(
     `Purchased ${result.data.quantity}× ${result.data.item} for $${result.data.totalCost.toLocaleString()}.`,
     { shop: result.data },
   );
+
+  revalidatePlayerGameplayCache(playerId, updated.seasonId);
 
   return {
     success: true,

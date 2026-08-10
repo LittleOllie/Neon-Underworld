@@ -1,0 +1,208 @@
+/* ── Branded NU loader ── */
+.nu-loader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nu-loader__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--os-gold, #c9a962);
+  border: 1px solid rgba(201, 169, 98, 0.45);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 12px rgba(201, 169, 98, 0.15);
+  animation: nu-loader-pulse 1.6s ease-in-out infinite;
+}
+
+.nu-loader--sm .nu-loader__mark {
+  width: 28px;
+  height: 28px;
+  font-size: 10px;
+}
+
+.nu-loader--md .nu-loader__mark {
+  width: 40px;
+  height: 40px;
+  font-size: 13px;
+}
+
+.nu-loader--lg .nu-loader__mark {
+  width: 56px;
+  height: 56px;
+  font-size: 16px;
+}
+
+@keyframes nu-loader-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(201, 169, 98, 0.12);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+    box-shadow: 0 0 16px rgba(201, 169, 98, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nu-loader__mark {
+    animation: nu-loader-fade 2s ease-in-out infinite;
+  }
+
+  @keyframes nu-loader-fade {
+    0%,
+    100% {
+      opacity: 0.75;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
+/* ── Route content-area loading ── */
+.g-route-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 160px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.g-route-loading__text {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--os-text-dim, #7a7872);
+}
+
+/* ── Boot screen ── */
+.nu-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050506;
+  color: #d4d2cc;
+  transition: opacity 280ms ease;
+}
+
+.nu-boot--exit {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nu-boot__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.nu-boot__logo-wrap {
+  position: relative;
+}
+
+.nu-boot__logo {
+  border-radius: 8px;
+  filter: drop-shadow(0 0 18px rgba(196, 107, 107, 0.25));
+}
+
+.nu-boot__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: #c9a962;
+}
+
+.nu-boot__status {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7a7872;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nu-boot {
+    transition: opacity 150ms ease;
+  }
+}
+
+/* ── Travel pending overlay ── */
+.g-travel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 6, 0.72);
+  padding: 16px;
+}
+
+.g-travel-overlay__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+  width: 100%;
+  padding: 20px 16px;
+  border: 1px solid rgba(201, 169, 98, 0.25);
+  border-radius: 6px;
+  background: rgba(18, 18, 22, 0.95);
+  text-align: center;
+}
+
+.g-travel-overlay__label {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #7a7872;
+}
+
+.g-travel-overlay__dest {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #c9a962;
+}
+
+.g-travel-overlay__sub {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #d4d2cc;
+}
+
+/* ── Button pressed feedback ── */
+.g-btn:active:not(:disabled),
+.g-nav-mobile a:active,
+.g-nav-desktop a:active,
+.g-nav-mobile button:active,
+.g-nav-desktop button:active {
+  transform: scale(0.98);
+  opacity: 0.88;
+}
+
+.g-btn[aria-busy='true'] {
+  opacity: 0.85;
+  cursor: wait;
+}
