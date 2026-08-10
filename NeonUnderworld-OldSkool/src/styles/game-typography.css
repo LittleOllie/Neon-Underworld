@@ -171,3 +171,7 @@
   color: var(--game-gold);
   font-weight: 600;
 }
+
+.g-result-line--neutral {
+  color: var(--os-text-dim, #9a9892);
+}

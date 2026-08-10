@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { REDLITE_CARTEL } from '@/config/game/redlite-rules';
 import {
+  calculateCartelNetWorth,
   applyCartelContribution,
   cartelDefenceThugBonus,
   normalizeDonationPercent,
@@ -29,6 +30,11 @@ describe('cartel economics', () => {
   it('uses canonical max members', () => {
     expect(REDLITE_CARTEL.maxMembers).toBe(5);
     expect(REDLITE_CARTEL.maxDonationPercent).toBe(60);
+  });
+
+  it('cartel net worth is treasury plus shared thugs — not member totals', () => {
+    expect(calculateCartelNetWorth({ treasuryCash: 100_000, thugs: 5 })).toBe(103_500);
+    expect(calculateCartelNetWorth({ treasuryCash: 25_000 })).toBe(25_000);
   });
 });
 

@@ -103,8 +103,11 @@ export const marketBidSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
-export const homeShopSellSchema = z.object({
-  drug: z.enum(['hash', 'shrooms', 'coke', 'heroin']),
+export const shopSellSchema = z.object({
+  item: z.enum([
+    'glock', 'uzi', 'ak', 'ride',
+    'hash', 'shroom', 'coke', 'heroin', 'beer', 'condom',
+  ]),
   quantity: z.number().int().min(1).max(1000),
   idempotencyKey: z.string().uuid(),
 });
@@ -123,6 +126,12 @@ export const cartelDonationSchema = z.object({
     z.literal(0), z.literal(10), z.literal(20),
     z.literal(30), z.literal(40), z.literal(50), z.literal(60),
   ]),
+});
+
+export const cartelArmouryPurchaseSchema = z.object({
+  item: z.enum(['thug', 'glock', 'uzi']),
+  quantity: z.number().int().min(1).max(1000),
+  idempotencyKey: z.string().uuid(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

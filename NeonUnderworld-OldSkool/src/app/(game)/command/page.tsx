@@ -5,8 +5,6 @@ import {
   ActionButton,
   HomeCrewSummary,
 } from '@local/components/game';
-import { HomeShopPanel } from '@local/features/home-shop/HomeShopPanel';
-import { getHomeShopPageDataFromContext } from '@local/lib/home-shop-data';
 import {
   requireGameSession,
   buildAttentionItems,
@@ -29,7 +27,6 @@ export default async function CommandPage() {
   });
 
   const { visible: alerts } = prioritizeAttentionItems(attentionAll, 5);
-  const homeShop = getHomeShopPageDataFromContext(ctx);
 
   return (
     <>
@@ -43,8 +40,6 @@ export default async function CommandPage() {
       />
 
       <StatusBar label="Health" percent={ctx.health} />
-
-      <HomeShopPanel {...homeShop} />
 
       <AlertList items={alerts} />
 

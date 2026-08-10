@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { useRouter } from 'next/navigation';
+import { v4 as uuidv4 } from 'uuid';
 import {
   acceptCartelInviteAction,
   createCartelAction,
   declineCartelInviteAction,
   inviteToCartelAction,
   leaveCartelAction,
+  purchaseCartelArmouryAction,
   removeCartelMemberAction,
   setCartelDonationAction,
   type CartelPageData,
@@ -17,6 +19,8 @@ import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { Divider } from '@local/components/game/Divider';
+import { NumericInput } from '@local/components/game/NumericInput';
+import { parsePositiveInteger } from '@local/lib/numeric-input';
 
 type Props = CartelPageData;
 
@@ -31,6 +35,9 @@ function CartelHQView({
   onRemove,
   onLeave,
   onDonation,
+  onArmouryPurchase,
+  armouryQuantities,
+  setArmouryQuantities,
 }: {
   cartel: NonNullable<CartelPageData['cartel']>;
   donationOptions: readonly number[];
@@ -42,6 +49,9 @@ function CartelHQView({
   onRemove: (memberId: string) => void;
   onLeave: () => void;
   onDonation: (percent: number) => void;
+  onArmouryPurchase: (itemKey: string) => void;
+  armouryQuantities: Record<string, string>;
+  setArmouryQuantities: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
   return (
     <div className="g-cartel-hq">
@@ -65,9 +75,9 @@ function CartelHQView({
             </span>
           </div>
           <div className="g-cartel-hq__stat">
-            <span className="g-cartel-hq__stat-label">Net Worth</span>
+            <span className="g-cartel-hq__stat-label">Cartel Net Worth</span>
             <span className="g-cartel-hq__stat-value">
-              ${cartel.combinedNetWorth.toLocaleString()}
+              ${cartel.cartelNetWorth.toLocaleString()}
             </span>
           </div>
           <div className="g-cartel-hq__stat">
@@ -93,17 +103,62 @@ function CartelHQView({
           label={`Supporters in ${cartel.myCity}`}
           value={String(cartel.protection.sameCitySupporters)}
         />
+        <StatRow
+          label="Cartel thugs (armoury)"
+          value={`${cartel.protection.ownedDefenceThugs.toLocaleString()} thugs`}
+        />
         <p className="g-note">
           Same-city cartel mates contribute 25% of their thugs as unarmed defence support.
+          Cartel-owned thugs from the armoury fight in all attacks and can be killed.
         </p>
       </section>
 
       <section className="g-cartel-hq__section" aria-label="Cartel armoury">
         <SectionLabel>ARMOURY</SectionLabel>
+        <p className="g-note">Shared cartel assets — not member personal net worth.</p>
+        <StatRow label="Treasury" value={`$${cartel.armoury.treasuryCash.toLocaleString()}`} />
+        <StatRow label="Thugs" value={cartel.armoury.thugs.toLocaleString()} />
+        <StatRow label="Glocks" value={cartel.armoury.glocks.toLocaleString()} />
+        <StatRow label="Uzis" value={cartel.armoury.uzis.toLocaleString()} />
         <p className="g-note">
-          Cartel-owned weapon stock is not yet implemented. When live, Redlite rules allow Uzi and
-          Glock only — AK-47 is player-only.
+          Purchases come from treasury. Uzi and Glock only — AK-47 is player-only. Cartel
+          weapons are never lost in attacks.
         </p>
+        {cartel.isLeader && (
+          <div className="g-cartel-armoury">
+            {cartel.armoury.catalog.map((entry) => {
+              const qty = parsePositiveInteger(armouryQuantities[entry.key] ?? '1');
+              const total = qty ? entry.unitPrice * qty : 0;
+              const canAfford = qty ? total <= cartel.armoury.treasuryCash : false;
+              return (
+                <div key={entry.key} className="g-cartel-armoury__row">
+                  <div className="g-cartel-armoury__info">
+                    <span className="g-cartel-armoury__name">{entry.displayName}</span>
+                    <span className="g-cartel-armoury__meta">
+                      ${entry.unitPrice.toLocaleString()} each · own {entry.ownedQuantity.toLocaleString()}
+                    </span>
+                  </div>
+                  <NumericInput
+                    id={`cartel-armoury-${entry.key}`}
+                    value={armouryQuantities[entry.key] ?? '1'}
+                    onChange={(value) =>
+                      setArmouryQuantities((prev) => ({ ...prev, [entry.key]: value }))
+                    }
+                  />
+                  <PrimaryButton
+                    disabled={loading !== null || !qty || !canAfford}
+                    pending={loading === `armoury-${entry.key}`}
+                    onClick={() => onArmouryPurchase(entry.key)}
+                  >
+                    {loading === `armoury-${entry.key}`
+                      ? ACTION_PENDING.cartelArmoury
+                      : `Buy $${total.toLocaleString()}`}
+                  </PrimaryButton>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="g-cartel-hq__section" aria-label="Cartel members">
@@ -135,6 +190,10 @@ function CartelHQView({
         <StatRow label="Member limit" value={String(cartel.maxMembers)} />
         <StatRow label="Max donation" value={`${cartel.maxDonationPercent}%`} />
         <StatRow label="Treasury" value={`$${cartel.treasuryCash.toLocaleString()}`} />
+        <StatRow
+          label="Cartel net worth"
+          value={`$${cartel.cartelNetWorth.toLocaleString()}`}
+        />
       </section>
 
       <Divider />
@@ -204,6 +263,7 @@ export function CartelPanel(initial: Props) {
   const [tag, setTag] = useState('');
   const [inviteAlias, setInviteAlias] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [armouryQuantities, setArmouryQuantities] = useState<Record<string, string>>({});
 
   async function handleCreate() {
     setLoading('create');
@@ -282,6 +342,21 @@ export function CartelPanel(initial: Props) {
     }
   }
 
+  async function handleArmouryPurchase(itemKey: string) {
+    const qty = parsePositiveInteger(armouryQuantities[itemKey] ?? '1');
+    if (!qty) return;
+
+    setLoading(`armoury-${itemKey}`);
+    setError('');
+    const response = await purchaseCartelArmouryAction(itemKey, qty, uuidv4());
+    setLoading(null);
+    if (!response.success) {
+      setError(response.error);
+      return;
+    }
+    router.refresh();
+  }
+
   if (data.pendingInvites.length > 0 && !data.inCartel) {
     return (
       <>
@@ -323,6 +398,9 @@ export function CartelPanel(initial: Props) {
         onRemove={handleRemove}
         onLeave={handleLeave}
         onDonation={handleDonation}
+        onArmouryPurchase={handleArmouryPurchase}
+        armouryQuantities={armouryQuantities}
+        setArmouryQuantities={setArmouryQuantities}
       />
     );
   }

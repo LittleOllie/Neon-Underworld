@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import {
   shopPurchaseAction,
+  shopSellAction,
   type ShopCatalogEntry,
   type ShopPageData,
 } from '@local/server/actions/shop.actions';
@@ -27,6 +28,15 @@ type ShopFormProps = ShopPageData & {
   highlightItem?: string | null;
 };
 
+type ShopMode = 'buy' | 'sell';
+
+type TransactionResult = {
+  mode: ShopMode;
+  name: string;
+  qty: number;
+  amount: number;
+};
+
 export function ShopForm({
   catalog,
   cash: initialCash,
@@ -40,9 +50,10 @@ export function ShopForm({
   const [inventory, setInventory] = useState(initialInventory);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<OldSkoolShopTab>(initialTab);
+  const [mode, setMode] = useState<ShopMode>('buy');
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<{ name: string; qty: number; cost: number } | null>(null);
+  const [result, setResult] = useState<TransactionResult | null>(null);
 
   useEffect(() => {
     if (highlightItem && highlightRef.current) {
@@ -65,6 +76,10 @@ export function ShopForm({
     return parsePositiveInteger(quantities[key] ?? '1');
   }
 
+  function unitPrice(entry: ShopCatalogEntry): number {
+    return mode === 'buy' ? entry.unitPrice : entry.sellUnitPrice;
+  }
+
   async function handleBuy(entry: ShopCatalogEntry) {
     const quantity = parsedQty(entry.key);
     const validationError = validateQuantity(quantity);
@@ -85,22 +100,71 @@ export function ShopForm({
     if (invKey) {
       setInventory((prev) => ({ ...prev, [invKey]: response.data.newOwnedQuantity }));
     }
-    setResult({ name: entry.displayName, qty: quantity!, cost: response.data.totalCost });
+    setResult({
+      mode: 'buy',
+      name: entry.displayName,
+      qty: quantity!,
+      amount: response.data.totalCost,
+    });
+    router.refresh();
+  }
+
+  async function handleSell(entry: ShopCatalogEntry) {
+    const owned = ownedCount(entry);
+    if (owned <= 0) {
+      setError(`You have no ${entry.displayName} to sell.`);
+      return;
+    }
+    const quantity = parsedQty(entry.key);
+    const validationError = validateQuantity(quantity);
+    if (validationError) {
+      setError('Enter an amount to sell.');
+      return;
+    }
+    if (quantity! > owned) {
+      setError(`You don't own enough ${entry.displayName}.`);
+      return;
+    }
+    setLoading(entry.key);
+    setError('');
+    const response = await shopSellAction(entry.key, quantity!, uuidv4());
+    setLoading(null);
+    if (!response.success) {
+      setError(response.error);
+      return;
+    }
+    setCash(response.data.newCash);
+    const invKey = shopInventoryKey(entry.key);
+    if (invKey) {
+      setInventory((prev) => ({ ...prev, [invKey]: response.data.newOwnedQuantity }));
+    }
+    setResult({
+      mode: 'sell',
+      name: entry.displayName,
+      qty: quantity!,
+      amount: response.data.totalPayout,
+    });
     router.refresh();
   }
 
   if (result) {
+    const isBuy = result.mode === 'buy';
     return (
       <ActionResult
-        title="Purchase Complete"
+        title={isBuy ? 'Purchase Complete' : 'Sold'}
         lines={[
           { text: `${result.qty}× ${result.name}`, tone: 'positive' },
-          { text: `$${result.cost.toLocaleString()} spent`, tone: 'value' },
-          { text: `$${cash.toLocaleString()} cash remaining`, tone: 'value' },
+          {
+            text: isBuy
+              ? `$${result.amount.toLocaleString()} spent`
+              : `+$${result.amount.toLocaleString()} CASH`,
+            tone: 'value',
+          },
+          { text: `$${cash.toLocaleString()} cash on hand`, tone: 'value' },
         ]}
         actions={[
           {
-            label: 'Shop Again',
+            label: isBuy ? 'Shop Again' : 'Sell More',
             primary: true,
             icon: 'shop',
             onClick: () => setResult(null),
@@ -112,6 +176,35 @@ export function ShopForm({
 
   return (
     <>
+      <div className="g-shop-mode">
+        <button
+          type="button"
+          className={`g-shop-mode-btn${mode === 'buy' ? ' g-shop-mode-btn--active' : ''}`}
+          onClick={() => {
+            setMode('buy');
+            setError('');
+          }}
+        >
+          Buy
+        </button>
+        <button
+          type="button"
+          className={`g-shop-mode-btn${mode === 'sell' ? ' g-shop-mode-btn--active' : ''}`}
+          onClick={() => {
+            setMode('sell');
+            setError('');
+          }}
+        >
+          Sell
+        </button>
+      </div>
+
+      <p className="g-shop-cash">Cash: ${cash.toLocaleString()}</p>
+
+      {mode === 'sell' && (
+        <p className="g-note">Sell items back at a discounted rate (70% of buy price).</p>
+      )}
+
       <div className="g-filter-row">
         {OLDSKOOL_SHOP_TABS.map((t) => (
           <button
@@ -132,8 +225,15 @@ export function ShopForm({
 
       {items.map((entry) => {
         const qty = parsedQty(entry.key);
-        const total = qty ? shopPreviewTotal(entry.unitPrice, qty) : null;
-        const cannotAfford = total !== null && total > cash;
+        const price = unitPrice(entry);
+        const total = qty ? shopPreviewTotal(price, qty) : null;
+        const owned = ownedCount(entry);
+        const cannotAfford = mode === 'buy' && total !== null && total > cash;
+        const cannotSell = mode === 'sell' && owned <= 0;
+
+        if (mode === 'sell' && cannotSell) {
+          return null;
+        }
 
         return (
           <div
@@ -143,10 +243,15 @@ export function ShopForm({
           >
             <div className="g-shop-head">
               <span className="g-label">{entry.displayName}</span>
-              <GameValue>${entry.unitPrice.toLocaleString()} each</GameValue>
+              <GameValue>
+                ${price.toLocaleString()} each
+                {mode === 'sell' && (
+                  <span className="g-shop-price-note"> (was ${entry.unitPrice.toLocaleString()})</span>
+                )}
+              </GameValue>
             </div>
             <p className="g-shop-owned">
-              Owned: <GameValue>{ownedCount(entry).toLocaleString()}</GameValue>
+              Owned: <GameValue>{owned.toLocaleString()}</GameValue>
             </p>
             <div className="g-shop-controls">
               <NumericInput
@@ -159,21 +264,41 @@ export function ShopForm({
                 className="g-shop-qty"
               />
               {total !== null && (
-                <span className="g-shop-total">Total: ${total.toLocaleString()}</span>
+                <span className="g-shop-total">
+                  {mode === 'buy' ? 'Total' : 'You receive'}: ${total.toLocaleString()}
+                </span>
               )}
-              <PrimaryButton
-                icon="shop"
-                onClick={() => handleBuy(entry)}
-                disabled={loading === entry.key || cannotAfford || qty === null}
-                pending={loading === entry.key}
-              >
-                {loading === entry.key ? ACTION_PENDING.shopPurchase : 'Buy'}
-              </PrimaryButton>
+              {mode === 'buy' ? (
+                <PrimaryButton
+                  icon="shop"
+                  onClick={() => handleBuy(entry)}
+                  disabled={loading === entry.key || cannotAfford || qty === null}
+                  pending={loading === entry.key}
+                >
+                  {loading === entry.key ? ACTION_PENDING.shopPurchase : 'Buy'}
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton
+                  onClick={() => handleSell(entry)}
+                  disabled={
+                    loading === entry.key ||
+                    qty === null ||
+                    (qty !== null && qty > owned)
+                  }
+                  pending={loading === entry.key}
+                >
+                  {loading === entry.key ? ACTION_PENDING.shopSell : `Sell ${entry.displayName}`}
+                </PrimaryButton>
+              )}
             </div>
             {cannotAfford && <p className="g-error">Not enough cash.</p>}
           </div>
         );
       })}
+
+      {mode === 'sell' && items.every((entry) => ownedCount(entry) <= 0) && (
+        <p className="g-note">Nothing to sell in this category.</p>
+      )}
     </>
   );
 }

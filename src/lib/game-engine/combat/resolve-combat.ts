@@ -21,6 +21,12 @@ export interface CombatResolutionInput {
   defender: CombatParticipant;
   /** Virtual unarmed thugs from cartel mates — force only, no casualties or weapon draw */
   cartelSupportThugs?: number;
+  /** Cartel-owned thugs armed from cartel weapon stock — can take casualties */
+  cartelArmoury?: {
+    thugs: number;
+    glocks: number;
+    uzis: number;
+  };
   seed: number;
 }
 
@@ -29,6 +35,7 @@ export interface CombatResolutionResult {
   attackingThugs: number;
   attackerLosses: number;
   defenderLosses: number;
+  cartelThugLosses: number;
   attackerReturned: number;
   cashStolen: number;
   drugsStolen: DrugStock;
@@ -53,18 +60,35 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     aks: input.defender.aks,
   });
 
+  const cartelArmoury = input.cartelArmoury ?? { thugs: 0, glocks: 0, uzis: 0 };
+  const cartelOwnedThugs = Math.max(0, cartelArmoury.thugs);
+  const cartelAlloc = allocateWeaponsForThugs(cartelOwnedThugs, {
+    glocks: cartelArmoury.glocks,
+    uzis: cartelArmoury.uzis,
+    aks: 0,
+  });
+
   const cartelSupport = Math.max(0, input.cartelSupportThugs ?? 0);
   const cartelSupportStrength = cartelSupport * ATTACK_RULES.weapons.unarmedStrength;
-  const defenderStrength = defenderAlloc.totalStrength + cartelSupportStrength;
+  const defenderStrength =
+    defenderAlloc.totalStrength + cartelAlloc.totalStrength + cartelSupportStrength;
 
   const { ratio } = resolveForceScores(attackerAlloc.totalStrength, defenderStrength, rng);
 
+  const totalDefendingThugs = input.defender.thugs + cartelOwnedThugs;
   const casualties = resolveCasualties(
     input.attackingThugs,
-    input.defender.thugs,
+    totalDefendingThugs,
     ratio,
     rng,
   );
+
+  const playerDefenderLosses = Math.min(casualties.defenderLosses, input.defender.thugs);
+  const cartelThugLosses = Math.min(
+    cartelOwnedThugs,
+    casualties.defenderLosses - playerDefenderLosses,
+  );
+  const defenderLosses = playerDefenderLosses;
 
   const attackerReturned = Math.max(0, input.attackingThugs - casualties.attackerLosses);
   const theft = resolveTheft(
@@ -104,7 +128,8 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     attackType: input.attackType,
     attackingThugs: input.attackingThugs,
     attackerLosses: casualties.attackerLosses,
-    defenderLosses: casualties.defenderLosses,
+    defenderLosses,
+    cartelThugLosses,
     attackerReturned,
     cashStolen: theft.cashStolen,
     drugsStolen: theft.drugsStolen,
@@ -119,6 +144,8 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
       allocation: defenderAlloc,
       thugsDefending: input.defender.thugs,
       cartelSupportThugs: cartelSupport,
+      cartelArmouryThugs: cartelOwnedThugs,
+      cartelArmouryAllocation: cartelAlloc,
     },
   };
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatMemberPresence } from '@/lib/game-engine/cartel-presence';
+import { calculateCartelNetWorth } from '@/lib/game-engine/cartel-economics';
 import {
   CARTEL_ARMOURY_WEAPON_TYPES,
   CARTEL_AK_SUPPORTED,
@@ -18,6 +19,13 @@ describe('cartel member presence', () => {
     const presence = formatMemberPresence(new Date('2026-08-10T11:00:00Z'), now);
     expect(presence.online).toBe(false);
     expect(presence.label).toBe('1h ago');
+  });
+});
+
+describe('cartel net worth', () => {
+  it('uses treasury and shared thugs only — not member NW', () => {
+    expect(calculateCartelNetWorth({ treasuryCash: 50_000, thugs: 10 })).toBe(50_000 + 10 * 700);
+    expect(calculateCartelNetWorth({ treasuryCash: 0, thugs: 0 })).toBe(0);
   });
 });
 

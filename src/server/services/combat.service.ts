@@ -253,8 +253,15 @@ export async function resolveAttackEncounter(
 
     const defenderThugsBefore = defender.thugs;
     let cartelSupportThugs = 0;
+    let cartelArmoury = { thugs: 0, glocks: 0, uzis: 0 };
     if (ATTACK_RULES.cartelDefenceActive && defender.cartelId && !defender.travelling) {
-      cartelSupportThugs = await CartelService.getDefenceSupportInTx(tx, defender.id);
+      const cartelDefence = await CartelService.getCartelDefenceContextInTx(tx, defender.id);
+      cartelSupportThugs = cartelDefence.virtualSupportThugs;
+      cartelArmoury = {
+        thugs: cartelDefence.ownedThugs,
+        glocks: cartelDefence.ownedGlocks,
+        uzis: cartelDefence.ownedUzis,
+      };
     }
     const seed = deriveCombatSeed(attackerId, defender.id, idempotencyKey);
     const combat = resolveCombat({
@@ -262,6 +269,7 @@ export async function resolveAttackEncounter(
       attackingThugs,
       seed,
       cartelSupportThugs,
+      cartelArmoury,
       attacker: {
         thugs: attacker.thugs,
         glocks: attacker.glocks,
@@ -321,6 +329,13 @@ export async function resolveAttackEncounter(
         heroin: Math.max(0, defender.heroin - combat.drugsStolen.heroin),
       },
     });
+
+    if (combat.cartelThugLosses > 0 && defender.cartelId) {
+      await tx.cartel.update({
+        where: { id: defender.cartelId },
+        data: { thugs: { decrement: combat.cartelThugLosses } },
+      });
+    }
 
     await tx.playerTurnState.update({
       where: { playerId: attackerId },

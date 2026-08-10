@@ -50,7 +50,6 @@ test.describe('OldSkool public pages', () => {
     await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
     await expect(page.getByText('Workers', { exact: true })).toBeVisible();
     await expect(page.getByText('Thugs', { exact: true })).toBeVisible();
-    await expect(page.getByText('HOME SHOP')).toBeVisible();
     await expect(page.getByText('Health')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Scout' }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Rankings' }).first()).toBeVisible();

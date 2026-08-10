@@ -35,6 +35,7 @@ export interface ProduceResultData {
   workerRevenueGross: number;
   workerPayoutShare: number;
   playerShare: number;
+  playerShareBeforeCartel: number;
   payoutPercent: number;
   prostitutesLost: number;
   thugsLost: number;
@@ -199,6 +200,7 @@ export async function produceAction(
         workerRevenueGross: workerCash.gross,
         workerPayoutShare: workerCash.workerShare,
         playerShare: workerCash.playerShare,
+        playerShareBeforeCartel: outcome.cashEarned,
         payoutPercent: player.prostitutePayoutPercent,
         prostitutesLost: outcome.prostitutesLost,
         thugsLost: outcome.thugsLost,

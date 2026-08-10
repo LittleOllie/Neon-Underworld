@@ -27,6 +27,7 @@ import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-gu
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { DistrictModifiers } from '@/config/game/balance';
 import { CartelService } from '@/server/services/cartel.service';
+import { workerCashBreakdown } from '@/lib/game-engine/worker-economics';
 import type { ActionResult } from './auth.actions';
 
 export interface ScoutResultData {
@@ -35,6 +36,10 @@ export interface ScoutResultData {
   thugsFound: number;
   cashEarned: number;
   cartelContribution?: number;
+  workerRevenueGross: number;
+  workerPayoutShare: number;
+  playerShareBeforeCartel: number;
+  payoutPercent: number;
   prostitutesLost: number;
   thugsLost: number;
   netWorthChange: number;
@@ -144,6 +149,11 @@ export async function scoutAction(
         scoutOutcome.cashEarned,
       );
       const newCash = player.cash + incomeSplit.playerCash;
+      const workerCash = workerCashBreakdown(
+        player.prostitutes,
+        parsed.data.turns,
+        player.prostitutePayoutPercent,
+      );
 
       const afterResources = {
         ...beforeResources,
@@ -209,6 +219,10 @@ export async function scoutAction(
         thugsFound: scoutOutcome.thugsFound,
         cashEarned: incomeSplit.playerCash,
         cartelContribution: incomeSplit.cartelCash,
+        workerRevenueGross: workerCash.gross,
+        workerPayoutShare: workerCash.workerShare,
+        playerShareBeforeCartel: scoutOutcome.cashEarned,
+        payoutPercent: player.prostitutePayoutPercent,
         prostitutesLost: scoutOutcome.prostitutesLost,
         thugsLost: scoutOutcome.thugsLost,
         netWorthChange: nwChange,

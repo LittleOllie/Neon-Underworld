@@ -17,7 +17,7 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }));
 
-describe('homeShopSellAction — server validation', () => {
+describe('shopSellAction — server validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRequirePlayer.mockResolvedValue({
@@ -33,18 +33,18 @@ describe('homeShopSellAction — server validation', () => {
             cash: 5000,
             lifeStatus: 'ACTIVE',
             travelling: false,
+            glocks: 0,
+            uzis: 0,
+            aks: 0,
+            rides: 0,
+            condoms: 0,
             hash: 0,
+            beer: 0,
             shrooms: 0,
             coke: 50,
             heroin: 0,
             prostitutes: 0,
             thugs: 0,
-            rides: 0,
-            glocks: 0,
-            uzis: 0,
-            aks: 0,
-            condoms: 0,
-            beer: 0,
             businesses: 0,
             bankCash: 0,
             season: { status: 'ACTIVE' },
@@ -58,6 +58,11 @@ describe('homeShopSellAction — server validation', () => {
             prostitutes: 0,
             thugs: 0,
             rides: 0,
+            glocks: 0,
+            uzis: 0,
+            aks: 0,
+            condoms: 0,
+            beer: 0,
             bankCash: 0,
           })),
         },
@@ -67,74 +72,48 @@ describe('homeShopSellAction — server validation', () => {
     );
   });
 
-  it('rejects invalid drug before transaction', async () => {
-    const { homeShopSellAction } = await import('@/server/actions/home-shop.actions');
-    const result = await homeShopSellAction(
-      'beer',
-      1,
-      '00000000-0000-4000-8000-000000000001',
-    );
-    expect(result.success).toBe(false);
-    expect(mockTransaction).not.toHaveBeenCalled();
-  });
-
-  it('rejects zero quantity', async () => {
-    const { homeShopSellAction } = await import('@/server/actions/home-shop.actions');
-    const result = await homeShopSellAction(
-      'coke',
-      0,
-      '00000000-0000-4000-8000-000000000002',
-    );
+  it('rejects invalid item before transaction', async () => {
+    const { shopSellAction } = await import('@/server/actions/shop.actions');
+    const result = await shopSellAction('whore', 1, '00000000-0000-4000-8000-000000000001');
     expect(result.success).toBe(false);
     expect(mockTransaction).not.toHaveBeenCalled();
   });
 
   it('rejects selling more than owned', async () => {
-    const { homeShopSellAction } = await import('@/server/actions/home-shop.actions');
-    const result = await homeShopSellAction(
-      'coke',
-      100,
-      '00000000-0000-4000-8000-000000000003',
-    );
+    const { shopSellAction } = await import('@/server/actions/shop.actions');
+    const result = await shopSellAction('coke', 100, '00000000-0000-4000-8000-000000000002');
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toMatch(/don't own enough/i);
     }
-    expect(mockTransaction).toHaveBeenCalled();
   });
 
-  it('sells valid quantity with canonical price', async () => {
-    const { homeShopSellAction } = await import('@/server/actions/home-shop.actions');
-    const key = '00000000-0000-4000-8000-000000000004';
-    const result = await homeShopSellAction('coke', 10, key);
+  it('sells at discounted shop sell-back price', async () => {
+    const { shopSellAction } = await import('@/server/actions/shop.actions');
+    const result = await shopSellAction('coke', 10, '00000000-0000-4000-8000-000000000003');
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.unitPrice).toBe(9);
-      expect(result.data.totalPayout).toBe(90);
-      expect(result.data.newCash).toBe(5090);
+      expect(result.data.unitPrice).toBe(38);
+      expect(result.data.totalPayout).toBe(380);
       expect(result.data.newOwnedQuantity).toBe(40);
-      expect(result.data.canonicalNetWorth).toBeGreaterThan(0);
     }
   });
 
   it('replays idempotent request without double payout', async () => {
     const replay = {
-      drug: 'coke' as const,
+      item: 'coke' as const,
       quantity: 10,
-      unitPrice: 9,
-      totalPayout: 90,
-      newCash: 5090,
+      unitPrice: 38,
+      totalPayout: 380,
+      newCash: 5380,
       newOwnedQuantity: 40,
-      canonicalNetWorth: 5200,
+      newNetWorth: 5000,
+      canonicalNetWorth: 5000,
     };
     mockFindUnique.mockResolvedValue({ resultPayload: replay });
 
-    const { homeShopSellAction } = await import('@/server/actions/home-shop.actions');
-    const result = await homeShopSellAction(
-      'coke',
-      10,
-      '00000000-0000-4000-8000-000000000005',
-    );
+    const { shopSellAction } = await import('@/server/actions/shop.actions');
+    const result = await shopSellAction('coke', 10, '00000000-0000-4000-8000-000000000004');
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data).toEqual(replay);

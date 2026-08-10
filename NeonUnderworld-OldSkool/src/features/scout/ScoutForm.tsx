@@ -14,6 +14,7 @@ import { ActionResult, type ActionResultLine } from '@local/components/game/Acti
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
+import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 
 interface ScoutFormProps {
   initialTurns: number;
@@ -70,7 +71,13 @@ export function ScoutForm({
     const lines: ActionResultLine[] = [
       { text: `+${result.prostitutesFound} ${workersLabel(result.prostitutesFound)}`, tone: 'positive' },
       { text: `+${result.thugsFound} ${thugsLabel(result.thugsFound)}`, tone: 'positive' },
-      { text: `+$${result.cashEarned.toLocaleString()} retained income`, tone: 'positive' },
+      ...buildStreetIncomeBreakdownLines({
+        grossIncome: result.workerRevenueGross,
+        workerPayoutShare: result.workerPayoutShare,
+        playerShareBeforeCartel: result.playerShareBeforeCartel,
+        cartelContribution: result.cartelContribution,
+        retainedCash: result.cashEarned,
+      }),
     ];
     if (result.prostitutesLost > 0) {
       lines.push({

@@ -2,6 +2,7 @@
 
 import { CartelService } from '@core/server/services/cartel.service';
 import { CARTEL_DONATION_OPTIONS } from '@core/lib/game-engine/cartel-economics';
+import { cartelArmouryPurchaseSchema } from '@core/lib/validation/schemas';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 import { GameplayError, toUserMessage } from '@core/lib/game-engine/gameplay-errors';
@@ -132,6 +133,53 @@ export async function setCartelDonationAction(
 
     const normalized = await CartelService.setDonationPercent(playerId, percent);
     return { success: true, data: { percent: normalized } };
+  } catch (error) {
+    return { success: false, error: toUserMessage(error) };
+  }
+}
+
+export interface CartelArmouryPurchaseResult {
+  item: 'thug' | 'glock' | 'uzi';
+  quantity: number;
+  unitPrice: number;
+  totalCost: number;
+  newTreasuryCash: number;
+  newOwnedQuantity: number;
+  cartelNetWorth: number;
+}
+
+export async function purchaseCartelArmouryAction(
+  item: string,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<CartelArmouryPurchaseResult>> {
+  try {
+    const session = await auth();
+    const playerId = session?.user?.playerId;
+    if (!playerId) return { success: false, error: 'Not authenticated' };
+
+    const parsed = cartelArmouryPurchaseSchema.safeParse({ item, quantity, idempotencyKey });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    const result = await CartelService.purchaseArmouryItem(
+      playerId,
+      parsed.data.item,
+      parsed.data.quantity,
+      parsed.data.idempotencyKey,
+    );
+
+    const label =
+      item === 'thug' ? 'thugs' : item === 'glock' ? 'glocks' : 'uzis';
+    await ActivityService.record(
+      playerId,
+      ACTIVITY_TYPES.CARTEL,
+      `Cartel armoury: purchased ${quantity.toLocaleString()} ${label} for $${result.totalCost.toLocaleString()}.`,
+      { item, quantity, totalCost: result.totalCost },
+    );
+
+    return { success: true, data: result };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
   }

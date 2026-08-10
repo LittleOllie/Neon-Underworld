@@ -1,6 +1,41 @@
 import { REDLITE_CARTEL } from '@/config/game/redlite-rules';
+import { CANONICAL_NET_WORTH_VALUATIONS } from '@/lib/game-engine/canonical-net-worth';
 
 export const CARTEL_DONATION_OPTIONS = [0, 10, 20, 30, 40, 50, 60] as const;
+
+/** Cartel-owned assets — NOT member player net worth. */
+export interface CartelAssetRecord {
+  treasuryCash: number;
+  /** Shared cartel thugs purchased from treasury. */
+  thugs?: number;
+  glocks?: number;
+  uzis?: number;
+}
+
+/**
+ * Cartel net worth — treasury + shared thugs only.
+ * Weapons are excluded (same as player NW rules). Member personal NW is separate.
+ */
+export function calculateCartelNetWorth(assets: CartelAssetRecord): number {
+  let total = assets.treasuryCash * CANONICAL_NET_WORTH_VALUATIONS.cash;
+  total += (assets.thugs ?? 0) * CANONICAL_NET_WORTH_VALUATIONS.thug;
+  return Math.floor(total);
+}
+
+/** Read cartel-owned assets from a Cartel row. */
+export function cartelAssetsFromRecord(cartel: {
+  treasuryCash: number;
+  thugs?: number;
+  glocks?: number;
+  uzis?: number;
+}): CartelAssetRecord {
+  return {
+    treasuryCash: cartel.treasuryCash,
+    thugs: cartel.thugs ?? 0,
+    glocks: cartel.glocks ?? 0,
+    uzis: cartel.uzis ?? 0,
+  };
+}
 
 export function normalizeDonationPercent(percent: number): number {
   if (!Number.isInteger(percent)) return 0;

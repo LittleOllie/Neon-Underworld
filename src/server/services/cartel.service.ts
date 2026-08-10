@@ -1,8 +1,17 @@
 import { prisma } from '@/lib/db/prisma';
 import { REDLITE_CARTEL } from '@/config/game/redlite-rules';
 import {
+  CARTEL_ARMOURY_ITEMS,
+  cartelArmouryPurchaseTotal,
+  getCartelArmouryItem,
+  isCartelArmouryItem,
+  type CartelArmouryItemKey,
+} from '@/config/game/cartel-armoury-rules';
+import {
   applyCartelContribution,
+  cartelAssetsFromRecord,
   cartelDefenceThugBonus,
+  calculateCartelNetWorth,
   normalizeDonationPercent,
 } from '@/lib/game-engine/cartel-economics';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
@@ -12,9 +21,16 @@ import { formatMemberPresence } from '@/lib/game-engine/cartel-presence';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Per Redlite guide §6 — cartel armoury uses Uzi/Glock only when implemented; AK-47 is player-only. */
+/** Per Redlite guide §6 — cartel armoury uses Uzi/Glock only; AK-47 is player-only. */
 export const CARTEL_ARMOURY_WEAPON_TYPES = ['glock', 'uzi'] as const;
 export const CARTEL_AK_SUPPORTED = false;
+
+export interface CartelDefenceContext {
+  virtualSupportThugs: number;
+  ownedThugs: number;
+  ownedGlocks: number;
+  ownedUzis: number;
+}
 
 function normalizeTag(tag: string): string {
   return tag.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -98,6 +114,7 @@ export const CartelService = {
       );
 
       const leaderMember = members.find((m) => m.isLeader);
+      const assets = cartelAssetsFromRecord(player.cartel);
 
       cartelView = {
         id: player.cartel.id,
@@ -110,7 +127,7 @@ export const CartelService = {
         memberCount: members.length,
         maxMembers: REDLITE_CARTEL.maxMembers,
         maxDonationPercent: REDLITE_CARTEL.maxDonationPercent,
-        combinedNetWorth: members.reduce((s, m) => s + m.netWorth, 0),
+        cartelNetWorth: calculateCartelNetWorth(assets),
         members,
         isLeader: leaderId === playerId,
         myRole: leaderId === playerId ? ('Leader' as const) : ('Member' as const),
@@ -122,11 +139,28 @@ export const CartelService = {
           virtualDefenceThugs: cartelDefenceThugBonus(
             eligibleSupporters.map((m) => ({ thugs: m.thugs })),
           ),
+          ownedDefenceThugs: assets.thugs ?? 0,
         },
         armoury: {
-          hasSharedStock: false,
+          treasuryCash: assets.treasuryCash,
+          thugs: assets.thugs ?? 0,
+          glocks: assets.glocks ?? 0,
+          uzis: assets.uzis ?? 0,
+          hasSharedStock: true,
           supportedWeaponTypes: [...CARTEL_ARMOURY_WEAPON_TYPES],
           akSupported: CARTEL_AK_SUPPORTED,
+          catalog: CARTEL_ARMOURY_ITEMS.map((item) => ({
+            key: item.key,
+            displayName: item.displayName,
+            unitPrice: item.unitPrice,
+            purpose: item.purpose,
+            ownedQuantity:
+              item.field === 'thugs'
+                ? (assets.thugs ?? 0)
+                : item.field === 'glocks'
+                  ? (assets.glocks ?? 0)
+                  : (assets.uzis ?? 0),
+          })),
         },
       };
     }
@@ -327,76 +361,159 @@ export const CartelService = {
     return split;
   },
 
-  async getDefenceSupportInTx(
+  async getCartelDefenceContextInTx(
     tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
     defenderId: string,
-  ): Promise<number> {
+  ): Promise<CartelDefenceContext> {
     const defender = await tx.player.findUnique({
       where: { id: defenderId },
       select: { cartelId: true, districtId: true, travelling: true },
     });
-    if (!defender?.cartelId || defender.travelling) return 0;
+    if (!defender?.cartelId || defender.travelling) {
+      return { virtualSupportThugs: 0, ownedThugs: 0, ownedGlocks: 0, ownedUzis: 0 };
+    }
 
-    const supporters = await tx.player.findMany({
-      where: {
-        cartelId: defender.cartelId,
-        id: { not: defenderId },
-        districtId: defender.districtId,
-        travelling: false,
-        lifeStatus: 'ACTIVE',
-      },
-      select: { thugs: true },
-    });
+    const [supporters, cartel] = await Promise.all([
+      tx.player.findMany({
+        where: {
+          cartelId: defender.cartelId,
+          id: { not: defenderId },
+          districtId: defender.districtId,
+          travelling: false,
+          lifeStatus: 'ACTIVE',
+        },
+        select: { thugs: true },
+      }),
+      tx.cartel.findUnique({
+        where: { id: defender.cartelId },
+        select: { thugs: true, glocks: true, uzis: true },
+      }),
+    ]);
 
-    return cartelDefenceThugBonus(supporters);
+    return {
+      virtualSupportThugs: cartelDefenceThugBonus(supporters),
+      ownedThugs: cartel?.thugs ?? 0,
+      ownedGlocks: cartel?.glocks ?? 0,
+      ownedUzis: cartel?.uzis ?? 0,
+    };
+  },
+
+  async getDefenceSupportInTx(
+    tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+    defenderId: string,
+  ): Promise<number> {
+    const context = await this.getCartelDefenceContextInTx(tx, defenderId);
+    return context.virtualSupportThugs;
   },
 
   async getDefenceSupport(defenderId: string): Promise<number> {
     return prisma.$transaction(async (tx) => this.getDefenceSupportInTx(tx, defenderId));
   },
 
+  async purchaseArmouryItem(
+    leaderId: string,
+    item: string,
+    quantity: number,
+    idempotencyKey: string,
+  ) {
+    if (!isCartelArmouryItem(item)) {
+      throw new GameplayError('INVALID_QUANTITY', 'This item cannot be purchased for the cartel.');
+    }
+
+    const existing = await prisma.gameAction.findFirst({
+      where: { playerId: leaderId, idempotencyKey },
+    });
+    if (existing?.resultPayload) {
+      return existing.resultPayload as {
+        item: CartelArmouryItemKey;
+        quantity: number;
+        unitPrice: number;
+        totalCost: number;
+        newTreasuryCash: number;
+        newOwnedQuantity: number;
+        cartelNetWorth: number;
+      };
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const leader = await tx.player.findUniqueOrThrow({
+        where: { id: leaderId },
+        include: { cartel: true, season: true },
+      });
+      assertPlayerCanPerformAction(leader);
+      if (!leader.cartelId || !leader.cartel) throw new GameplayError('CARTEL_ALREADY_MEMBER');
+      if (leader.cartel.leaderId !== leaderId) throw new GameplayError('CARTEL_NOT_LEADER');
+      if (leader.season.status !== 'ACTIVE') throw new GameplayError('SEASON_INACTIVE');
+
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) {
+        throw new GameplayError('INVALID_QUANTITY');
+      }
+
+      const rule = getCartelArmouryItem(item)!;
+      const totalCost = cartelArmouryPurchaseTotal(item, quantity);
+      if (leader.cartel.treasuryCash < totalCost) {
+        throw new GameplayError('INSUFFICIENT_CASH', 'Insufficient treasury funds.');
+      }
+
+      const currentQty = leader.cartel[rule.field];
+      const newQty = currentQty + quantity;
+      const newTreasury = leader.cartel.treasuryCash - totalCost;
+
+      const updatedCartel = await tx.cartel.update({
+        where: { id: leader.cartelId },
+        data: {
+          treasuryCash: newTreasury,
+          [rule.field]: newQty,
+        },
+      });
+
+      const assets = cartelAssetsFromRecord(updatedCartel);
+      const resultData = {
+        item,
+        quantity,
+        unitPrice: rule.unitPrice,
+        totalCost,
+        newTreasuryCash: newTreasury,
+        newOwnedQuantity: newQty,
+        cartelNetWorth: calculateCartelNetWorth(assets),
+      };
+
+      await tx.gameAction.create({
+        data: {
+          playerId: leaderId,
+          seasonId: leader.seasonId,
+          actionType: 'CARTEL_ARMOURY_PURCHASE',
+          idempotencyKey,
+          requestPayload: { item, quantity } as object,
+          resultPayload: resultData as object,
+          turnsSpent: 0,
+        },
+      });
+
+      return resultData;
+    }, { isolationLevel: 'Serializable' });
+  },
+
   async getCartelRankings() {
     const cartels = await prisma.cartel.findMany({
-      include: {
-        members: {
-          select: {
-            id: true,
-            createdAt: true,
-            cash: true,
-            bankCash: true,
-            prostitutes: true,
-            thugs: true,
-            rides: true,
-            glocks: true,
-            uzis: true,
-            aks: true,
-            hash: true,
-            shrooms: true,
-            coke: true,
-            heroin: true,
-            businesses: true,
-          },
-        },
-      },
+      include: { _count: { select: { members: true } } },
     });
 
     const ranked = cartels
       .map((c) => {
-        const combinedNetWorth = c.members.reduce(
-          (sum, m) => sum + calculateCanonicalNetWorthFromPlayer(m),
-          0,
-        );
+        const assets = cartelAssetsFromRecord(c);
         return {
           id: c.id,
           name: c.name,
           tag: c.tag,
-          memberCount: c.members.length,
-          combinedNetWorth,
+          memberCount: c._count.members,
+          cartelNetWorth: calculateCartelNetWorth(assets),
+          treasuryCash: c.treasuryCash,
           createdAt: c.createdAt,
         };
       })
       .sort((a, b) => {
-        if (b.combinedNetWorth !== a.combinedNetWorth) return b.combinedNetWorth - a.combinedNetWorth;
+        if (b.cartelNetWorth !== a.cartelNetWorth) return b.cartelNetWorth - a.cartelNetWorth;
         return a.createdAt.getTime() - b.createdAt.getTime();
       })
       .map((row, i) => ({ ...row, rank: i + 1 }));
@@ -406,4 +523,4 @@ export const CartelService = {
 };
 
 // Re-export for tests
-export { applyCartelContribution, cartelDefenceThugBonus };
+export { applyCartelContribution, cartelDefenceThugBonus, calculateCartelNetWorth };

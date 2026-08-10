@@ -12,6 +12,7 @@ import { ActionResult, type ActionResultLine } from '@local/components/game/Acti
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
+import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 interface ProduceFormProps {
@@ -77,7 +78,13 @@ export function ProduceForm({
   if (result) {
     const lines: ActionResultLine[] = [
       { text: `+${result.drugUnitsProduced.toLocaleString()} ${result.drugType}`, tone: 'positive' },
-      { text: `+$${result.playerShare.toLocaleString()} your share`, tone: 'positive' },
+      ...buildStreetIncomeBreakdownLines({
+        grossIncome: result.workerRevenueGross,
+        workerPayoutShare: result.workerPayoutShare,
+        playerShareBeforeCartel: result.playerShareBeforeCartel,
+        cartelContribution: result.cartelContribution,
+        retainedCash: result.cashEarned,
+      }),
     ];
     if (result.prostitutesLost > 0) {
       lines.push({

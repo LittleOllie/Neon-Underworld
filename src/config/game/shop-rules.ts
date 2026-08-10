@@ -217,45 +217,14 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
   },
 ];
 
-/** Dev placeholder — derived from market starting prices until economy sign-off. */
-export const HOME_SHOP_PRICES_PENDING_ECONOMY_APPROVAL = true;
+/** Fraction of City Shop buy price returned when selling items back. */
+export const CITY_SHOP_SELL_BACK_RATIO = 0.7;
 
-/** Drugs sellable at Home Shop (instant cash, not Market auction). */
-export type HomeShopDrugKey = 'hash' | 'shrooms' | 'coke' | 'heroin';
-
-export const HOME_SHOP_DRUGS: {
-  key: HomeShopDrugKey;
-  displayName: string;
-  field: keyof PlayerShopFields;
-}[] = [
-  { key: 'hash', displayName: 'Hash', field: 'hash' },
-  { key: 'shrooms', displayName: 'Shrooms', field: 'shrooms' },
-  { key: 'coke', displayName: 'Coke', field: 'coke' },
-  { key: 'heroin', displayName: 'Heroin', field: 'heroin' },
-];
-
-/**
- * Canonical Home Shop sell prices — ONE source of truth.
- * Currently mirrors Distrikt Market starting prices (Redlite guide §4).
- * Flagged pending dedicated home-shop economy approval.
- */
-export const HOME_SHOP_SELL_PRICES: Record<HomeShopDrugKey, number> = {
-  hash: REDLITE_MARKET_STARTING_PRICES.hash,
-  shrooms: REDLITE_MARKET_STARTING_PRICES.shroom,
-  coke: REDLITE_MARKET_STARTING_PRICES.coke,
-  heroin: REDLITE_MARKET_STARTING_PRICES.heroin,
-};
-
-export function isHomeShopDrug(key: string): key is HomeShopDrugKey {
-  return key in HOME_SHOP_SELL_PRICES;
-}
-
-export function getHomeShopDrugRule(key: string) {
-  return HOME_SHOP_DRUGS.find((d) => d.key === key);
-}
-
-export function getHomeShopSellPrice(key: HomeShopDrugKey): number {
-  return HOME_SHOP_SELL_PRICES[key];
+/** City Shop sell-back price — always below buy price. */
+export function getCityShopSellPrice(key: ShopItemKey): number {
+  const item = getCityShopItem(key);
+  if (!item) return 0;
+  return Math.max(1, Math.floor(item.shopPrice * CITY_SHOP_SELL_BACK_RATIO));
 }
 
 export const CITY_SHOP_ITEM_KEYS = CITY_SHOP_ITEMS.map((i) => i.key) as ShopItemKey[];

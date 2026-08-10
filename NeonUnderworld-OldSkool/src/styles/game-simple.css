@@ -287,125 +287,6 @@
   height: 7px;
 }
 
-/* ── Home shop (sell drugs) ── */
-.g-home-shop {
-  margin: 16px 0;
-}
-
-.g-home-shop-cash {
-  margin: 0 0 12px;
-  font-size: var(--game-fs-secondary);
-  color: var(--os-text-dim, #7a7872);
-}
-
-.g-home-shop-row {
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.g-home-shop-row--empty {
-  opacity: 0.65;
-}
-
-.g-home-shop-row__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.g-home-shop-row__name {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--os-text, #d4d2cc);
-}
-
-.g-home-shop-row__owned {
-  font-size: var(--game-fs-secondary);
-  color: var(--os-text-dim, #7a7872);
-  font-variant-numeric: tabular-nums;
-}
-
-.g-home-shop-row__price {
-  margin: 0 0 10px;
-  font-size: var(--game-fs-secondary);
-  color: var(--game-gold, #c9a962);
-}
-
-.g-home-shop-qty {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.g-home-shop-qty-btn {
-  min-width: 44px;
-  min-height: 44px;
-  font-size: 20px;
-  font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--os-text);
-  cursor: pointer;
-}
-
-.g-home-shop-qty-field {
-  flex: 1;
-  min-height: 44px;
-  text-align: center;
-  font-size: 16px;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--os-text);
-}
-
-.g-home-shop-presets {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.g-home-shop-presets button {
-  flex: 1;
-  min-height: 36px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--os-text-dim);
-  cursor: pointer;
-}
-
-.g-home-shop-receive {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  border: 1px solid rgba(201, 169, 98, 0.18);
-  background: rgba(0, 0, 0, 0.22);
-}
-
-.g-home-shop-receive__label {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--os-text-dim);
-}
-
-.g-home-shop-receive__value {
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--game-gold, #c9a962);
-}
-
 /* ── Cartel HQ ── */
 .g-cartel-hq__header {
   margin-bottom: 16px;
@@ -505,6 +386,37 @@
   .g-cartel-hq__grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+.g-cartel-armoury {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.g-cartel-armoury__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.g-cartel-armoury__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.g-cartel-armoury__name {
+  font-size: var(--game-fs-body);
+  color: var(--os-text);
+}
+
+.g-cartel-armoury__meta {
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim);
 }
 
 .g-alert {
@@ -750,6 +662,43 @@
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+}
+
+.g-shop-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.g-shop-mode-btn {
+  min-height: 44px;
+  font-size: var(--game-fs-btn);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--os-text-dim);
+  cursor: pointer;
+}
+
+.g-shop-mode-btn--active {
+  border-color: var(--os-gold-dark);
+  background: rgba(201, 169, 98, 0.14);
+  color: var(--os-gold);
+}
+
+.g-shop-cash {
+  margin: 0 0 12px;
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim);
+}
+
+.g-shop-price-note {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--os-text-dim);
 }
 
 .g-shop-head {

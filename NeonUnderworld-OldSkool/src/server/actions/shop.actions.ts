@@ -2,8 +2,10 @@
 
 import {
   shopPurchaseAction as coreShopPurchaseAction,
+  shopSellAction as coreShopSellAction,
   getShopCatalog as coreGetShopCatalog,
   type ShopPurchaseResult,
+  type ShopSellResult,
   type ShopCatalogEntry,
   type ShopItemKey,
 } from '@core/server/actions/shop.actions';
@@ -17,7 +19,7 @@ import { NetWorthService } from '@local/server/services/net-worth.service';
 import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 
-export type { ShopPurchaseResult, ShopCatalogEntry, ShopItemKey };
+export type { ShopPurchaseResult, ShopSellResult, ShopCatalogEntry, ShopItemKey };
 
 export interface ShopRecentPurchase {
   message: string;
@@ -142,6 +144,44 @@ export async function shopPurchaseAction(
     ACTIVITY_TYPES.SHOP_PURCHASE,
     `Purchased ${result.data.quantity}× ${result.data.item} for $${result.data.totalCost.toLocaleString()}.`,
     { shop: result.data },
+  );
+
+  revalidatePlayerGameplayCache(playerId, updated.seasonId);
+
+  return {
+    success: true,
+    data: {
+      ...result.data,
+      newNetWorth: canonicalNetWorth,
+      canonicalNetWorth,
+    },
+  };
+}
+
+export async function shopSellAction(
+  item: ShopItemKey,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<ShopSellResult>> {
+  const result = await coreShopSellAction(item, quantity, idempotencyKey);
+  if (!result.success) return result;
+
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+
+  const catalog = await coreGetShopCatalog();
+  const label = catalog.find((e) => e.key === item)?.displayName ?? item;
+
+  await EmpireService.syncInventory(playerId);
+  const updated = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+  const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
+
+  await ActivityService.record(
+    playerId,
+    ACTIVITY_TYPES.SHOP_SELL,
+    `Sold ${result.data.quantity}× ${label} to the shop for $${result.data.totalPayout.toLocaleString()}.`,
+    { shopSell: result.data },
   );
 
   revalidatePlayerGameplayCache(playerId, updated.seasonId);

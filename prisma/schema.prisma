@@ -40,6 +40,7 @@ enum ActivityCategory {
   PRODUCTION
   SHOP_PURCHASE
   HOME_SHOP_SELL
+  SHOP_SELL
   MARKET_LISTING
   MARKET_BID
   MARKET_SALE
@@ -419,6 +420,9 @@ model Cartel {
   tag          String   @unique
   leaderId     String
   treasuryCash Int      @default(0)
+  thugs        Int      @default(0)
+  glocks       Int      @default(0)
+  uzis         Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

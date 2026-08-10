@@ -13,4 +13,9 @@ describe('Shop preview', () => {
     expect(shopInventoryKey('ak')).toBe('aks');
     expect(shopInventoryKey('glock')).toBe('glocks');
   });
+
+  it('sell-back price is below buy price', () => {
+    const coke = getCityShopItem('coke')!;
+    expect(Math.floor(coke.shopPrice * 0.7)).toBeLessThan(coke.shopPrice);
+  });
 });

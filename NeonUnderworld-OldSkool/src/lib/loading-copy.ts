@@ -29,11 +29,12 @@ export const ACTION_PENDING = {
   produce: 'Running production…',
   attack: 'Making the move…',
   shopPurchase: 'Completing purchase…',
+  shopSell: 'Completing sale…',
   marketBid: 'Locking in your bid…',
   marketList: 'Listing on the Market…',
   cartelInvite: 'Sending invite…',
   cartelJoin: 'Joining cartel…',
   cartelCreate: 'Creating cartel…',
-  homeShopSell: 'Completing sale…',
+  cartelArmoury: 'Purchasing for cartel…',
   travel: (destination: string) => `En route to ${destination}…`,
 } as const;
