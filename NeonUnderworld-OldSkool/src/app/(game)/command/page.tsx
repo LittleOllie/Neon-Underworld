@@ -3,7 +3,10 @@ import {
   StatusBar,
   AlertList,
   ActionButton,
+  HomeCrewSummary,
 } from '@local/components/game';
+import { HomeShopPanel } from '@local/features/home-shop/HomeShopPanel';
+import { getHomeShopPageDataFromContext } from '@local/lib/home-shop-data';
 import {
   requireGameSession,
   buildAttentionItems,
@@ -26,12 +29,22 @@ export default async function CommandPage() {
   });
 
   const { visible: alerts } = prioritizeAttentionItems(attentionAll, 5);
+  const homeShop = getHomeShopPageDataFromContext(ctx);
 
   return (
     <>
       <PageTitle icon="home">Home</PageTitle>
 
+      <HomeCrewSummary
+        workers={ctx.prostitutes}
+        thugs={ctx.thugs}
+        workerHappiness={ctx.prostituteHappiness.score}
+        thugHappiness={ctx.thugHappiness.score}
+      />
+
       <StatusBar label="Health" percent={ctx.health} />
+
+      <HomeShopPanel {...homeShop} />
 
       <AlertList items={alerts} />
 

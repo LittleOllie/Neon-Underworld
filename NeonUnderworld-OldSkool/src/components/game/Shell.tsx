@@ -7,6 +7,7 @@ import type { GameBackgroundKey } from '@local/config/backgrounds';
 import { getBackgroundForPath } from '@local/config/route-backgrounds';
 import { GlobalStatus, type GlobalStats } from './GlobalStatus';
 import { GameNav } from './GameNav';
+import { GameMainTransition } from './GameMainTransition';
 import { GamePageBackground } from './GamePageBackground';
 
 export type { GlobalStats };
@@ -49,7 +50,9 @@ export function GameShell({
         )}
         <GameNav />
       </div>
-      <main className="g-main">{children}</main>
+      <main className="g-main">
+        <GameMainTransition>{children}</GameMainTransition>
+      </main>
       <footer className="g-footer">Neon Underworld · OldSkool Edition</footer>
     </div>
   );

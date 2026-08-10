@@ -103,6 +103,12 @@ export const marketBidSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
+export const homeShopSellSchema = z.object({
+  drug: z.enum(['hash', 'shrooms', 'coke', 'heroin']),
+  quantity: z.number().int().min(1).max(1000),
+  idempotencyKey: z.string().uuid(),
+});
+
 export const cartelCreateSchema = z.object({
   name: z.string().min(3).max(32),
   tag: z.string().min(2).max(6),

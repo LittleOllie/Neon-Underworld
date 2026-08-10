@@ -8,8 +8,13 @@ import {
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonical-net-worth';
+import { formatMemberPresence } from '@/lib/game-engine/cartel-presence';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Per Redlite guide §6 — cartel armoury uses Uzi/Glock only when implemented; AK-47 is player-only. */
+export const CARTEL_ARMOURY_WEAPON_TYPES = ['glock', 'uzi'] as const;
+export const CARTEL_AK_SUPPORTED = false;
 
 function normalizeTag(tag: string): string {
   return tag.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -20,6 +25,7 @@ export const CartelService = {
     const player = await prisma.player.findUniqueOrThrow({
       where: { id: playerId },
       include: {
+        district: { select: { id: true, name: true, slug: true } },
         cartel: {
           include: {
             members: {
@@ -40,9 +46,11 @@ export const CartelService = {
                 heroin: true,
                 businesses: true,
                 cartelDonationPercent: true,
+                travelling: true,
+                lifeStatus: true,
+                districtId: true,
                 district: { select: { name: true, slug: true } },
                 user: { select: { lastLoginAt: true } },
-                statusExt: true,
                 updatedAt: true,
               },
             },
@@ -65,26 +73,61 @@ export const CartelService = {
 
     let cartelView = null;
     if (player.cartel) {
-      const members = player.cartel.members.map((m) => ({
-        id: m.id,
-        alias: m.alias,
-        netWorth: calculateCanonicalNetWorthFromPlayer(m),
-        donationPercent: m.cartelDonationPercent,
-        city: m.district.name,
-        isLeader: m.id === player.cartel!.leaderId,
-      }));
+      const leaderId = player.cartel.leaderId;
+      const members = player.cartel.members.map((m) => {
+        const isLeader = m.id === leaderId;
+        return {
+          id: m.id,
+          alias: m.alias,
+          netWorth: calculateCanonicalNetWorthFromPlayer(m),
+          donationPercent: m.cartelDonationPercent,
+          city: m.district.name,
+          role: isLeader ? ('Leader' as const) : ('Member' as const),
+          isLeader,
+          presence: formatMemberPresence(m.user.lastLoginAt),
+          travelling: m.travelling,
+        };
+      });
+
+      const eligibleSupporters = player.cartel.members.filter(
+        (m) =>
+          m.id !== playerId &&
+          m.districtId === player.district.id &&
+          !m.travelling &&
+          m.lifeStatus === 'ACTIVE',
+      );
+
+      const leaderMember = members.find((m) => m.isLeader);
+
       cartelView = {
         id: player.cartel.id,
         name: player.cartel.name,
         tag: player.cartel.tag,
-        leaderId: player.cartel.leaderId,
+        leaderId,
+        leaderAlias: leaderMember?.alias ?? 'Unknown',
+        foundedAt: player.cartel.createdAt.toISOString(),
         treasuryCash: player.cartel.treasuryCash,
         memberCount: members.length,
         maxMembers: REDLITE_CARTEL.maxMembers,
+        maxDonationPercent: REDLITE_CARTEL.maxDonationPercent,
         combinedNetWorth: members.reduce((s, m) => s + m.netWorth, 0),
         members,
-        isLeader: player.cartel.leaderId === playerId,
+        isLeader: leaderId === playerId,
+        myRole: leaderId === playerId ? ('Leader' as const) : ('Member' as const),
         myDonationPercent: player.cartelDonationPercent,
+        myCity: player.district.name,
+        status: 'Active' as const,
+        protection: {
+          sameCitySupporters: eligibleSupporters.length,
+          virtualDefenceThugs: cartelDefenceThugBonus(
+            eligibleSupporters.map((m) => ({ thugs: m.thugs })),
+          ),
+        },
+        armoury: {
+          hasSharedStock: false,
+          supportedWeaponTypes: [...CARTEL_ARMOURY_WEAPON_TYPES],
+          akSupported: CARTEL_AK_SUPPORTED,
+        },
       };
     }
 

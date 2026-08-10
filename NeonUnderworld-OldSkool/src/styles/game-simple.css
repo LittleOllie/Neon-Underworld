@@ -236,6 +236,277 @@
 .g-bar-warn .g-bar-fill { background: #d9a032; }
 .g-bar-danger .g-bar-fill { background: #c44; }
 
+/* ── Home crew summary ── */
+.g-crew-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 14px 12px;
+  border: 1px solid rgba(201, 169, 98, 0.22);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.g-crew-summary__col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.g-crew-summary__label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--os-text-dim, #7a7872);
+}
+
+.g-crew-summary__count {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--game-gold, #c9a962);
+  text-shadow: 0 0 20px rgba(201, 169, 98, 0.12);
+}
+
+.g-crew-summary .g-bar-wrap {
+  margin: 0;
+}
+
+.g-crew-summary .g-bar-head {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.g-crew-summary .g-bar {
+  height: 7px;
+}
+
+/* ── Home shop (sell drugs) ── */
+.g-home-shop {
+  margin: 16px 0;
+}
+
+.g-home-shop-cash {
+  margin: 0 0 12px;
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim, #7a7872);
+}
+
+.g-home-shop-row {
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.g-home-shop-row--empty {
+  opacity: 0.65;
+}
+
+.g-home-shop-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.g-home-shop-row__name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--os-text, #d4d2cc);
+}
+
+.g-home-shop-row__owned {
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim, #7a7872);
+  font-variant-numeric: tabular-nums;
+}
+
+.g-home-shop-row__price {
+  margin: 0 0 10px;
+  font-size: var(--game-fs-secondary);
+  color: var(--game-gold, #c9a962);
+}
+
+.g-home-shop-qty {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.g-home-shop-qty-btn {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 20px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--os-text);
+  cursor: pointer;
+}
+
+.g-home-shop-qty-field {
+  flex: 1;
+  min-height: 44px;
+  text-align: center;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--os-text);
+}
+
+.g-home-shop-presets {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.g-home-shop-presets button {
+  flex: 1;
+  min-height: 36px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--os-text-dim);
+  cursor: pointer;
+}
+
+.g-home-shop-receive {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(201, 169, 98, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.g-home-shop-receive__label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--os-text-dim);
+}
+
+.g-home-shop-receive__value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--game-gold, #c9a962);
+}
+
+/* ── Cartel HQ ── */
+.g-cartel-hq__header {
+  margin-bottom: 16px;
+}
+
+.g-cartel-hq__name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--os-text);
+}
+
+.g-cartel-hq__tag {
+  margin-left: 6px;
+  color: var(--game-gold, #c9a962);
+}
+
+.g-cartel-hq__sub {
+  margin: 4px 0 0;
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim);
+}
+
+.g-cartel-hq__section {
+  margin-bottom: 18px;
+}
+
+.g-cartel-hq__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.g-cartel-hq__stat {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.g-cartel-hq__stat-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--os-text-dim);
+  margin-bottom: 4px;
+}
+
+.g-cartel-hq__stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--os-text);
+}
+
+.g-cartel-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.g-cartel-member {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.g-cartel-member__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.g-cartel-member__name {
+  font-weight: 600;
+  color: var(--os-text);
+}
+
+.g-cartel-member__presence {
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim);
+}
+
+.g-cartel-member__presence--online {
+  color: #5cb85c;
+}
+
+.g-cartel-member__meta {
+  margin: 4px 0 0;
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim);
+}
+
+@media (min-width: 769px) {
+  .g-cartel-hq__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .g-alert {
   display: block;
   padding: 12px 0;

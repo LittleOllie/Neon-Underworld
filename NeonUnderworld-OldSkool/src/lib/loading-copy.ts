@@ -34,5 +34,6 @@ export const ACTION_PENDING = {
   cartelInvite: 'Sending invite…',
   cartelJoin: 'Joining cartel…',
   cartelCreate: 'Creating cartel…',
+  homeShopSell: 'Completing sale…',
   travel: (destination: string) => `En route to ${destination}…`,
 } as const;

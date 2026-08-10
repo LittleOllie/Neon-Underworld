@@ -10,7 +10,7 @@ export default async function CartelsPage() {
 
   return (
     <>
-      <PageTitle icon="cartel">Cartels</PageTitle>
+      <PageTitle icon="cartel">{data.cartel ? 'Cartel HQ' : 'Cartels'}</PageTitle>
       <CartelPanel {...data} />
     </>
   );

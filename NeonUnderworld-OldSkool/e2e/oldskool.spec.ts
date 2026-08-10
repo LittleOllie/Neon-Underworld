@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { dismissBootScreen, login } from './helpers';
 
 test.describe('OldSkool gameplay flow', () => {
   test('login → home → scout → report → empire → rankings consistency', async ({ page }) => {
@@ -32,6 +32,8 @@ test.describe('OldSkool gameplay flow', () => {
 test.describe('OldSkool public pages', () => {
   test('login page loads', async ({ page }) => {
     await page.goto('/login');
+    await expect(page.getByRole('button', { name: 'SIGN IN' })).toBeVisible();
+    await dismissBootScreen(page);
     await expect(page.getByRole('link', { name: 'NEON UNDERWORLD' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
@@ -46,6 +48,9 @@ test.describe('OldSkool public pages', () => {
   test('home smoke — core sections render when authenticated', async ({ page }) => {
     await login(page);
     await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+    await expect(page.getByText('Workers', { exact: true })).toBeVisible();
+    await expect(page.getByText('Thugs', { exact: true })).toBeVisible();
+    await expect(page.getByText('HOME SHOP')).toBeVisible();
     await expect(page.getByText('Health')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Scout' }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Rankings' }).first()).toBeVisible();

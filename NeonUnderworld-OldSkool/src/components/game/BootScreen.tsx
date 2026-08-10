@@ -1,76 +1,91 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import Image from 'next/image';
+import { getBootCopy, type BootSessionStatus, BOOT_SCREEN } from '@local/config/boot-screen';
+import { BootBackgroundArt } from './BootBackgroundArt';
+import { BootLogoutButton } from './BootLogoutButton';
 import { BrandedLoader } from './BrandedLoader';
 
-const MIN_DISPLAY_MS = 400;
-const EXIT_MS = 280;
-const LOGO_SRC = '/images/game-backgrounds/NUPFPLogo.webp';
+const SMOKE_EXIT_MS = 920;
 
 type BootPhase = 'active' | 'exit' | 'hidden';
 
 /**
- * Full-screen boot on document load (cold open, hard refresh, PWA launch).
- * Lives in root Providers — does not replay on client-side route changes.
+ * Full-screen intro — dismisses on Enter, smoke sweep exit, then Home (or login).
  */
 export function BootScreen({ children }: { children: React.ReactNode }) {
-  const { status } = useSession();
+  const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const [phase, setPhase] = useState<BootPhase>('active');
-  const [statusText, setStatusText] = useState('CONNECTING TO THE NETWORK…');
-  const startedAt = useRef(typeof performance !== 'undefined' ? performance.now() : 0);
-  const exitScheduled = useRef(false);
 
-  useEffect(() => {
-    if (phase === 'hidden' || exitScheduled.current) return;
+  const bootStatus: BootSessionStatus =
+    sessionStatus === 'loading'
+      ? 'loading'
+      : sessionStatus === 'authenticated'
+        ? 'authenticated'
+        : 'unauthenticated';
 
-    if (status === 'loading') {
-      setStatusText('CONNECTING TO THE NETWORK…');
-      return;
-    }
+  const copy = getBootCopy(bootStatus, session?.user?.alias);
+  const showLogout = bootStatus === 'authenticated';
+  const isReady = bootStatus !== 'loading';
 
-    if (status === 'authenticated') {
-      setStatusText('IDENTITY VERIFIED');
-    } else {
-      setStatusText('LOADING EMPIRE…');
-    }
+  function dismissBoot() {
+    if (phase !== 'active' || !isReady) return;
+    setPhase('exit');
 
-    exitScheduled.current = true;
-    const elapsed = performance.now() - startedAt.current;
-    const delay = Math.max(0, MIN_DISPLAY_MS - elapsed);
+    window.setTimeout(() => {
+      if (bootStatus === 'authenticated') {
+        router.push('/command');
+      } else {
+        router.push('/login');
+      }
+      setPhase('hidden');
+    }, SMOKE_EXIT_MS);
+  }
 
-    const readyTimer = window.setTimeout(() => {
-      setPhase('exit');
-      window.setTimeout(() => setPhase('hidden'), EXIT_MS);
-    }, delay);
-
-    return () => window.clearTimeout(readyTimer);
-  }, [status, phase]);
+  const bootClass = BOOT_SCREEN.artIncludesBranding ? ' nu-boot--intro-art' : '';
 
   return (
     <>
       {phase !== 'hidden' && (
         <div
-          className={`nu-boot${phase === 'exit' ? ' nu-boot--exit' : ''}`}
-          role="status"
+          className={`nu-boot${bootClass}${phase === 'exit' ? ' nu-boot--exit' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="nu-boot-heading"
           aria-live="polite"
-          aria-busy={phase === 'active'}
         >
-          <div className="nu-boot__inner">
-            <div className="nu-boot__logo-wrap">
-              <Image
-                src={LOGO_SRC}
-                alt="Neon Underworld emblem"
-                width={120}
-                height={120}
-                priority
-                className="nu-boot__logo"
-              />
-            </div>
-            <h1 className="nu-boot__title">NEON UNDERWORLD</h1>
-            <p className="nu-boot__status">{statusText}</p>
-            <BrandedLoader size="sm" />
+          <BootBackgroundArt />
+
+          <div className="nu-boot__smoke" aria-hidden="true">
+            <div className="nu-boot__smoke-layer nu-boot__smoke-layer--red" />
+            <div className="nu-boot__smoke-layer nu-boot__smoke-layer--gold" />
+          </div>
+
+          {showLogout && <BootLogoutButton />}
+
+          <div className="nu-boot__panel">
+            <h2 id="nu-boot-heading" className="nu-boot__sr-only">
+              Neon Underworld
+            </h2>
+
+            {copy.welcome && <p className="nu-boot__welcome">{copy.welcome}</p>}
+            {copy.alias && <p className="nu-boot__alias">{copy.alias}</p>}
+            {!copy.welcome && bootStatus === 'unauthenticated' && isReady && (
+              <p className="nu-boot__tagline">Enter the network</p>
+            )}
+
+            <p className="nu-boot__status">{copy.status}</p>
+
+            {!isReady && <BrandedLoader size="sm" />}
+
+            {isReady && copy.enterLabel && (
+              <button type="button" className="nu-boot__enter" onClick={dismissBoot}>
+                {copy.enterLabel}
+              </button>
+            )}
           </div>
         </div>
       )}
