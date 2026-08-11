@@ -26,6 +26,7 @@ import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-gu
 import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { CartelService } from '@/server/services/cartel.service';
+import { resolveSupplyConsumptionForAction } from '@/lib/game-engine/supply-consumption';
 import type { ActionResult } from './auth.actions';
 
 export interface ProduceResultData {
@@ -46,6 +47,11 @@ export interface ProduceResultData {
   newTurns: number;
   summary: string;
   newCash: number;
+  suppliesUsed?: { condoms?: number; hash?: number; beer?: number };
+  workerMoraleBefore?: number;
+  workerMoraleAfter?: number;
+  thugMoraleBefore?: number;
+  thugMoraleAfter?: number;
 }
 
 export async function produceAction(
@@ -81,6 +87,31 @@ export async function produceAction(
       if (player.thugs < 1) throw new GameplayError('INVALID_FORCE', 'You need thugs to produce.');
       if (!player.turnState) throw new Error('Turn state not found');
 
+      const workerMoraleBefore = calculateProstituteHappiness({
+        prostitutes: player.prostitutes,
+        thugs: player.thugs,
+        hash: player.hash,
+        condoms: player.condoms,
+        prostitutePayoutPercent: player.prostitutePayoutPercent,
+      }).score;
+      const thugMoraleBefore = calculateThugHappiness({
+        thugs: player.thugs,
+        glocks: player.glocks,
+        uzis: player.uzis,
+        aks: player.aks,
+        beer: player.beer,
+      }).score;
+
+      const supplyResult = resolveSupplyConsumptionForAction({
+        prostitutes: player.prostitutes,
+        thugs: player.thugs,
+        turnsSpent: parsed.data.turns,
+        condoms: player.condoms,
+        hash: player.hash,
+        beer: player.beer,
+      });
+      const suppliesAfter = supplyResult.inventoryAfter;
+
       const now = new Date();
       const settled = settleTurnRegeneration(
         {
@@ -103,8 +134,8 @@ export async function produceAction(
       const prostituteHappiness = calculateProstituteHappiness({
         prostitutes: player.prostitutes,
         thugs: player.thugs,
-        hash: player.hash,
-        condoms: player.condoms,
+        hash: suppliesAfter.hash,
+        condoms: suppliesAfter.condoms,
         prostitutePayoutPercent: player.prostitutePayoutPercent,
       }).score;
 
@@ -113,7 +144,7 @@ export async function produceAction(
         glocks: player.glocks,
         uzis: player.uzis,
         aks: player.aks,
-        beer: player.beer,
+        beer: suppliesAfter.beer,
       }).score;
 
       const seed = deriveScoutSeed(playerId, idempotencyKey);
@@ -153,8 +184,8 @@ export async function produceAction(
       const newProstituteHappiness = calculateProstituteHappiness({
         prostitutes: newProstitutes,
         thugs: newThugs,
-        hash: player.hash,
-        condoms: player.condoms,
+        hash: suppliesAfter.hash,
+        condoms: suppliesAfter.condoms,
         prostitutePayoutPercent: player.prostitutePayoutPercent,
       }).score;
 
@@ -163,7 +194,7 @@ export async function produceAction(
         glocks: player.glocks,
         uzis: player.uzis,
         aks: player.aks,
-        beer: player.beer,
+        beer: suppliesAfter.beer,
       }).score;
 
       const updatedPlayer = await tx.player.update({
@@ -172,6 +203,9 @@ export async function produceAction(
           cash: newCash,
           prostitutes: newProstitutes,
           thugs: newThugs,
+          condoms: suppliesAfter.condoms,
+          hash: suppliesAfter.hash,
+          beer: suppliesAfter.beer,
           [parsed.data.drugType]: newDrugCount,
           prostituteHappiness: newProstituteHappiness,
           thugHappiness: newThugHappiness,
@@ -213,6 +247,11 @@ export async function produceAction(
         newTurns: newState.currentTurns,
         summary: outcome.summary,
         newCash,
+        suppliesUsed: supplyResult.plan.consumed,
+        workerMoraleBefore,
+        workerMoraleAfter: newProstituteHappiness,
+        thugMoraleBefore,
+        thugMoraleAfter: newThugHappiness,
       };
 
       await tx.gameAction.create({

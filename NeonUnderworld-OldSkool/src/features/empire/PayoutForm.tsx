@@ -87,7 +87,7 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
 
       {proposedTrade && (
         <p className="g-note">
-          {proposedTrade.playerRetention} · {proposedTrade.workerStability}
+          {proposedTrade.playerRetention} · Morale: {proposedTrade.moraleEffect}
         </p>
       )}
 

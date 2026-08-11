@@ -30,6 +30,8 @@ import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors'
 import type { DistrictModifiers } from '@/config/game/balance';
 import { CartelService } from '@/server/services/cartel.service';
 import { workerCashBreakdown } from '@/lib/game-engine/worker-economics';
+import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
+import { resolveSupplyConsumptionForAction } from '@/lib/game-engine/supply-consumption';
 import type { ActionResult } from './auth.actions';
 
 export interface ScoutResultData {
@@ -51,6 +53,11 @@ export interface ScoutResultData {
   newCash: number;
   newProstitutes: number;
   newThugs: number;
+  suppliesUsed?: { condoms?: number; hash?: number; beer?: number };
+  workerMoraleBefore?: number;
+  workerMoraleAfter?: number;
+  thugMoraleBefore?: number;
+  thugMoraleAfter?: number;
 }
 
 export async function scoutAction(
@@ -77,7 +84,7 @@ export async function scoutAction(
       return { success: true, data: existing.resultPayload as unknown as ScoutResultData };
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runSerializableTransaction(async (tx) => {
       const player = await tx.player.findUniqueOrThrow({
         where: { id: playerId },
         include: { turnState: true, district: true, season: true },
@@ -93,6 +100,31 @@ export async function scoutAction(
       if (!player.turnState) {
         throw new Error('Turn state not found');
       }
+
+      const workerMoraleBefore = calculateProstituteHappiness({
+        prostitutes: player.prostitutes,
+        thugs: player.thugs,
+        hash: player.hash,
+        condoms: player.condoms,
+        prostitutePayoutPercent: player.prostitutePayoutPercent,
+      }).score;
+      const thugMoraleBefore = calculateThugHappiness({
+        thugs: player.thugs,
+        glocks: player.glocks,
+        uzis: player.uzis,
+        aks: player.aks,
+        beer: player.beer,
+      }).score;
+
+      const supplyResult = resolveSupplyConsumptionForAction({
+        prostitutes: player.prostitutes,
+        thugs: player.thugs,
+        turnsSpent: parsed.data.turns,
+        condoms: player.condoms,
+        hash: player.hash,
+        beer: player.beer,
+      });
+      const suppliesAfter = supplyResult.inventoryAfter;
 
       const now = new Date();
       const settled = settleTurnRegeneration({
@@ -113,8 +145,8 @@ export async function scoutAction(
       const prostituteHappiness = calculateProstituteHappiness({
         prostitutes: player.prostitutes,
         thugs: player.thugs,
-        hash: player.hash,
-        condoms: player.condoms,
+        hash: suppliesAfter.hash,
+        condoms: suppliesAfter.condoms,
         prostitutePayoutPercent: player.prostitutePayoutPercent,
       }).score;
 
@@ -123,7 +155,7 @@ export async function scoutAction(
         glocks: player.glocks,
         uzis: player.uzis,
         aks: player.aks,
-        beer: player.beer,
+        beer: suppliesAfter.beer,
       }).score;
 
       const districtModifiers = player.district.modifiers as unknown as DistrictModifiers;
@@ -169,8 +201,8 @@ export async function scoutAction(
       const newProstituteHappiness = calculateProstituteHappiness({
         prostitutes: newProstitutes,
         thugs: newThugs,
-        hash: player.hash,
-        condoms: player.condoms,
+        hash: suppliesAfter.hash,
+        condoms: suppliesAfter.condoms,
         prostitutePayoutPercent: player.prostitutePayoutPercent,
       }).score;
 
@@ -179,7 +211,7 @@ export async function scoutAction(
         glocks: player.glocks,
         uzis: player.uzis,
         aks: player.aks,
-        beer: player.beer,
+        beer: suppliesAfter.beer,
       }).score;
 
       const updatedPlayer = await tx.player.update({
@@ -188,6 +220,9 @@ export async function scoutAction(
           cash: newCash,
           prostitutes: newProstitutes,
           thugs: newThugs,
+          condoms: suppliesAfter.condoms,
+          hash: suppliesAfter.hash,
+          beer: suppliesAfter.beer,
           prostituteHappiness: newProstituteHappiness,
           thugHappiness: newThugHappiness,
         },
@@ -236,6 +271,11 @@ export async function scoutAction(
         newCash,
         newProstitutes,
         newThugs,
+        suppliesUsed: supplyResult.plan.consumed,
+        workerMoraleBefore,
+        workerMoraleAfter: newProstituteHappiness,
+        thugMoraleBefore,
+        thugMoraleAfter: newThugHappiness,
       };
 
       await tx.gameAction.create({
@@ -278,8 +318,6 @@ export async function scoutAction(
       });
 
       return resultData;
-    }, {
-      isolationLevel: 'Serializable',
     });
 
     return { success: true, data: result };

@@ -1,4 +1,5 @@
 import { HAPPINESS_CONFIG, SCOUTING_CONFIG, HAPPINESS_EFFICIENCY } from '@/config/game/balance';
+import { payoutMoraleScore } from '@/lib/game-engine/payout-morale';
 import type { DistrictModifiers } from '@/config/game/balance';
 
 export interface ProstituteHappinessInput {
@@ -55,13 +56,7 @@ export function calculateProstituteHappiness(input: ProstituteHappinessInput): H
   const condomReadiness = clamp(input.condoms / Math.max(condomNeeded, 1), 0, 1);
   const protectionReadiness = clamp(input.thugs / Math.max(thugsNeeded, 1), 0, 1);
 
-  let payoutScore = 1;
-  if (input.prostitutePayoutPercent < cfg.optimalPayoutMin) {
-    payoutScore -= (cfg.optimalPayoutMin - input.prostitutePayoutPercent) * cfg.payoutPenaltyPerPoint;
-  } else if (input.prostitutePayoutPercent > cfg.optimalPayoutMax) {
-    payoutScore -= (input.prostitutePayoutPercent - cfg.optimalPayoutMax) * cfg.payoutPenaltyPerPoint;
-  }
-  payoutScore = clamp(payoutScore, 0.5, 1);
+  const payoutScore = payoutMoraleScore(input.prostitutePayoutPercent);
 
   const score = Math.round(
     (hashReadiness * 0.3 + condomReadiness * 0.25 + protectionReadiness * 0.25 + payoutScore * 0.2) *

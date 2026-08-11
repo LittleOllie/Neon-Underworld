@@ -56,6 +56,8 @@ export interface CombatResolutionOutput {
   attackingThugs: number;
   attackerLosses: number;
   defenderLosses: number;
+  attackerWeaponLosses: { glocks: number; uzis: number; aks: number };
+  defenderWeaponLosses: { glocks: number; uzis: number; aks: number };
   attackerReturned: number;
   cashStolen: number;
   drugsStolen: { hash: number; shrooms: number; coke: number; heroin: number };
@@ -143,6 +145,8 @@ export async function resolveAttackEncounter(
       attackingThugs: existing.attackingThugs,
       attackerLosses: existing.attackerLosses,
       defenderLosses: existing.defenderLosses,
+      attackerWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
+      defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
       attackerReturned: existing.attackerReturned,
       cashStolen: existing.cashStolen,
       drugsStolen: (existing.drugsStolen as CombatResolutionOutput['drugsStolen']) ?? {
@@ -315,6 +319,9 @@ export async function resolveAttackEncounter(
       where: { id: attackerId },
       data: {
         thugs: Math.max(0, attacker.thugs - combat.attackerLosses),
+        glocks: Math.max(0, attacker.glocks - combat.attackerWeaponLosses.glocks),
+        uzis: Math.max(0, attacker.uzis - combat.attackerWeaponLosses.uzis),
+        aks: Math.max(0, attacker.aks - combat.attackerWeaponLosses.aks),
         cash: attacker.cash + combat.cashStolen,
         hash: attacker.hash + combat.drugsStolen.hash,
         shrooms: attacker.shrooms + combat.drugsStolen.shrooms,
@@ -327,6 +334,9 @@ export async function resolveAttackEncounter(
       where: { id: defender.id },
       data: {
         thugs: Math.max(0, defender.thugs - combat.defenderLosses),
+        glocks: Math.max(0, defender.glocks - combat.defenderWeaponLosses.glocks),
+        uzis: Math.max(0, defender.uzis - combat.defenderWeaponLosses.uzis),
+        aks: Math.max(0, defender.aks - combat.defenderWeaponLosses.aks),
         cash: Math.max(0, defender.cash - combat.cashStolen),
         hash: Math.max(0, defender.hash - combat.drugsStolen.hash),
         shrooms: Math.max(0, defender.shrooms - combat.drugsStolen.shrooms),
@@ -414,6 +424,9 @@ export async function resolveAttackEncounter(
         beforeState: snapshotPlayerState(attacker) as object,
         delta: {
           thugs: -combat.attackerLosses,
+          glocks: -combat.attackerWeaponLosses.glocks,
+          uzis: -combat.attackerWeaponLosses.uzis,
+          aks: -combat.attackerWeaponLosses.aks,
           cash: combat.cashStolen,
           hash: combat.drugsStolen.hash,
           shrooms: combat.drugsStolen.shrooms,
@@ -444,6 +457,8 @@ export async function resolveAttackEncounter(
     attackingThugs,
     attackerLosses: result.combat.attackerLosses,
     defenderLosses: result.combat.defenderLosses,
+    attackerWeaponLosses: result.combat.attackerWeaponLosses,
+    defenderWeaponLosses: result.combat.defenderWeaponLosses,
     attackerReturned: result.combat.attackerReturned,
     cashStolen: result.combat.cashStolen,
     drugsStolen: result.combat.drugsStolen,

@@ -13,6 +13,7 @@ import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
+import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 interface ProduceFormProps {
@@ -85,6 +86,7 @@ export function ProduceForm({
         cartelContribution: result.cartelContribution,
         retainedCash: result.cashEarned,
       }),
+      ...buildSupplyImpactLines(result),
     ];
     if (result.prostitutesLost > 0) {
       lines.push({

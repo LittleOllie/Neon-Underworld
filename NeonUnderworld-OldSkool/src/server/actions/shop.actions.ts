@@ -18,8 +18,13 @@ import { EmpireService } from '@local/server/services/empire.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
 import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
+import {
+  streetDrugSaleAction as coreStreetDrugSaleAction,
+  type StreetDrugSaleResult,
+} from '@core/server/actions/drug-street.actions';
+import { getDrugStreetPrice, type StreetDrugType } from '@core/config/game/drug-street-prices';
 
-export type { ShopPurchaseResult, ShopSellResult, ShopCatalogEntry, ShopItemKey };
+export type { ShopPurchaseResult, ShopSellResult, ShopCatalogEntry, ShopItemKey, StreetDrugSaleResult };
 
 export interface ShopRecentPurchase {
   message: string;
@@ -30,6 +35,8 @@ export interface ShopPageData {
   catalog: ShopCatalogEntry[];
   cash: number;
   city: string;
+  districtSlug: string;
+  streetDrugPrices: Record<StreetDrugType, number>;
   inventory: {
     glocks: number;
     uzis: number;
@@ -63,6 +70,13 @@ export async function getShopPageDataFromContext(
     catalog,
     cash: ctx.cash,
     city: ctx.district.name,
+    districtSlug: ctx.district.slug,
+    streetDrugPrices: {
+      hash: getDrugStreetPrice(ctx.district.slug, 'hash'),
+      shrooms: getDrugStreetPrice(ctx.district.slug, 'shrooms'),
+      coke: getDrugStreetPrice(ctx.district.slug, 'coke'),
+      heroin: getDrugStreetPrice(ctx.district.slug, 'heroin'),
+    },
     inventory: {
       glocks: ctx.glocks,
       uzis: ctx.uzis,
@@ -102,6 +116,13 @@ export async function getShopPageData(playerId: string): Promise<ShopPageData> {
     catalog,
     cash: player.cash,
     city: player.district.name,
+    districtSlug: player.district.slug,
+    streetDrugPrices: {
+      hash: getDrugStreetPrice(player.district.slug, 'hash'),
+      shrooms: getDrugStreetPrice(player.district.slug, 'shrooms'),
+      coke: getDrugStreetPrice(player.district.slug, 'coke'),
+      heroin: getDrugStreetPrice(player.district.slug, 'heroin'),
+    },
     inventory: {
       glocks: player.glocks,
       uzis: player.uzis,
@@ -194,4 +215,34 @@ export async function shopSellAction(
       canonicalNetWorth,
     },
   };
+}
+
+export async function streetDrugSaleAction(
+  drug: StreetDrugType,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<StreetDrugSaleResult>> {
+  const result = await coreStreetDrugSaleAction(drug, quantity, idempotencyKey);
+  if (!result.success) return result;
+
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+
+  await EmpireService.syncInventory(playerId);
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true },
+  });
+
+  await ActivityService.record(
+    playerId,
+    ACTIVITY_TYPES.SHOP_SELL,
+    `Street sale: ${result.data.quantity}× ${drug} for $${result.data.totalPayout.toLocaleString()} in ${updated.district.name}.`,
+    { streetDrugSale: result.data },
+  );
+
+  revalidatePlayerGameplayCache(playerId, updated.seasonId);
+
+  return result;
 }

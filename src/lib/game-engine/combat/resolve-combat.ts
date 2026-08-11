@@ -4,6 +4,7 @@ import { allocateWeaponsForThugs } from './weapon-allocation';
 import { resolveForceScores, forceEstimate } from './force-score';
 import { resolveCasualties } from './casualties';
 import { resolveTheft, type DrugStock } from './theft';
+import { resolveWeaponAttrition, type WeaponLosses } from './weapon-attrition';
 
 export interface CombatParticipant {
   thugs: number;
@@ -36,6 +37,8 @@ export interface CombatResolutionResult {
   attackerLosses: number;
   defenderLosses: number;
   cartelThugLosses: number;
+  attackerWeaponLosses: WeaponLosses;
+  defenderWeaponLosses: WeaponLosses;
   attackerReturned: number;
   cashStolen: number;
   drugsStolen: DrugStock;
@@ -90,6 +93,17 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
   );
   const defenderLosses = playerDefenderLosses;
 
+  const attackerWeaponLosses = resolveWeaponAttrition(
+    casualties.attackerLosses,
+    attackerAlloc,
+    rng,
+  );
+  const defenderWeaponLosses = resolveWeaponAttrition(
+    playerDefenderLosses,
+    defenderAlloc,
+    rng,
+  );
+
   const attackerReturned = Math.max(0, input.attackingThugs - casualties.attackerLosses);
   const theft = resolveTheft(
     input.attackType,
@@ -130,6 +144,8 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     attackerLosses: casualties.attackerLosses,
     defenderLosses,
     cartelThugLosses,
+    attackerWeaponLosses,
+    defenderWeaponLosses,
     attackerReturned,
     cashStolen: theft.cashStolen,
     drugsStolen: theft.drugsStolen,

@@ -17,24 +17,24 @@ export function supplyBand(readiness: number): SupplyBand {
   return 'Critical';
 }
 
+import {
+  payoutMoraleLabel,
+  payoutMoraleScore,
+  playerRetentionPercent,
+} from '@/lib/game-engine/payout-morale';
+
 export function payoutTradeOffDescription(payoutPercent: number): {
   playerRetention: string;
   workerStability: string;
+  moraleEffect: string;
 } {
-  if (payoutPercent <= 20) {
-    return {
-      playerRetention: 'You keep most worker-generated cash.',
-      workerStability: 'Worker stability is reduced.',
-    };
-  }
-  if (payoutPercent >= 80) {
-    return {
-      playerRetention: 'You keep little worker-generated cash.',
-      workerStability: 'Worker stability improves — defensive payout.',
-    };
-  }
   return {
-    playerRetention: 'Balanced cash retention from worker operations.',
-    workerStability: 'Moderate worker stability.',
+    playerRetention: `You keep ${playerRetentionPercent(payoutPercent)}% of worker street income.`,
+    workerStability: `Morale effect: ${payoutMoraleLabel(payoutPercent)}.`,
+    moraleEffect: payoutMoraleLabel(payoutPercent),
   };
+}
+
+export function previewPayoutMoraleScore(payoutPercent: number): number {
+  return Math.round(payoutMoraleScore(payoutPercent) * 100);
 }

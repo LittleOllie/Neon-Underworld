@@ -1,6 +1,7 @@
 /** Player-facing shop category grouping (display only — backend categories unchanged). */
 
-import type { ShopCategory } from '@core/config/game/shop-rules';
+import type { ShopCategory, ShopItemKey } from '@core/config/game/shop-rules';
+import type { StreetDrugType } from '@core/config/game/drug-street-prices';
 import type { GameIconName } from '@local/config/game-icons';
 
 export type OldSkoolShopTab = 'weapons' | 'vehicles' | 'supplies' | 'drugs';
@@ -45,6 +46,17 @@ export function shopItemFromParam(param: string | undefined): string | null {
   const normalized = param.trim().toLowerCase();
   const valid = ['glock', 'uzi', 'ak', 'ride', 'condom', 'hash', 'beer', 'shroom', 'coke', 'heroin'];
   return valid.includes(normalized) ? normalized : null;
+}
+
+const SHOP_TO_STREET_DRUG: Partial<Record<ShopItemKey, StreetDrugType>> = {
+  hash: 'hash',
+  shroom: 'shrooms',
+  coke: 'coke',
+  heroin: 'heroin',
+};
+
+export function streetDrugFromShopKey(key: ShopItemKey): StreetDrugType | null {
+  return SHOP_TO_STREET_DRUG[key] ?? null;
 }
 
 export function resolveShopPageParams(tabParam?: string, itemParam?: string): {

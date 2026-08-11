@@ -19,6 +19,8 @@ export interface AttackLaunchResult {
   attackingThugs: number;
   attackerLosses: number;
   defenderLosses: number;
+  attackerWeaponLosses: { glocks: number; uzis: number; aks: number };
+  defenderWeaponLosses: { glocks: number; uzis: number; aks: number };
   attackerReturned: number;
   cashStolen: number;
   drugsStolen: { hash: number; shrooms: number; coke: number; heroin: number };
@@ -73,6 +75,8 @@ export async function launchAttackAction(
         attackingThugs: data.attackingThugs,
         attackerLosses: data.attackerLosses,
         defenderLosses: data.defenderLosses,
+        attackerWeaponLosses: data.attackerWeaponLosses,
+        defenderWeaponLosses: data.defenderWeaponLosses,
         attackerReturned: data.attackerReturned,
         cashStolen: data.cashStolen,
         drugsStolen: data.drugsStolen,
@@ -133,6 +137,8 @@ export async function launchDirectAttackAction(
         attackingThugs: data.attackingThugs,
         attackerLosses: data.attackerLosses,
         defenderLosses: data.defenderLosses,
+        attackerWeaponLosses: data.attackerWeaponLosses,
+        defenderWeaponLosses: data.defenderWeaponLosses,
         attackerReturned: data.attackerReturned,
         cashStolen: data.cashStolen,
         drugsStolen: data.drugsStolen,

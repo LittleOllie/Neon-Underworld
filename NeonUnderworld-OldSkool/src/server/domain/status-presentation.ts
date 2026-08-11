@@ -3,6 +3,7 @@
  * Does not alter gameplay; rounds to whole percentages.
  */
 
+import { payoutMoraleLabel, playerRetentionPercent } from '@core/lib/game-engine/payout-morale';
 import { supplyBand } from '@core/lib/game-engine/supply-status';
 import type { PlayerInventoryRow } from './empire-calculations';
 import { buildEmpireSupplySummary, calculateArming } from './empire-calculations';
@@ -124,21 +125,18 @@ export function buildWorkerProtectionMeter(player: PlayerInventoryRow): StatusMe
 export function buildWorkerPayoutMeter(player: PlayerInventoryRow): StatusMeterPresentation {
   const payout = player.prostitutePayoutPercent;
   const value = payout;
+  const morale = payoutMoraleLabel(payout);
   let band: StatusMeterBand;
   if (payout <= 25) band = 'adequate';
   else if (payout <= 50) band = 'stable';
   else if (payout <= 75) band = 'stable';
   else band = 'excellent';
-  const retention =
-    payout <= 30 ? 'High profit' : payout >= 70 ? 'Defensive payout' : 'Balanced share';
-  const stability =
-    payout <= 30 ? 'Lower stability' : payout >= 70 ? 'Higher stability' : 'Moderate stability';
   return {
     label: 'Worker Payout',
     value,
     band,
     statusText: `${payout}%`,
-    supportingText: `${retention} · ${stability}`,
+    supportingText: `You keep ${playerRetentionPercent(payout)}% · Morale: ${morale}`,
   };
 }
 

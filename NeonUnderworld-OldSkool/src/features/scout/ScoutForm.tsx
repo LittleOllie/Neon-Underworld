@@ -14,6 +14,8 @@ import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
+import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
+import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
 
 interface ScoutFormProps {
   districtSlug: string;
@@ -57,7 +59,12 @@ export function ScoutForm({
     }
     setLoading(true);
     setError('');
-    const response = await scoutAction(amount, uuidv4(), areaSlug);
+    const idempotencyKey = uuidv4();
+    let response = await scoutAction(amount, idempotencyKey, areaSlug);
+    if (!response.success && isRetryableGameplayConflict(response.error)) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      response = await scoutAction(amount, idempotencyKey, areaSlug);
+    }
     setLoading(false);
     if (!response.success) {
       setError(response.error);
@@ -79,6 +86,7 @@ export function ScoutForm({
         cartelContribution: result.cartelContribution,
         retainedCash: result.cashEarned,
       }),
+      ...buildSupplyImpactLines(result),
     ];
     if (result.prostitutesLost > 0) {
       lines.push({

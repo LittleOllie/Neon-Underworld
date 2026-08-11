@@ -162,6 +162,17 @@ export function AttackForm(props: AttackFormProps) {
     if (result.attackerLosses > 0) {
       lines.push({ text: `-${result.attackerLosses} thugs lost`, tone: 'negative' });
     }
+    const weaponLossTotal =
+      result.attackerWeaponLosses.glocks +
+      result.attackerWeaponLosses.uzis +
+      result.attackerWeaponLosses.aks;
+    if (weaponLossTotal > 0) {
+      const parts: string[] = [];
+      if (result.attackerWeaponLosses.glocks) parts.push(`${result.attackerWeaponLosses.glocks} Glocks`);
+      if (result.attackerWeaponLosses.uzis) parts.push(`${result.attackerWeaponLosses.uzis} Uzis`);
+      if (result.attackerWeaponLosses.aks) parts.push(`${result.attackerWeaponLosses.aks} AKs`);
+      lines.push({ text: `Equipment lost: ${parts.join(', ')}`, tone: 'negative' });
+    }
     lines.push({ text: `${result.defenderLosses} enemy losses` });
     lines.push({ text: `${result.turnsSpent} turns used` });
 

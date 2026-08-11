@@ -63,9 +63,10 @@ describe('status meters', () => {
 
   it('payout meter shows trade-off not always bad', () => {
     const low = buildWorkerPayoutMeter({ ...basePlayer, prostitutePayoutPercent: 20 });
-    expect(low.supportingText).toMatch(/High profit/);
+    expect(low.supportingText).toMatch(/You keep/);
+    expect(low.supportingText).toMatch(/Morale:/);
     const high = buildWorkerPayoutMeter({ ...basePlayer, prostitutePayoutPercent: 90 });
-    expect(high.supportingText).toMatch(/Defensive/);
+    expect(high.supportingText).toMatch(/Positive|Balanced/);
   });
 
   it('buildEmpireStatusMeters returns all required meters', () => {

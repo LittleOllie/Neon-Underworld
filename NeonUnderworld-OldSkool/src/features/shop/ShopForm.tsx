@@ -7,15 +7,16 @@ import { ACTION_PENDING } from '@local/lib/loading-copy';
 import {
   shopPurchaseAction,
   shopSellAction,
+  streetDrugSaleAction,
   type ShopCatalogEntry,
   type ShopPageData,
 } from '@local/server/actions/shop.actions';
+import { streetDrugFromShopKey, OLDSKOOL_SHOP_TABS, type OldSkoolShopTab } from '@local/config/shop-display';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { ActionResult } from '@local/components/game/ActionResult';
 import { GameValue } from '@local/components/game/GameValue';
 import { GameIcon } from '@local/components/game/GameIcon';
-import { OLDSKOOL_SHOP_TABS, type OldSkoolShopTab } from '@local/config/shop-display';
 import {
   parsePositiveInteger,
   shopPreviewTotal,
@@ -41,6 +42,7 @@ export function ShopForm({
   catalog,
   cash: initialCash,
   inventory: initialInventory,
+  streetDrugPrices,
   initialTab = 'weapons',
   highlightItem = null,
 }: ShopFormProps) {
@@ -77,6 +79,10 @@ export function ShopForm({
   }
 
   function unitPrice(entry: ShopCatalogEntry): number {
+    if (mode === 'sell') {
+      const streetDrug = streetDrugFromShopKey(entry.key);
+      if (streetDrug) return streetDrugPrices[streetDrug];
+    }
     return mode === 'buy' ? entry.unitPrice : entry.sellUnitPrice;
   }
 
@@ -127,7 +133,10 @@ export function ShopForm({
     }
     setLoading(entry.key);
     setError('');
-    const response = await shopSellAction(entry.key, quantity!, uuidv4());
+    const streetDrug = streetDrugFromShopKey(entry.key);
+    const response = streetDrug
+      ? await streetDrugSaleAction(streetDrug, quantity!, uuidv4())
+      : await shopSellAction(entry.key, quantity!, uuidv4());
     setLoading(null);
     if (!response.success) {
       setError(response.error);

@@ -50,6 +50,8 @@ export interface CombatReportSnapshot {
   attackerLosses: number;
   defenderLosses: number;
   attackerReturned: number;
+  attackerWeaponLosses?: { glocks: number; uzis: number; aks: number };
+  defenderWeaponLosses?: { glocks: number; uzis: number; aks: number };
   defenderThugsBefore: number;
   cashStolen: number;
   drugsStolen: { hash: number; shrooms: number; coke: number; heroin: number };

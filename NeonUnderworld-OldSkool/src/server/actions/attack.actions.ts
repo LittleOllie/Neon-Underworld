@@ -69,6 +69,8 @@ async function finalizeAttackLaunch(
       weaponCoverage: result.data.weaponCoverage,
       attackerLosses: result.data.attackerLosses,
       defenderLosses: result.data.defenderLosses,
+      attackerWeaponLosses: result.data.attackerWeaponLosses,
+      defenderWeaponLosses: result.data.defenderWeaponLosses,
       attackerReturned: result.data.attackerReturned,
       defenderThugsBefore,
       cashStolen: result.data.cashStolen,
@@ -151,6 +153,8 @@ export async function launchAttackAction(
           attackingThugs: existingEncounter.attackingThugs,
           attackerLosses: existingEncounter.attackerLosses,
           defenderLosses: existingEncounter.defenderLosses,
+          attackerWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
+          defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
           attackerReturned: existingEncounter.attackerReturned,
           cashStolen: existingEncounter.cashStolen,
           drugsStolen: (existingEncounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
@@ -215,6 +219,8 @@ export async function launchDirectAttackAction(
           attackingThugs: existingEncounter.attackingThugs,
           attackerLosses: existingEncounter.attackerLosses,
           defenderLosses: existingEncounter.defenderLosses,
+          attackerWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
+          defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
           attackerReturned: existingEncounter.attackerReturned,
           cashStolen: existingEncounter.cashStolen,
           drugsStolen: (existingEncounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
