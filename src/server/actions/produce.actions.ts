@@ -22,6 +22,7 @@ import {
   SeasonInactiveError,
 } from '@/lib/game-engine/errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
+import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { CartelService } from '@/server/services/cartel.service';
 import type { ActionResult } from './auth.actions';
@@ -75,6 +76,7 @@ export async function produceAction(
 
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
       assertPlayerCanPerformAction(player);
+      await OfflineProtectionService.resetProtectionCycleInTx(tx, playerId);
       if (player.thugs < 1) throw new GameplayError('INVALID_FORCE', 'You need thugs to produce.');
       if (!player.turnState) throw new Error('Turn state not found');
 

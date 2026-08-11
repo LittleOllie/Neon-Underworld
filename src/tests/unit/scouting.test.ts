@@ -125,7 +125,7 @@ describe('scouting engine', () => {
       prostitutePayoutPercent: 0,
       seed: 42,
     });
-    const expected = Math.floor(12000 * happinessEfficiencyModifier(happiness));
+    const expected = Math.floor(6000 * happinessEfficiencyModifier(happiness));
     expect(result.cashEarned).toBe(expected);
   });
 });

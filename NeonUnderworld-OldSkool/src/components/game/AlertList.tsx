@@ -22,6 +22,7 @@ function AlertContent({ item }: { item: AttentionItem }) {
         />
       )}
       <span>
+        {item.headline && <strong className="g-alert-headline">{item.headline}</strong>}
         {item.value && (
           <>
             <span className="g-alert-value">{item.value}</span>{' '}
@@ -40,7 +41,11 @@ export function AlertList({ items }: { items: AttentionItem[] }) {
     <div className="g-section">
       {items.map((item) => {
         const severityClass =
-          item.severity === 'alert' ? ' g-alert--warn' : ' g-alert--info';
+          item.severity === 'critical'
+            ? ' g-alert--critical'
+            : item.severity === 'alert'
+              ? ' g-alert--warn'
+              : ' g-alert--info';
         const className = `g-alert${severityClass}`;
 
         return item.href ? (

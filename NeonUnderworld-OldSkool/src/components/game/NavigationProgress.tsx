@@ -1,14 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useRouteKey } from './GameMainTransition';
+
+const PENDING_TIMEOUT_MS = 10_000;
 
 export function NavigationProgress() {
-  const pathname = usePathname();
+  const routeKey = useRouteKey();
   const [phase, setPhase] = useState<'idle' | 'loading' | 'complete'>('idle');
-  const prevPath = useRef(pathname);
+  const prevRoute = useRef(routeKey);
+  const pendingTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    function clearPendingTimer() {
+      if (pendingTimer.current !== null) {
+        window.clearTimeout(pendingTimer.current);
+        pendingTimer.current = null;
+      }
+    }
+
     function onNavigateStart(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -21,25 +31,33 @@ export function NavigationProgress() {
 
       const url = new URL(href, window.location.origin);
       if (url.origin !== window.location.origin) return;
-      if (url.pathname + url.search === pathname) return;
+      if (url.pathname + url.search === routeKey) return;
 
+      clearPendingTimer();
       setPhase('loading');
+      pendingTimer.current = window.setTimeout(() => {
+        setPhase('idle');
+        pendingTimer.current = null;
+      }, PENDING_TIMEOUT_MS);
     }
 
     document.addEventListener('click', onNavigateStart, true);
-    return () => document.removeEventListener('click', onNavigateStart, true);
-  }, [pathname]);
+    return () => {
+      document.removeEventListener('click', onNavigateStart, true);
+      clearPendingTimer();
+    };
+  }, [routeKey]);
 
   useEffect(() => {
-    if (prevPath.current === pathname) return;
-    prevPath.current = pathname;
+    if (prevRoute.current === routeKey) return;
+    prevRoute.current = routeKey;
 
     if (phase !== 'loading') return;
 
     setPhase('complete');
     const timer = window.setTimeout(() => setPhase('idle'), 220);
     return () => window.clearTimeout(timer);
-  }, [pathname, phase]);
+  }, [routeKey, phase]);
 
   if (phase === 'idle') return null;
 

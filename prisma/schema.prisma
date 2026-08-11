@@ -189,12 +189,14 @@ model PlayerInventory {
 }
 
 model PlayerStatusExt {
-  id              String    @id @default(cuid())
-  playerId        String    @unique
-  notification    String?
-  unreadReports   Int       @default(0)
-  lastSeenAt      DateTime?
-  updatedAt       DateTime  @updatedAt
+  id                      String    @id @default(cuid())
+  playerId                String    @unique
+  notification            String?
+  unreadReports           Int       @default(0)
+  lastSeenAt              DateTime?
+  offlineDamagingHits     Int       @default(0)
+  offlineProtectionActive Boolean   @default(false)
+  updatedAt               DateTime  @updatedAt
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 }

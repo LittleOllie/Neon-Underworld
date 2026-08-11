@@ -9,19 +9,49 @@ export interface AttentionItem {
   value?: string;
   label?: string;
   href?: string;
-  severity?: 'alert' | 'info';
+  severity?: 'alert' | 'info' | 'critical';
   icon?: 'reports' | 'warning' | 'info';
+  headline?: string;
+}
+
+export interface DefenceAlertSummary {
+  reportId: string;
+  attackerAlias: string;
+  attackType: string;
+  outcome: string;
+  cashStolen: number;
 }
 
 export function collectAttentionItems(input: {
   ctx: CanonicalPlayerContext;
   brief: CommandEmpireBrief;
   unreadCount: number;
+  defenceAlerts?: DefenceAlertSummary[];
 }): AttentionItem[] {
-  const { ctx, brief, unreadCount } = input;
+  const { ctx, brief, unreadCount, defenceAlerts = [] } = input;
   const items: AttentionItem[] = [];
 
-  if (unreadCount > 0) {
+  if (defenceAlerts.length > 0) {
+    const latest = defenceAlerts[0];
+    const lossLine =
+      latest.cashStolen > 0
+        ? `$${latest.cashStolen.toLocaleString()} stolen`
+        : 'crew or assets hit';
+    items.push({
+      id: 'you-were-attacked',
+      headline:
+        defenceAlerts.length > 1
+          ? `YOU WERE ATTACKED ${defenceAlerts.length} TIMES`
+          : 'YOU WERE ATTACKED',
+      label: `${latest.attackerAlias} — ${lossLine}`,
+      href:
+        defenceAlerts.length > 1
+          ? '/reports?filter=unread'
+          : `/reports/${latest.reportId}`,
+      severity: 'critical',
+      icon: 'warning',
+    });
+  } else if (unreadCount > 0) {
     items.push({
       id: 'reports-unread',
       value: String(unreadCount),

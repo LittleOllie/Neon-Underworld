@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { CartelService } from '@/server/services/cartel.service';
+import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
 import {
   validateAttackEligibilityCode,
@@ -226,6 +227,9 @@ export async function resolveAttackEncounter(
       },
     });
 
+    const defenderOfflineState = await OfflineProtectionService.getStateInTx(tx, defender.id);
+    const defenderOfflineProtected = OfflineProtectionService.isDefenderProtected(defenderOfflineState);
+
     const eligibilityCode = validateAttackEligibilityCode({
       attackerId,
       defenderId: defender.id,
@@ -244,6 +248,7 @@ export async function resolveAttackEncounter(
       defenderTravelling: defender.travelling,
       intelReport: intel,
       attacksOnTargetLast24h: attacksOnTarget,
+      defenderOfflineProtected,
       allowDirectAttack: target.kind === 'direct',
     });
     if (eligibilityCode) throw new GameplayError(eligibilityCode);
@@ -336,6 +341,23 @@ export async function resolveAttackEncounter(
         data: { thugs: { decrement: combat.cartelThugLosses } },
       });
     }
+
+    const defenderWasOffline = OfflineProtectionService.defenderWasOfflineAt(
+      defenderOfflineState.lastSeenAt,
+    );
+    if (
+      OfflineProtectionService.isDamagingAttackResult(combat) &&
+      defenderWasOffline
+    ) {
+      await OfflineProtectionService.recordDefenderOfflineHitInTx(
+        tx,
+        defender.id,
+        true,
+        true,
+      );
+    }
+
+    await OfflineProtectionService.resetProtectionCycleInTx(tx, attackerId);
 
     await tx.playerTurnState.update({
       where: { playerId: attackerId },

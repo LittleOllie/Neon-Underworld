@@ -68,6 +68,7 @@ describe('shopSellAction — server validation', () => {
         },
         gameAction: { create: vi.fn() },
         economicAuditLog: { create: vi.fn() },
+        playerStatusExt: { upsert: vi.fn().mockResolvedValue({}) },
       }),
     );
   });

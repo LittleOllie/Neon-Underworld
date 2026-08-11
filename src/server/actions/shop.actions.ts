@@ -19,6 +19,8 @@ import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonica
 import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { throwIfValidationMessage, toUserMessage } from '@/lib/game-engine/gameplay-errors';
+import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
+import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import type { ActionResult } from './auth.actions';
 
 export type { ShopItemKey };
@@ -158,6 +160,9 @@ export async function shopPurchaseAction(
       });
 
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+
+      assertPlayerCanPerformAction(player);
+      await OfflineProtectionService.resetProtectionCycleInTx(tx, playerId);
 
       throwIfValidationMessage(
         validateShopPurchaseContext(player, parsed.data.item, parsed.data.quantity),
@@ -321,6 +326,9 @@ export async function shopSellAction(
       });
 
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+
+      assertPlayerCanPerformAction(player);
+      await OfflineProtectionService.resetProtectionCycleInTx(tx, playerId);
 
       throwIfValidationMessage(
         validateShopSellContext(player, parsed.data.item, parsed.data.quantity),

@@ -23,6 +23,8 @@ import { toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { evaluateAttackTargetPreview } from '@core/lib/game-engine/combat/eligibility';
 import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
+import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
+import { revalidatePath } from 'next/cache';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
 import type { CombatPlayerRecord } from '@core/server/services/combat.service';
 import { directAttackReportId } from '@local/features/attack/direct-attack';
@@ -108,6 +110,9 @@ async function finalizeAttackLaunch(
   await PlayerStatusService.setNotification(defender.id, defenderNotification);
 
   await revalidatePlayersGameplayCache([attackerId, defender.id]);
+  revalidatePath('/', 'layout');
+  revalidatePath('/command');
+  revalidatePath('/reports');
 
   return {
     success: true,
@@ -261,7 +266,7 @@ export async function getAttackPageData(
   const targetIds = activeIntel.map((r) => r.intel.targetPlayerId);
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [attackCounts, targetPlayers] = await Promise.all([
+  const [attackCounts, targetPlayers, defenderStatusRows] = await Promise.all([
     targetIds.length > 0
       ? prisma.combatEncounter.groupBy({
           by: ['defenderId'],
@@ -298,7 +303,38 @@ export async function getAttackPageData(
           },
         })
       : Promise.resolve([]),
+    targetIds.length > 0
+      ? prisma.playerStatusExt.findMany({
+          where: { playerId: { in: targetIds } },
+          select: {
+            playerId: true,
+            offlineDamagingHits: true,
+            offlineProtectionActive: true,
+            lastSeenAt: true,
+          },
+        })
+      : Promise.resolve([]),
   ]);
+
+  const offlineStateByDefender = new Map(
+    defenderStatusRows.map((row) => [
+      row.playerId,
+      {
+        offlineDamagingHits: row.offlineDamagingHits,
+        offlineProtectionActive: row.offlineProtectionActive,
+        lastSeenAt: row.lastSeenAt,
+      },
+    ]),
+  );
+
+  function defenderOfflineProtected(defenderId: string): boolean {
+    const state = offlineStateByDefender.get(defenderId) ?? {
+      offlineDamagingHits: 0,
+      offlineProtectionActive: false,
+      lastSeenAt: null,
+    };
+    return OfflineProtectionService.isDefenderProtected(state);
+  }
 
   const attacksByDefender = new Map(
     attackCounts.map((row) => [row.defenderId, row._count._all]),
@@ -321,6 +357,7 @@ export async function getAttackPageData(
       defenderLifeStatus: targetPlayer.lifeStatus,
       defenderTravelling: targetPlayer.travelling,
       attacksOnTargetLast24h: attacksOnTarget,
+      defenderOfflineProtected: defenderOfflineProtected(targetPlayer.id),
     });
 
     if (preview.code === 'TARGET_OUT_OF_RANGE') return [];
@@ -362,6 +399,14 @@ export async function getAttackPageData(
           },
         });
         const targetNw = NetWorthService.calculateFromPlayer(targetPlayer);
+        const directStatus = await prisma.playerStatusExt.findUnique({
+          where: { playerId: targetPlayer.id },
+          select: {
+            offlineDamagingHits: true,
+            offlineProtectionActive: true,
+            lastSeenAt: true,
+          },
+        });
         const preview = evaluateAttackTargetPreview({
           attackerId: ctx.id,
           defenderId: targetPlayer.id,
@@ -372,6 +417,11 @@ export async function getAttackPageData(
           defenderLifeStatus: targetPlayer.lifeStatus,
           defenderTravelling: targetPlayer.travelling,
           attacksOnTargetLast24h: attacksOnTarget,
+          defenderOfflineProtected: OfflineProtectionService.isDefenderProtected({
+            offlineDamagingHits: directStatus?.offlineDamagingHits ?? 0,
+            offlineProtectionActive: directStatus?.offlineProtectionActive ?? false,
+            lastSeenAt: directStatus?.lastSeenAt ?? null,
+          }),
         });
         const eligibilityNote = preview.eligible
           ? 'Direct attack — no intel'

@@ -3,6 +3,7 @@ import { ATTACK_RULES } from '@/config/game/attack-rules';
 import { isWithinAttackRange, ridesRequiredForThugs } from '@/lib/game-engine/combat-rules';
 import {
   validateAttackEligibility,
+  validateAttackEligibilityCode,
   isIntelReportValid,
   ridesRequired,
   type PlayerIntelSnapshot,
@@ -124,7 +125,32 @@ describe('Attack eligibility', () => {
   it('enforces attack cap', () => {
     expect(
       baseEligibility({ attacksOnTargetLast24h: ATTACK_RULES.targetAttackCapPer24h }),
-    ).toMatch(/cannot be attacked right now/i);
+    ).toMatch(/24-hour attack limit/i);
+  });
+
+  it('blocks offline protected defenders', () => {
+    expect(
+      validateAttackEligibilityCode({
+        attackerId: 'attacker-1',
+        defenderId: 'defender-1',
+        attackerDistrictId: 'district-1',
+        defenderDistrictId: 'district-1',
+        attackType: 'HOME_INVASION',
+        attackingThugs: 50,
+        attackerNw: 1_000_000,
+        defenderNw: 1_000_000,
+        attackerTurns: 100,
+        attackerThugs: 200,
+        attackerRides: 20,
+        attackerLifeStatus: 'ACTIVE',
+        attackerTravelling: false,
+        defenderLifeStatus: 'ACTIVE',
+        defenderTravelling: false,
+        intelReport: intel(),
+        attacksOnTargetLast24h: 0,
+        defenderOfflineProtected: true,
+      }),
+    ).toBe('OFFLINE_PROTECTION_ACTIVE');
   });
 
   it('rejects insufficient rides', () => {

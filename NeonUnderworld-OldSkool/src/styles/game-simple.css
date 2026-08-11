@@ -419,6 +419,17 @@
   color: var(--os-text-dim);
 }
 
+.g-alert--critical {
+  color: var(--os-red);
+}
+
+.g-alert-headline {
+  display: block;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
 .g-alert {
   display: block;
   padding: 12px 0;

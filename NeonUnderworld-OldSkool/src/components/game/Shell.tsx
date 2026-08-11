@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Suspense } from 'react';
 import { LogoutLink } from '@local/components/oldskool/LogoutLink';
 import type { GameBackgroundKey } from '@local/config/backgrounds';
 import { getBackgroundForPath } from '@local/config/route-backgrounds';
@@ -9,6 +10,7 @@ import { GlobalStatus, type GlobalStats } from './GlobalStatus';
 import { GameNav } from './GameNav';
 import { GameMainTransition } from './GameMainTransition';
 import { GamePageBackground } from './GamePageBackground';
+import { PlayerShellRefresh } from './PlayerShellRefresh';
 
 export type { GlobalStats };
 
@@ -51,8 +53,11 @@ export function GameShell({
         <GameNav />
       </div>
       <main className="g-main">
-        <GameMainTransition>{children}</GameMainTransition>
+        <Suspense fallback={children}>
+          <GameMainTransition>{children}</GameMainTransition>
+        </Suspense>
       </main>
+      <PlayerShellRefresh />
       <footer className="g-footer">Neon Underworld · OldSkool Edition</footer>
     </div>
   );

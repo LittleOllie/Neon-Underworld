@@ -20,9 +20,12 @@ export const requireGameSession = cache(async (): Promise<{
 });
 
 export async function buildAttentionItems(ctx: CanonicalPlayerContext): Promise<AttentionItem[]> {
-  const unreadCount = await ReportService.getUnreadCount(ctx.id);
+  const [unreadCount, defenceAlerts] = await Promise.all([
+    ReportService.getUnreadCount(ctx.id),
+    ReportService.getUnreadDefenceAlerts(ctx.id, 5),
+  ]);
   const brief = EmpireService.buildCommandBrief(ctx);
-  return collectAttentionItems({ ctx, brief, unreadCount });
+  return collectAttentionItems({ ctx, brief, unreadCount, defenceAlerts });
 }
 
 export { prioritizeAttentionItems };

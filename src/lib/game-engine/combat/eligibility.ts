@@ -39,6 +39,7 @@ export interface AttackEligibilityInput {
   defenderTravelling: boolean;
   intelReport: PlayerIntelSnapshot | null;
   attacksOnTargetLast24h: number;
+  defenderOfflineProtected?: boolean;
   /** Skip intel requirement — blind attack without prior player intel */
   allowDirectAttack?: boolean;
   now?: Date;
@@ -109,8 +110,12 @@ export function validateAttackEligibilityCode(
     return 'INSUFFICIENT_RIDES';
   }
 
+  if (input.defenderOfflineProtected) {
+    return 'OFFLINE_PROTECTION_ACTIVE';
+  }
+
   if (input.attacksOnTargetLast24h >= ATTACK_RULES.targetAttackCapPer24h) {
-    return 'TARGET_UNAVAILABLE';
+    return 'ATTACK_CAP_REACHED';
   }
 
   return null;
@@ -133,6 +138,7 @@ export interface AttackTargetPreviewInput {
   defenderLifeStatus: string;
   defenderTravelling: boolean;
   attacksOnTargetLast24h: number;
+  defenderOfflineProtected?: boolean;
 }
 
 export function evaluateAttackTargetPreview(input: AttackTargetPreviewInput): {
@@ -156,7 +162,14 @@ export function evaluateAttackTargetPreview(input: AttackTargetPreviewInput): {
     return { eligible: false, code: 'TARGET_OUT_OF_RANGE', message: GAMEPLAY_ERROR_MESSAGES.TARGET_OUT_OF_RANGE };
   }
   if (input.attacksOnTargetLast24h >= ATTACK_RULES.targetAttackCapPer24h) {
-    return { eligible: false, code: 'TARGET_UNAVAILABLE', message: GAMEPLAY_ERROR_MESSAGES.TARGET_UNAVAILABLE };
+    return { eligible: false, code: 'ATTACK_CAP_REACHED', message: GAMEPLAY_ERROR_MESSAGES.ATTACK_CAP_REACHED };
+  }
+  if (input.defenderOfflineProtected) {
+    return {
+      eligible: false,
+      code: 'OFFLINE_PROTECTION_ACTIVE',
+      message: GAMEPLAY_ERROR_MESSAGES.OFFLINE_PROTECTION_ACTIVE,
+    };
   }
   return { eligible: true, code: null, message: null };
 }

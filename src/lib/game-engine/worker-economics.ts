@@ -4,7 +4,7 @@ import { SCOUTING_CONFIG } from '@/config/game/balance';
 export function grossWorkerCash(
   prostituteCount: number,
   turnsSpent: number,
-  cashPerProstitutePerTurn = SCOUTING_CONFIG.cashPerProstitutePerTurn,
+  cashPerProstitutePerTurn: number = SCOUTING_CONFIG.cashPerProstitutePerTurn as number,
 ): number {
   return prostituteCount * cashPerProstitutePerTurn * turnsSpent;
 }

@@ -296,6 +296,47 @@ export const ReportService = {
     return rows.filter((r) => isPlayerInboxReport(r.metadata, r.category)).length;
   },
 
+  async getUnreadDefenceAlerts(playerId: string, limit = 5): Promise<
+    Array<{
+      reportId: string;
+      attackerAlias: string;
+      attackType: AttackType;
+      outcome: string;
+      cashStolen: number;
+      createdAt: Date;
+    }>
+  > {
+    const rows = await prisma.report.findMany({
+      where: { playerId, read: false, category: 'COMBAT' },
+      orderBy: { createdAt: 'desc' },
+      take: limit * 2,
+    });
+
+    const alerts = rows
+      .map((r) => {
+        const meta = r.metadata as {
+          type?: string;
+          role?: string;
+          snapshot?: CombatReportSnapshot;
+        } | null;
+        if (meta?.type !== 'DEFENCE' && meta?.role !== 'defender') return null;
+        const snapshot = meta?.snapshot;
+        if (!snapshot?.attackerAlias) return null;
+        return {
+          reportId: r.id,
+          attackerAlias: snapshot.attackerAlias,
+          attackType: snapshot.attackType,
+          outcome: snapshot.outcome,
+          cashStolen: snapshot.cashStolen ?? 0,
+          createdAt: r.createdAt,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .slice(0, limit);
+
+    return alerts;
+  },
+
   async getById(reportId: string, playerId: string): Promise<ReportDetail | null> {
     const r = await prisma.report.findFirst({
       where: { id: reportId, playerId },

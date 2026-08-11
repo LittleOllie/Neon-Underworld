@@ -65,6 +65,7 @@ describe('shopPurchaseAction — server validation', () => {
         },
         gameAction: { create: vi.fn() },
         economicAuditLog: { create: vi.fn() },
+        playerStatusExt: { upsert: vi.fn().mockResolvedValue({}) },
       }),
     );
   });
@@ -137,6 +138,7 @@ describe('shopPurchaseAction — server validation', () => {
             season: { status: 'ACTIVE' },
           }),
         },
+        playerStatusExt: { upsert: vi.fn().mockResolvedValue({}) },
       }),
     );
     const { shopPurchaseAction } = await import('@/server/actions/shop.actions');

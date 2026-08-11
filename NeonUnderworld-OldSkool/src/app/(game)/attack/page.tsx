@@ -18,7 +18,11 @@ export default async function AttackPage({ searchParams }: Props) {
 
   const initialReportId =
     params.reportId ??
-    (params.target ? directAttackReportId(params.target.trim().toLowerCase()) : undefined);
+    (params.target
+      ? data.targets.find(
+          (t) => t.reportId === directAttackReportId(params.target!.trim().toLowerCase()),
+        )?.reportId
+      : undefined);
 
   return (
     <>

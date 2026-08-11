@@ -1,15 +1,33 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+
+const PENDING_TIMEOUT_MS = 10_000;
+
+/** Build current route key including search params — fixes stuck dim on filter navigations. */
+export function useRouteKey(): string {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
 
 /** Dims outgoing page content instantly on tap until the route swap completes. */
 export function GameMainTransition({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const routeKey = useRouteKey();
   const [pending, setPending] = useState(false);
-  const prevPath = useRef(pathname);
+  const prevRoute = useRef(routeKey);
+  const pendingTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    function clearPendingTimer() {
+      if (pendingTimer.current !== null) {
+        window.clearTimeout(pendingTimer.current);
+        pendingTimer.current = null;
+      }
+    }
+
     function onNavigateStart(event: MouseEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -22,20 +40,32 @@ export function GameMainTransition({ children }: { children: React.ReactNode }) 
 
       const url = new URL(href, window.location.origin);
       if (url.origin !== window.location.origin) return;
-      if (url.pathname + url.search === pathname) return;
+      if (url.pathname + url.search === routeKey) return;
 
+      clearPendingTimer();
       setPending(true);
+      pendingTimer.current = window.setTimeout(() => {
+        setPending(false);
+        pendingTimer.current = null;
+      }, PENDING_TIMEOUT_MS);
     }
 
     document.addEventListener('click', onNavigateStart, true);
-    return () => document.removeEventListener('click', onNavigateStart, true);
-  }, [pathname]);
+    return () => {
+      document.removeEventListener('click', onNavigateStart, true);
+      clearPendingTimer();
+    };
+  }, [routeKey]);
 
   useEffect(() => {
-    if (prevPath.current === pathname) return;
-    prevPath.current = pathname;
+    if (prevRoute.current === routeKey) return;
+    prevRoute.current = routeKey;
     setPending(false);
-  }, [pathname]);
+    if (pendingTimer.current !== null) {
+      window.clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+  }, [routeKey]);
 
   return (
     <div className={`g-main-transition${pending ? ' is-pending' : ''}`}>{children}</div>

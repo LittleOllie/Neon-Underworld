@@ -71,11 +71,12 @@ export const STARTING_RESOURCES = {
 
 export const SCOUTING_CONFIG = {
   /** Per-turn recruitment chance before district/area/happiness modifiers (0–1 scale). */
-  baseProstitutesPerTurn: 0.04,
-  baseThugsPerTurn: 0.042,
-  varianceMin: 0.6,
-  varianceMax: 1.4,
-  cashPerProstitutePerTurn: REDLITE_PRODUCTION.cashPerProstitutePerTurn,
+  baseProstitutesPerTurn: 0.058,
+  baseThugsPerTurn: 0.06,
+  varianceMin: 0.65,
+  varianceMax: 1.35,
+  /** Scout-only worker revenue — lower than Produce to keep Scout crew-focused. */
+  cashPerProstitutePerTurn: 6,
   /** Below this happiness, departure risk increases */
   prostituteHappinessWarningThreshold: 45,
   prostituteHappinessCriticalThreshold: 30,
