@@ -79,6 +79,9 @@ export async function scoutTargetAction(
       });
       if (!target) throw new GameplayError('INVALID_TARGET');
       if (target.id === playerId) throw new GameplayError('INVALID_TARGET', 'You cannot scout yourself.');
+      if (scout.districtId !== target.districtId) {
+        throw new GameplayError('TARGET_WRONG_DISTRICT');
+      }
 
       const settled = settleTurnRegeneration(
         resolveCanonicalTurnState({

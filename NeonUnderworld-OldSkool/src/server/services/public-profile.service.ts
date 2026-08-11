@@ -6,6 +6,7 @@ import { PlayerStatusService } from './player-status.service';
 export interface PublicProfile {
   alias: string;
   aliasNormalized: string;
+  districtId: string;
   city: string;
   citySlug: string;
   netWorth: number;
@@ -45,6 +46,7 @@ export const PublicProfileService = {
     return {
       alias: player.alias,
       aliasNormalized: player.aliasNormalized,
+      districtId: player.districtId,
       city: player.district.name,
       citySlug: player.district.slug,
       netWorth,

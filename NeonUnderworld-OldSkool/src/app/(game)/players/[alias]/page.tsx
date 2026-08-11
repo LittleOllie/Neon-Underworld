@@ -57,6 +57,9 @@ export default async function PlayerProfilePage({ params }: Props) {
           targetAliasNormalized={profile.aliasNormalized}
           initialTurns={ctx.turns}
           existingIntel={existingIntel}
+          sameCity={profile.districtId === ctx.district.id}
+          viewerCity={ctx.district.name}
+          targetCity={profile.city}
         />
       )}
 

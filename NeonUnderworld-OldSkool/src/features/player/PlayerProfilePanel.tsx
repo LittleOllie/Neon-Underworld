@@ -35,6 +35,9 @@ interface Props {
   targetAliasNormalized: string;
   initialTurns: number;
   existingIntel: PlayerIntelDisplay | null;
+  sameCity: boolean;
+  viewerCity: string;
+  targetCity: string;
 }
 
 function bandsFromIntel(intel: {
@@ -56,11 +59,56 @@ function bandsFromIntel(intel: {
   };
 }
 
+function IntelReportStats({ intel }: { intel: PlayerIntelDisplay }) {
+  return (
+    <>
+      <p className="g-section-label">INTEL REPORT</p>
+      <StatRow label="Intel quality" value={`${intel.bands.confidence}%`} />
+      <StatRow label="Thugs" value={intel.bands.thugs} />
+      <StatRow label="Weapon coverage" value={intel.bands.weapons} />
+      <StatRow label="Cash" value={intel.bands.cash} />
+      <StatRow label="Drug stock" value={intel.bands.drugs} />
+      <p className="g-note">
+        <Link href={`/reports/${intel.reportId}`}>View in Reports</Link>
+      </p>
+    </>
+  );
+}
+
+function CrossCityNotice({
+  targetAlias,
+  viewerCity,
+  targetCity,
+  intel,
+}: {
+  targetAlias: string;
+  viewerCity: string;
+  targetCity: string;
+  intel: PlayerIntelDisplay | null;
+}) {
+  return (
+    <>
+      <Divider />
+      <p className="g-note">
+        <strong>{targetAlias}</strong> is in <strong>{targetCity}</strong>. You&apos;re in{' '}
+        <strong>{viewerCity}</strong>. Travel to their city before you can gather intel or attack.
+      </p>
+      <p className="g-note">
+        <Link href="/travel">Travel</Link>
+      </p>
+      {intel && <IntelReportStats intel={intel} />}
+    </>
+  );
+}
+
 export function PlayerProfilePanel({
   targetAlias,
   targetAliasNormalized,
   initialTurns,
   existingIntel,
+  sameCity,
+  viewerCity,
+  targetCity,
 }: Props) {
   const router = useRouter();
   const [turns, setTurns] = useState(initialTurns);
@@ -68,6 +116,17 @@ export function PlayerProfilePanel({
   const [error, setError] = useState('');
   const [intel, setIntel] = useState<PlayerIntelDisplay | null>(existingIntel);
   const intelTurnCost = ATTACK_RULES.intelGatherTurnCost;
+
+  if (!sameCity) {
+    return (
+      <CrossCityNotice
+        targetAlias={targetAlias}
+        viewerCity={viewerCity}
+        targetCity={targetCity}
+        intel={intel}
+      />
+    );
+  }
 
   async function handleGatherIntel() {
     setLoading(true);
@@ -92,13 +151,7 @@ export function PlayerProfilePanel({
   if (intel) {
     return (
       <>
-        <Divider />
-        <p className="g-section-label">INTEL REPORT</p>
-        <StatRow label="Intel quality" value={`${intel.bands.confidence}%`} />
-        <StatRow label="Thugs" value={intel.bands.thugs} />
-        <StatRow label="Weapon coverage" value={intel.bands.weapons} />
-        <StatRow label="Cash" value={intel.bands.cash} />
-        <StatRow label="Drug stock" value={intel.bands.drugs} />
+        <IntelReportStats intel={intel} />
         <PrimaryButton
           className="g-btn-full"
           icon="attack"
@@ -116,9 +169,6 @@ export function PlayerProfilePanel({
         >
           Attack Now (No Intel)
         </PrimaryButton>
-        <p className="g-note">
-          <Link href={`/reports/${intel.reportId}`}>View in Reports</Link>
-        </p>
       </>
     );
   }
