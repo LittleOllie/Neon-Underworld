@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
-import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
+import { runSerializableTransaction, COMBAT_TRANSACTION_OPTIONS } from '@/lib/db/serializable-transaction';
 import { CartelService } from '@/server/services/cartel.service';
 import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
@@ -478,7 +478,7 @@ export async function resolveAttackEncounter(
       intel,
       defenderThugsBefore,
     };
-  });
+  }, COMBAT_TRANSACTION_OPTIONS);
 
   return {
     encounterId: result.encounter.id,

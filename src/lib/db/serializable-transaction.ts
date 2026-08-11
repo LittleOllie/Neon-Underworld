@@ -5,7 +5,27 @@ export type PrismaTransactionClient = Parameters<
   Parameters<typeof prisma.$transaction>[0]
 >[0];
 
-const DEFAULT_MAX_ATTEMPTS = 3;
+export interface SerializableTransactionOptions {
+  /** Total attempts including the first try. */
+  maxAttempts?: number;
+  /** Max ms to wait for a pooled connection before starting the transaction. */
+  maxWait?: number;
+  /** Max ms the interactive transaction may run. */
+  timeout?: number;
+}
+
+const DEFAULT_OPTIONS: Required<SerializableTransactionOptions> = {
+  maxAttempts: 3,
+  maxWait: 10_000,
+  timeout: 20_000,
+};
+
+/** Combat does more work inside one transaction — allow longer waits on serverless Neon. */
+export const COMBAT_TRANSACTION_OPTIONS: Required<SerializableTransactionOptions> = {
+  maxAttempts: 5,
+  maxWait: 15_000,
+  timeout: 30_000,
+};
 
 function readPrismaErrorCode(error: unknown): string | null {
   if (error instanceof Prisma.PrismaClientKnownRequestError) return error.code;
@@ -19,15 +39,18 @@ function readPrismaErrorCode(error: unknown): string | null {
   return null;
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && typeof (error as { message?: string }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  if (typeof error === 'string') return error;
+  return '';
+}
+
 function isSerializationFailure(error: unknown): boolean {
   if (readPrismaErrorCode(error) === 'P2034') return true;
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'object' && error !== null && typeof (error as { message?: string }).message === 'string'
-        ? (error as { message: string }).message
-        : '';
-  const normalized = message.toLowerCase();
+  const normalized = errorMessage(error).toLowerCase();
   return (
     normalized.includes('could not serialize') ||
     normalized.includes('serialization failure') ||
@@ -35,23 +58,46 @@ function isSerializationFailure(error: unknown): boolean {
   );
 }
 
-function retryDelayMs(attempt: number): number {
-  return 40 * attempt;
+function isPoolOrTransactionTimeout(error: unknown): boolean {
+  const code = readPrismaErrorCode(error);
+  if (code === 'P2028') return true;
+  const normalized = errorMessage(error).toLowerCase();
+  return (
+    normalized.includes('connection pool') ||
+    normalized.includes('timed out fetching') ||
+    normalized.includes('transaction api error') ||
+    normalized.includes('unable to start a transaction') ||
+    normalized.includes('expired transaction') ||
+    normalized.includes('closed the connection')
+  );
 }
 
-/** Serializable transaction with automatic retry on Prisma P2034 write conflicts. */
+function isRetryableTransactionError(error: unknown): boolean {
+  return isSerializationFailure(error) || isPoolOrTransactionTimeout(error);
+}
+
+function retryDelayMs(attempt: number): number {
+  return 80 * attempt;
+}
+
+/** Serializable transaction with automatic retry on conflicts and pool/timeout pressure. */
 export async function runSerializableTransaction<T>(
   fn: (tx: PrismaTransactionClient) => Promise<T>,
-  maxAttempts = DEFAULT_MAX_ATTEMPTS,
+  options: SerializableTransactionOptions = {},
 ): Promise<T> {
+  const { maxAttempts, maxWait, timeout } = { ...DEFAULT_OPTIONS, ...options };
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await prisma.$transaction(fn, { isolationLevel: 'Serializable' });
+      return await prisma.$transaction(fn, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait,
+        timeout,
+      });
     } catch (error) {
       lastError = error;
-      if (isSerializationFailure(error) && attempt < maxAttempts) {
+      if (isRetryableTransactionError(error) && attempt < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs(attempt)));
         continue;
       }
@@ -63,5 +109,8 @@ export async function runSerializableTransaction<T>(
 }
 
 export function isRetryableGameplayConflict(message: string): boolean {
-  return message.includes('conflicted with another update');
+  return (
+    message.includes('conflicted with another update') ||
+    message.includes('server is busy')
+  );
 }

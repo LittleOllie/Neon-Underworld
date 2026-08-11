@@ -25,6 +25,7 @@ import {
   GAMEPLAY_ERROR_MESSAGES,
   toUserMessage,
 } from '@core/lib/game-engine/gameplay-errors';
+import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
 import { evaluateAttackTargetPreview } from '@core/lib/game-engine/combat/eligibility';
 import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
@@ -126,6 +127,24 @@ function safeRevalidateAttackPaths(): void {
   } catch {
     // No-op outside Next.js request context
   }
+}
+
+async function withAttackRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const message = toUserMessage(error);
+      if (attempt < 2 && isRetryableGameplayConflict(message)) {
+        await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
 }
 
 async function finalizeAttackLaunch(
@@ -306,17 +325,23 @@ export async function launchAttackAction(
       );
     }
 
-    const data = await resolveAttackEncounter(
-      attackerId,
-      userId,
-      { kind: 'intel', scoutReportId: parsed.data.scoutReportId },
-      parsed.data.attackType,
-      parsed.data.attackingThugs,
-      parsed.data.idempotencyKey,
-      calculateNetWorth,
-    );
+    return withAttackRetry(async () => {
+      const data = await resolveAttackEncounter(
+        attackerId,
+        userId,
+        { kind: 'intel', scoutReportId: parsed.data.scoutReportId },
+        parsed.data.attackType,
+        parsed.data.attackingThugs,
+        parsed.data.idempotencyKey,
+        calculateNetWorth,
+      );
 
-    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, parsed.data.attackType);
+      return finalizeAttackLaunch(
+        attackerId,
+        { success: true, data: buildLaunchResult(data) },
+        parsed.data.attackType,
+      );
+    });
   } catch (error) {
     console.error('Attack launch error:', error);
     if (typeof error === 'object' && error !== null) {
@@ -378,20 +403,26 @@ export async function launchDirectAttackAction(
       );
     }
 
-    const data = await resolveAttackEncounter(
-      attackerId,
-      userId,
-      {
-        kind: 'direct',
-        defenderAliasNormalized: parsed.data.targetAliasNormalized.trim().toLowerCase(),
-      },
-      parsed.data.attackType,
-      parsed.data.attackingThugs,
-      parsed.data.idempotencyKey,
-      calculateNetWorth,
-    );
+    return withAttackRetry(async () => {
+      const data = await resolveAttackEncounter(
+        attackerId,
+        userId,
+        {
+          kind: 'direct',
+          defenderAliasNormalized: parsed.data.targetAliasNormalized.trim().toLowerCase(),
+        },
+        parsed.data.attackType,
+        parsed.data.attackingThugs,
+        parsed.data.idempotencyKey,
+        calculateNetWorth,
+      );
 
-    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, parsed.data.attackType);
+      return finalizeAttackLaunch(
+        attackerId,
+        { success: true, data: buildLaunchResult(data) },
+        parsed.data.attackType,
+      );
+    });
   } catch (error) {
     console.error('Direct attack launch error:', error);
     return { success: false, error: toUserMessage(error) };
