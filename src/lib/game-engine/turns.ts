@@ -1,4 +1,5 @@
 import { TURNS_CONFIG } from '@/config/game/balance';
+import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 
 export interface TurnState {
   currentTurns: number;
@@ -71,10 +72,10 @@ export function consumeTurns(
   now: Date = new Date(),
 ): { newState: TurnState; consumed: number } {
   if (amount <= 0) {
-    throw new Error('Turn amount must be positive');
+    throw new GameplayError('INSUFFICIENT_TURNS');
   }
   if (amount > settled.currentTurns) {
-    throw new Error('Insufficient turns');
+    throw new GameplayError('INSUFFICIENT_TURNS');
   }
 
   const remaining = settled.currentTurns - amount;

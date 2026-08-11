@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
 import { CartelService } from '@/server/services/cartel.service';
 import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
@@ -82,6 +83,15 @@ export type NetWorthCalculator = (player: CombatPlayerRecord) => number;
 
 /** Stored on CombatEncounter when attacking without prior player intel */
 export const DIRECT_ATTACK_SCOUT_REPORT_ID = 'direct-attack';
+
+function safeSnapshot(value: Record<string, unknown>): object {
+  return JSON.parse(JSON.stringify(value)) as object;
+}
+
+function safeInt(value: number, fallback = 0): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.floor(value));
+}
 
 export type AttackEncounterTarget =
   | { kind: 'intel'; scoutReportId: string }
@@ -184,7 +194,7 @@ export async function resolveAttackEncounter(
     };
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await runSerializableTransaction(async (tx) => {
     const attacker = await tx.player.findUniqueOrThrow({
       where: { id: attackerId },
       include: { turnState: true, district: true, season: true },
@@ -343,11 +353,11 @@ export async function resolveAttackEncounter(
         glocks: Math.max(0, attacker.glocks - combat.attackerWeaponLosses.glocks),
         uzis: Math.max(0, attacker.uzis - combat.attackerWeaponLosses.uzis),
         aks: Math.max(0, attacker.aks - combat.attackerWeaponLosses.aks),
-        cash: attacker.cash + combat.cashStolen,
-        hash: attacker.hash + combat.drugsStolen.hash,
-        shrooms: attacker.shrooms + combat.drugsStolen.shrooms,
-        coke: attacker.coke + combat.drugsStolen.coke,
-        heroin: attacker.heroin + combat.drugsStolen.heroin,
+        cash: safeInt(attacker.cash + combat.cashStolen),
+        hash: safeInt(attacker.hash + combat.drugsStolen.hash),
+        shrooms: safeInt(attacker.shrooms + combat.drugsStolen.shrooms),
+        coke: safeInt(attacker.coke + combat.drugsStolen.coke),
+        heroin: safeInt(attacker.heroin + combat.drugsStolen.heroin),
       },
     });
 
@@ -410,8 +420,8 @@ export async function resolveAttackEncounter(
         turnsSpent: turnCost,
         attackingThugs,
         ridesUsed,
-        attackerForceSnapshot: JSON.parse(JSON.stringify(combat.attackerForceSnapshot)) as object,
-        defenderForceSnapshot: JSON.parse(JSON.stringify(combat.defenderForceSnapshot)) as object,
+        attackerForceSnapshot: safeSnapshot(combat.attackerForceSnapshot),
+        defenderForceSnapshot: safeSnapshot(combat.defenderForceSnapshot),
         attackerLosses: combat.attackerLosses,
         defenderLosses: combat.defenderLosses,
         attackerReturned: combat.attackerReturned,
@@ -468,7 +478,7 @@ export async function resolveAttackEncounter(
       intel,
       defenderThugsBefore,
     };
-  }, { isolationLevel: 'Serializable' });
+  });
 
   return {
     encounterId: result.encounter.id,

@@ -137,7 +137,21 @@ export function tryGameplayErrorFromMessage(message: string): GameplayError | nu
     return new GameplayError('DUPLICATE_ACTION', 'This action is still processing. Refresh and try again.');
   }
   if (normalized.includes('serialization') || normalized.includes('deadlock')) {
-    return new GameplayError('DUPLICATE_ACTION', 'This attack is still processing. Refresh and check Reports.');
+    return new GameplayError('DUPLICATE_ACTION', 'That action conflicted with another update. Please try again.');
+  }
+  if (
+    normalized.includes('required but not found') ||
+    normalized.includes('no record was found') ||
+    normalized.includes('record not found')
+  ) {
+    return new GameplayError('INVALID_TARGET', 'That record is no longer available. Refresh and try again.');
+  }
+  if (
+    normalized.includes('connection pool') ||
+    normalized.includes('timed out fetching') ||
+    normalized.includes('transaction api error')
+  ) {
+    return new GameplayError('DUPLICATE_ACTION', 'The server is busy. Please try again in a moment.');
   }
   if (
     normalized.includes('cannot attack yourself') ||
@@ -234,7 +248,11 @@ function readTypedGameplayMessage(error: unknown): string | null {
 function readTypedDomainMessage(error: unknown): string | null {
   if (error instanceof DomainError) return error.message;
   if (typeof error === 'object' && error !== null) {
-    const candidate = error as DomainError & { name?: string };
+    const candidate = error as DomainError & { name?: string; code?: string; gameplayCode?: string };
+    const code = candidate.gameplayCode ?? candidate.code;
+    if (typeof code === 'string' && code in GAMEPLAY_ERROR_MESSAGES) {
+      return candidate.message ?? GAMEPLAY_ERROR_MESSAGES[code as GameplayErrorCode];
+    }
     if (candidate.name === 'DomainError' && candidate.message) return candidate.message;
   }
   return null;
@@ -254,6 +272,9 @@ function readPrismaKnownRequestCode(error: unknown): string | null {
   if (typeof error === 'object' && error !== null) {
     const candidate = error as { name?: string; code?: string };
     if (candidate.name === 'PrismaClientKnownRequestError' && typeof candidate.code === 'string') {
+      return candidate.code;
+    }
+    if (typeof candidate.code === 'string' && /^P\d{4}$/.test(candidate.code)) {
       return candidate.code;
     }
   }
@@ -326,6 +347,10 @@ export function toUserMessage(error: unknown): string {
       return 'Your session expired. Refresh the page and try again.';
     }
     const mapped = tryGameplayErrorFromMessage(error.message);
+    if (mapped) return mapped.message;
+  }
+  if (typeof error === 'string' && error.trim()) {
+    const mapped = tryGameplayErrorFromMessage(error);
     if (mapped) return mapped.message;
   }
   return 'An unexpected error occurred. Please try again.';

@@ -7,6 +7,7 @@ import {
   turnsPerDay,
   resolveCanonicalTurnState,
 } from '@/lib/game-engine/turns';
+import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { TURNS_CONFIG } from '@/config/game/balance';
 import { REDLITE_TURNS } from '@/config/game/redlite-rules';
 
@@ -57,7 +58,7 @@ describe('turn regeneration', () => {
       turnCap: 5000,
       regenerationRatePerMs: TURNS_CONFIG.regenerationRatePerMs,
     });
-    expect(() => consumeTurns(settled, 50)).toThrow('Insufficient turns');
+    expect(() => consumeTurns(settled, 50)).toThrow(GameplayError);
   });
 
   it('legacy 12000-cap accounts settle with canonical 5000 cap', () => {

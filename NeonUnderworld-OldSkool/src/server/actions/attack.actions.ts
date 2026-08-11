@@ -135,6 +135,36 @@ async function finalizeAttackLaunch(
 ): Promise<ActionResult<AttackLaunchResult>> {
   if (!result.success) return result;
 
+  try {
+    return await finalizeAttackLaunchInner(attackerId, result, attackType);
+  } catch (error) {
+    console.error('Attack finalize error:', error);
+    const encounter = await prisma.combatEncounter.findUnique({
+      where: { id: result.data.encounterId },
+      include: { defender: { select: { alias: true, aliasNormalized: true } } },
+    });
+    if (encounter) {
+      return {
+        success: true,
+        data: {
+          ...buildLaunchResultFromEncounter(encounter, result.data.newTurns),
+          attackerReportId: encounter.attackerReportId ?? '',
+          defenderReportId: encounter.defenderReportId ?? '',
+          idempotentReplay: !!(encounter.attackerReportId && encounter.defenderReportId),
+        },
+      };
+    }
+    throw error;
+  }
+}
+
+async function finalizeAttackLaunchInner(
+  attackerId: string,
+  result: ActionResult<AttackLaunchResult>,
+  attackType: AttackType,
+): Promise<ActionResult<AttackLaunchResult>> {
+  if (!result.success) return result;
+
   const encounter = await prisma.combatEncounter.findUniqueOrThrow({
     where: { id: result.data.encounterId },
   });

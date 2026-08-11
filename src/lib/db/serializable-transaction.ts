@@ -7,9 +7,31 @@ export type PrismaTransactionClient = Parameters<
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 
+function readPrismaErrorCode(error: unknown): string | null {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) return error.code;
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { name?: string; code?: string };
+    if (candidate.name === 'PrismaClientKnownRequestError' && typeof candidate.code === 'string') {
+      return candidate.code;
+    }
+    if (typeof candidate.code === 'string') return candidate.code;
+  }
+  return null;
+}
+
 function isSerializationFailure(error: unknown): boolean {
+  if (readPrismaErrorCode(error) === 'P2034') return true;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && typeof (error as { message?: string }).message === 'string'
+        ? (error as { message: string }).message
+        : '';
+  const normalized = message.toLowerCase();
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034'
+    normalized.includes('could not serialize') ||
+    normalized.includes('serialization failure') ||
+    normalized.includes('deadlock')
   );
 }
 
