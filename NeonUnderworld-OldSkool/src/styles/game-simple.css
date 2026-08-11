@@ -1030,6 +1030,11 @@
   color: var(--os-text-muted);
 }
 
+.g-more-unavailable {
+  cursor: default;
+  pointer-events: none;
+}
+
 .g-filter-row {
   display: flex;
   flex-wrap: wrap;

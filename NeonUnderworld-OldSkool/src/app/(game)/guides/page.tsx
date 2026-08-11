@@ -69,9 +69,9 @@ export default async function GuidesPage() {
 
       <SectionLabel>More Systems</SectionLabel>
       <p className="g-note g-guide-body">
-        <Link href="/market">Market</Link>
+        Market (COMING SOON)
         {' · '}
-        <Link href="/travel">Travel</Link>
+        Travel (COMING SOON)
         {' · '}
         <Link href="/cartels">Cartel</Link>
       </p>

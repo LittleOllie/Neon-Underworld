@@ -29,6 +29,21 @@ export function MoreMenu({
                 <div key={item.label} className="g-more-link" onClick={onClose}>
                   <LogoutLink />
                 </div>
+              ) : item.unavailable ? (
+                <span
+                  key={item.href}
+                  className="g-more-link g-more-muted g-more-unavailable"
+                  aria-disabled="true"
+                >
+                  <span className="g-more-link-row">
+                    <span className="g-icon-label">
+                      {item.icon && <GameIcon name={item.icon} size={18} tone="muted" />}
+                      <span>
+                        {item.label} — {item.unavailable}
+                      </span>
+                    </span>
+                  </span>
+                </span>
               ) : (
                 <Link
                   key={item.href}

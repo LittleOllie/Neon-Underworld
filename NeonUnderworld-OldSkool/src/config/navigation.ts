@@ -43,6 +43,8 @@ export interface MoreMenuSection {
   items: MoreNavItem[];
 }
 
+const COMING_SOON = 'COMING SOON' as const;
+
 const PLAYTEST_MORE_ITEM: MoreNavItem = {
   href: '/playtest/turns',
   label: 'Add Turns',
@@ -66,8 +68,8 @@ export function buildMoreMenuSections(counts?: { unreadReports?: number }): More
       items: [
         { href: '/attack', label: 'Attack', icon: 'attack' },
         { href: '/shop', label: 'Shop', icon: 'shop' },
-        { href: '/market', label: 'Market', icon: 'market' },
-        { href: '/travel', label: 'Travel', icon: 'travel' },
+        { href: '/market', label: 'Market', icon: 'market', unavailable: COMING_SOON },
+        { href: '/travel', label: 'Travel', icon: 'travel', unavailable: COMING_SOON },
       ],
     },
     {

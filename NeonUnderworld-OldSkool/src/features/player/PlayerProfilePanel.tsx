@@ -79,11 +79,9 @@ function IntelReportStats({ intel }: { intel: PlayerIntelDisplay }) {
 
 function CrossCityNotice({
   targetCity,
-  targetCitySlug,
   intel,
 }: {
   targetCity: string;
-  targetCitySlug: string;
   intel: PlayerIntelDisplay | null;
 }) {
   return (
@@ -91,9 +89,7 @@ function CrossCityNotice({
       <Divider />
       <p className="g-section-label">CURRENT LOCATION</p>
       <StatRow label="City" value={targetCity.toUpperCase()} />
-      <ActionButton className="g-btn-full" icon="travel" href={`/travel?destination=${encodeURIComponent(targetCitySlug)}`}>
-        Travel to {targetCity}
-      </ActionButton>
+      <p className="g-note">Travel to {targetCity} — COMING SOON</p>
       {intel && (
         <>
           <p className="g-note">Historical intel from a previous visit — attack unavailable from here.</p>
@@ -122,7 +118,7 @@ export function PlayerProfilePanel({
 
   if (!sameCity) {
     return (
-      <CrossCityNotice targetCity={targetCity} targetCitySlug={targetCitySlug} intel={intel} />
+      <CrossCityNotice targetCity={targetCity} intel={intel} />
     );
   }
 
