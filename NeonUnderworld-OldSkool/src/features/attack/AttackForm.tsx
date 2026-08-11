@@ -267,6 +267,16 @@ export function AttackForm(props: AttackFormProps) {
     }
   }
 
+  function handleBackToTargets() {
+    setResult(null);
+    setSelected(null);
+    setShowIntel(false);
+    setConfirming(false);
+    setError('');
+    router.replace('/attack');
+    router.refresh();
+  }
+
   if (result) {
     const lines: { text: string; tone?: 'positive' | 'negative' | 'neutral' }[] = [
       { text: result.outcomeLabel },
@@ -284,7 +294,12 @@ export function AttackForm(props: AttackFormProps) {
         title={`Attack ${result.outcome}`}
         lines={lines}
         actions={[
-          { href: '/attack', label: 'Back to Targets', primary: true, icon: 'attack' },
+          {
+            label: 'Back to Targets',
+            primary: true,
+            icon: 'attack',
+            onClick: handleBackToTargets,
+          },
         ]}
       />
     );
