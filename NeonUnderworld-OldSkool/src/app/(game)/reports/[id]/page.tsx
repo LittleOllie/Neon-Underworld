@@ -4,6 +4,8 @@ import { PageTitle, StatRow, Divider, SectionLabel, ActionButton } from '@local/
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
 import { ReportService, type CombatReportSnapshot } from '@local/server/services/report.service';
 import { ReportReadSync } from '@local/features/reports/ReportReadSync';
+import { prisma } from '@core/lib/db/prisma';
+import { GAMEPLAY_CONTEXT_MESSAGES } from '@core/lib/game-engine/gameplay-errors';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -11,7 +13,7 @@ interface Props {
 
 export default async function ReportDetailPage({ params }: Props) {
   const { id } = await params;
-  const { playerId } = await requireGameSession();
+  const { playerId, ctx } = await requireGameSession();
 
   const report = await ReportService.getById(id, playerId);
   if (!report) notFound();
@@ -24,9 +26,18 @@ export default async function ReportDetailPage({ params }: Props) {
 
   const meta = report.metadata as {
     type?: string;
-    intel?: { targetAlias?: string; targetCity?: string; expiresAt?: string };
+    intel?: { targetAlias?: string; targetCity?: string; targetPlayerId?: string; expiresAt?: string };
     snapshot?: CombatReportSnapshot & { bands?: Record<string, string | number> };
   } | null;
+
+  let canAttackFromHere = false;
+  if (meta?.type === 'PLAYER_INTEL' && meta.intel?.targetPlayerId) {
+    const target = await prisma.player.findUnique({
+      where: { id: meta.intel.targetPlayerId },
+      select: { districtId: true },
+    });
+    canAttackFromHere = target?.districtId === ctx.district.id;
+  }
 
   const combat = meta?.type === 'ATTACK' || meta?.type === 'DEFENCE' ? meta.snapshot : null;
   const intelBands = meta?.type === 'PLAYER_INTEL' ? meta.snapshot?.bands : null;
@@ -63,9 +74,13 @@ export default async function ReportDetailPage({ params }: Props) {
               <StatRow label="Drugs" value={String(intelBands.drugs ?? '—')} />
             </>
           )}
-          <ActionButton href={`/attack?reportId=${id}`} icon="attack" className="g-btn-full">
-            Attack Player
-          </ActionButton>
+          {canAttackFromHere ? (
+            <ActionButton href={`/attack?reportId=${id}`} icon="attack" className="g-btn-full">
+              Attack Player
+            </ActionButton>
+          ) : (
+            <p className="g-note">{GAMEPLAY_CONTEXT_MESSAGES.targetNoLongerInCity}</p>
+          )}
         </>
       )}
 

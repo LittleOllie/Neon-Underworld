@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,6 +46,7 @@ interface AttackFormProps {
   targets: AttackTargetCandidate[];
   initialTargetAlias?: string;
   initialReportId?: string;
+  staleIntelNotice?: string | null;
   attackRangeMinNetWorth?: number;
   intelTurnCost: number;
   viewerCity: string;
@@ -142,6 +143,24 @@ export function AttackForm(props: AttackFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<AttackLaunchResult | null>(null);
+
+  useEffect(() => {
+    setTargets(props.targets);
+    setTurns(props.turns);
+  }, [props.targets, props.turns]);
+
+  useEffect(() => {
+    if (!props.initialTargetAlias && !props.initialReportId) return;
+    const next = resolveInitialTarget(
+      props.targets,
+      props.initialTargetAlias,
+      props.initialReportId,
+    );
+    setSelected(next);
+    setShowIntel(!!next?.hasIntel);
+    setConfirming(false);
+    setError('');
+  }, [props.initialTargetAlias, props.initialReportId, props.targets]);
 
   const ridesNeeded = useMemo(
     () => ridesRequiredForThugs(force, ATTACK_RULES.thugsPerRide),
@@ -263,6 +282,7 @@ export function AttackForm(props: AttackFormProps) {
   if (!selected) {
     return (
       <>
+        {props.staleIntelNotice && <p className="g-error">{props.staleIntelNotice}</p>}
         <p className="g-note">
           Players in <strong>{props.viewerCity}</strong> you can attack right now. Gather intel
           before launching an attack.
@@ -300,6 +320,7 @@ export function AttackForm(props: AttackFormProps) {
 
   return (
     <>
+      {props.staleIntelNotice && <p className="g-error">{props.staleIntelNotice}</p>}
       <PrimaryButton
         className="g-btn-full g-btn-secondary"
         variant="secondary"

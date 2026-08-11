@@ -17,6 +17,7 @@ import {
 import { snapshotPlayerState } from '@/lib/game-engine/state';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
+import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 
 export interface CombatPlayerRecord {
   id: string;
@@ -180,6 +181,7 @@ export async function resolveAttackEncounter(
     });
     if (!attacker.turnState) throw new GameplayError('TARGET_UNAVAILABLE', 'Your account is not ready for combat. Refresh and try again.');
     if (attacker.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+    assertPlayerCanPerformAction(attacker);
 
     let intel: PlayerIntelSnapshot | null = null;
     let defender;

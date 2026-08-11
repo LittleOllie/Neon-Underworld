@@ -213,8 +213,17 @@ export function toUserMessage(error: unknown): string {
     if (error.code === 'P2034') {
       return 'That action conflicted with another update. Please try again.';
     }
+    if (error.code === 'P2025') {
+      return 'That record is no longer available. Refresh and try again.';
+    }
+    if (error.code === 'P2002') {
+      return 'This action has already been processed.';
+    }
   }
   if (error instanceof Error && error.message.trim()) {
+    if (error.message.includes('NEXT_REDIRECT')) {
+      return 'Your session expired. Refresh the page and try again.';
+    }
     const mapped = tryGameplayErrorFromMessage(error.message);
     if (mapped) return mapped.message;
   }

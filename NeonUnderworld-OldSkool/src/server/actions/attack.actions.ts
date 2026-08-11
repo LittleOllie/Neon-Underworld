@@ -1,13 +1,14 @@
 'use server';
 
 import {
-  launchAttackAction as coreLaunchAttackAction,
-  launchDirectAttackAction as coreLaunchDirectAttackAction,
-  type AttackLaunchResult,
-} from '@core/server/actions/attack.actions';
+  resolveAttackEncounter,
+  type CombatResolutionOutput,
+} from '@core/server/services/combat.service';
+import type { AttackLaunchResult } from '@core/server/actions/attack.actions';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import type { AttackType } from '@core/config/game/attack-rules';
 import { ATTACK_TYPE_LABELS, ATTACK_RULES } from '@core/config/game/attack-rules';
+import { attackLaunchSchema, directAttackLaunchSchema } from '@core/lib/validation/schemas';
 import { auth } from '@local/lib/auth/config';
 import { prisma } from '@core/lib/db/prisma';
 import {
@@ -19,7 +20,11 @@ import { ActivityService } from '@local/server/services/activity.service';
 import { ReportService } from '@local/server/services/report.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
-import { toUserMessage } from '@core/lib/game-engine/gameplay-errors';
+import {
+  GAMEPLAY_CONTEXT_MESSAGES,
+  GAMEPLAY_ERROR_MESSAGES,
+  toUserMessage,
+} from '@core/lib/game-engine/gameplay-errors';
 import { evaluateAttackTargetPreview } from '@core/lib/game-engine/combat/eligibility';
 import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
@@ -35,22 +40,121 @@ export type { AttackLaunchResult, AttackTargetCandidate };
 const calculateNetWorth = (player: CombatPlayerRecord) =>
   NetWorthService.calculateFromPlayer(player);
 
+function buildLaunchResult(data: CombatResolutionOutput): AttackLaunchResult {
+  return {
+    encounterId: data.encounterId,
+    attackType: data.attackType,
+    outcome: data.outcome,
+    outcomeLabel: data.outcomeLabel,
+    attackingThugs: data.attackingThugs,
+    attackerLosses: data.attackerLosses,
+    defenderLosses: data.defenderLosses,
+    attackerWeaponLosses: data.attackerWeaponLosses,
+    defenderWeaponLosses: data.defenderWeaponLosses,
+    attackerReturned: data.attackerReturned,
+    cashStolen: data.cashStolen,
+    drugsStolen: data.drugsStolen,
+    turnsSpent: data.turnsSpent,
+    ridesUsed: data.ridesUsed,
+    weaponCoverage: data.weaponCoverage,
+    forceEstimate: data.forceEstimate,
+    targetAlias: data.targetAlias,
+    targetAliasNormalized: data.targetAliasNormalized,
+    attackerReportId: '',
+    defenderReportId: '',
+    newTurns: data.newTurns,
+    idempotentReplay: data.idempotentReplay,
+  };
+}
+
+function buildLaunchResultFromEncounter(
+  encounter: {
+    id: string;
+    attackType: string;
+    outcome: string;
+    attackingThugs: number;
+    attackerLosses: number;
+    defenderLosses: number;
+    attackerReturned: number;
+    cashStolen: number;
+    drugsStolen: unknown;
+    turnsSpent: number;
+    ridesUsed: number;
+    attackerReportId: string | null;
+    defenderReportId: string | null;
+    defender: { alias: string; aliasNormalized: string };
+  },
+  newTurns = 0,
+): AttackLaunchResult {
+  return {
+    encounterId: encounter.id,
+    attackType: encounter.attackType as AttackType,
+    outcome: encounter.outcome,
+    outcomeLabel: encounter.outcome,
+    attackingThugs: encounter.attackingThugs,
+    attackerLosses: encounter.attackerLosses,
+    defenderLosses: encounter.defenderLosses,
+    attackerWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
+    defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
+    attackerReturned: encounter.attackerReturned,
+    cashStolen: encounter.cashStolen,
+    drugsStolen: (encounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
+      hash: 0,
+      shrooms: 0,
+      coke: 0,
+      heroin: 0,
+    },
+    turnsSpent: encounter.turnsSpent,
+    ridesUsed: encounter.ridesUsed,
+    weaponCoverage: '',
+    forceEstimate: '',
+    targetAlias: encounter.defender.alias,
+    targetAliasNormalized: encounter.defender.aliasNormalized,
+    attackerReportId: encounter.attackerReportId ?? '',
+    defenderReportId: encounter.defenderReportId ?? '',
+    newTurns,
+    idempotentReplay: true,
+  };
+}
+
+function safeRevalidateAttackPaths(): void {
+  try {
+    revalidatePath('/', 'layout');
+    revalidatePath('/command');
+    revalidatePath('/reports');
+    revalidatePath('/attack');
+  } catch {
+    // No-op outside Next.js request context
+  }
+}
+
 async function finalizeAttackLaunch(
   attackerId: string,
   result: ActionResult<AttackLaunchResult>,
   attackType: AttackType,
 ): Promise<ActionResult<AttackLaunchResult>> {
   if (!result.success) return result;
-  if (result.data.idempotentReplay) return result;
-
-  const attacker = await prisma.player.findUniqueOrThrow({ where: { id: attackerId } });
-  const defender = await prisma.player.findUniqueOrThrow({
-    where: { id: (await prisma.combatEncounter.findUniqueOrThrow({ where: { id: result.data.encounterId } })).defenderId },
-  });
 
   const encounter = await prisma.combatEncounter.findUniqueOrThrow({
     where: { id: result.data.encounterId },
   });
+
+  if (encounter.attackerReportId && encounter.defenderReportId) {
+    return {
+      success: true,
+      data: {
+        ...result.data,
+        attackerReportId: encounter.attackerReportId,
+        defenderReportId: encounter.defenderReportId,
+        idempotentReplay: true,
+      },
+    };
+  }
+
+  const [attacker, defender] = await Promise.all([
+    prisma.player.findUniqueOrThrow({ where: { id: attackerId } }),
+    prisma.player.findUniqueOrThrow({ where: { id: encounter.defenderId } }),
+  ]);
 
   const defenderThugsBefore =
     (encounter.defenderForceSnapshot as { thugsDefending?: number })?.thugsDefending ?? 0;
@@ -113,9 +217,7 @@ async function finalizeAttackLaunch(
   await PlayerStatusService.setNotification(defender.id, defenderNotification);
 
   await revalidatePlayersGameplayCache([attackerId, defender.id]);
-  revalidatePath('/', 'layout');
-  revalidatePath('/command');
-  revalidatePath('/reports');
+  safeRevalidateAttackPaths();
 
   return {
     success: true,
@@ -123,6 +225,7 @@ async function finalizeAttackLaunch(
       ...result.data,
       attackerReportId,
       defenderReportId,
+      idempotentReplay: false,
     },
   };
 }
@@ -136,57 +239,54 @@ export async function launchAttackAction(
   try {
     const session = await auth();
     const attackerId = session?.user?.playerId;
-    if (!attackerId) return { success: false, error: 'Not authenticated' };
+    const userId = session?.user?.id;
+    if (!attackerId || !userId) return { success: false, error: 'Not authenticated' };
 
-    const existingEncounter = await prisma.combatEncounter.findUnique({
-      where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
-    });
-
-    if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
-      const defender = await prisma.player.findUniqueOrThrow({ where: { id: existingEncounter.defenderId } });
-      return {
-        success: true,
-        data: {
-          encounterId: existingEncounter.id,
-          attackType: existingEncounter.attackType as AttackType,
-          outcome: existingEncounter.outcome,
-          outcomeLabel: existingEncounter.outcome,
-          attackingThugs: existingEncounter.attackingThugs,
-          attackerLosses: existingEncounter.attackerLosses,
-          defenderLosses: existingEncounter.defenderLosses,
-          attackerWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
-          defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
-          attackerReturned: existingEncounter.attackerReturned,
-          cashStolen: existingEncounter.cashStolen,
-          drugsStolen: (existingEncounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
-            hash: 0,
-            shrooms: 0,
-            coke: 0,
-            heroin: 0,
-          },
-          turnsSpent: existingEncounter.turnsSpent,
-          ridesUsed: existingEncounter.ridesUsed,
-          weaponCoverage: '',
-          forceEstimate: '',
-          targetAlias: defender.alias,
-          targetAliasNormalized: defender.aliasNormalized,
-          attackerReportId: existingEncounter.attackerReportId,
-          defenderReportId: existingEncounter.defenderReportId,
-          newTurns: 0,
-          idempotentReplay: true,
-        },
-      };
-    }
-
-    const result = await coreLaunchAttackAction(
+    const parsed = attackLaunchSchema.safeParse({
       scoutReportId,
       attackType,
       attackingThugs,
       idempotencyKey,
+    });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    const existingEncounter = await prisma.combatEncounter.findUnique({
+      where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
+      include: { defender: { select: { alias: true, aliasNormalized: true } } },
+    });
+
+    if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
+      return {
+        success: true,
+        data: buildLaunchResultFromEncounter(existingEncounter),
+      };
+    }
+
+    if (existingEncounter) {
+      const partialResult: ActionResult<AttackLaunchResult> = {
+        success: true,
+        data: buildLaunchResultFromEncounter(existingEncounter),
+      };
+      return finalizeAttackLaunch(
+        attackerId,
+        partialResult,
+        existingEncounter.attackType as AttackType,
+      );
+    }
+
+    const data = await resolveAttackEncounter(
+      attackerId,
+      userId,
+      { kind: 'intel', scoutReportId: parsed.data.scoutReportId },
+      parsed.data.attackType,
+      parsed.data.attackingThugs,
+      parsed.data.idempotencyKey,
       calculateNetWorth,
     );
 
-    return finalizeAttackLaunch(attackerId, result, attackType);
+    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, attackType);
   } catch (error) {
     console.error('Attack launch error:', error);
     return { success: false, error: toUserMessage(error) };
@@ -202,57 +302,57 @@ export async function launchDirectAttackAction(
   try {
     const session = await auth();
     const attackerId = session?.user?.playerId;
-    if (!attackerId) return { success: false, error: 'Not authenticated' };
+    const userId = session?.user?.id;
+    if (!attackerId || !userId) return { success: false, error: 'Not authenticated' };
 
-    const existingEncounter = await prisma.combatEncounter.findUnique({
-      where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
-    });
-
-    if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
-      const defender = await prisma.player.findUniqueOrThrow({ where: { id: existingEncounter.defenderId } });
-      return {
-        success: true,
-        data: {
-          encounterId: existingEncounter.id,
-          attackType: existingEncounter.attackType as AttackType,
-          outcome: existingEncounter.outcome,
-          outcomeLabel: existingEncounter.outcome,
-          attackingThugs: existingEncounter.attackingThugs,
-          attackerLosses: existingEncounter.attackerLosses,
-          defenderLosses: existingEncounter.defenderLosses,
-          attackerWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
-          defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
-          attackerReturned: existingEncounter.attackerReturned,
-          cashStolen: existingEncounter.cashStolen,
-          drugsStolen: (existingEncounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
-            hash: 0,
-            shrooms: 0,
-            coke: 0,
-            heroin: 0,
-          },
-          turnsSpent: existingEncounter.turnsSpent,
-          ridesUsed: existingEncounter.ridesUsed,
-          weaponCoverage: '',
-          forceEstimate: '',
-          targetAlias: defender.alias,
-          targetAliasNormalized: defender.aliasNormalized,
-          attackerReportId: existingEncounter.attackerReportId,
-          defenderReportId: existingEncounter.defenderReportId,
-          newTurns: 0,
-          idempotentReplay: true,
-        },
-      };
-    }
-
-    const result = await coreLaunchDirectAttackAction(
+    const parsed = directAttackLaunchSchema.safeParse({
       targetAliasNormalized,
       attackType,
       attackingThugs,
       idempotencyKey,
+    });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    const existingEncounter = await prisma.combatEncounter.findUnique({
+      where: { attackerId_idempotencyKey: { attackerId, idempotencyKey } },
+      include: { defender: { select: { alias: true, aliasNormalized: true } } },
+    });
+
+    if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
+      return {
+        success: true,
+        data: buildLaunchResultFromEncounter(existingEncounter),
+      };
+    }
+
+    if (existingEncounter) {
+      const partialResult: ActionResult<AttackLaunchResult> = {
+        success: true,
+        data: buildLaunchResultFromEncounter(existingEncounter),
+      };
+      return finalizeAttackLaunch(
+        attackerId,
+        partialResult,
+        existingEncounter.attackType as AttackType,
+      );
+    }
+
+    const data = await resolveAttackEncounter(
+      attackerId,
+      userId,
+      {
+        kind: 'direct',
+        defenderAliasNormalized: parsed.data.targetAliasNormalized.trim().toLowerCase(),
+      },
+      parsed.data.attackType,
+      parsed.data.attackingThugs,
+      parsed.data.idempotencyKey,
       calculateNetWorth,
     );
 
-    return finalizeAttackLaunch(attackerId, result, attackType);
+    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, attackType);
   } catch (error) {
     console.error('Direct attack launch error:', error);
     return { success: false, error: toUserMessage(error) };
@@ -394,10 +494,18 @@ export async function getAttackPageData(
   });
 
   let initialTargetAlias = options?.targetAlias?.trim().toLowerCase();
-  if (options?.reportId && !initialTargetAlias) {
+  let staleIntelNotice: string | null = null;
+  if (options?.reportId) {
     const fromReport = intelReports.find((r) => r.reportId === options.reportId);
     if (fromReport) {
-      initialTargetAlias = fromReport.intel.targetAlias.trim().toLowerCase();
+      if (fromReport.expired) {
+        staleIntelNotice = GAMEPLAY_ERROR_MESSAGES.EXPIRED_INTEL;
+      } else if (!candidates.some((player) => player.id === fromReport.intel.targetPlayerId)) {
+        staleIntelNotice = GAMEPLAY_CONTEXT_MESSAGES.targetNoLongerInCity;
+      }
+      if (!initialTargetAlias) {
+        initialTargetAlias = fromReport.intel.targetAlias.trim().toLowerCase();
+      }
     }
   }
 
@@ -411,6 +519,7 @@ export async function getAttackPageData(
     targets,
     initialTargetAlias,
     initialReportId: options?.reportId,
+    staleIntelNotice,
     attackRangeMinNetWorth: minAttackTargetNetWorth(attackerNw),
     intelTurnCost: ATTACK_RULES.intelGatherTurnCost,
     viewerCity: ctx.district.name,
