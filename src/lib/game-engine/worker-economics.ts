@@ -27,8 +27,9 @@ export function workerCashBreakdown(
   prostituteCount: number,
   turnsSpent: number,
   payoutPercent: number,
+  cashPerProstitutePerTurn: number = SCOUTING_CONFIG.cashPerProstitutePerTurn as number,
 ): { gross: number; workerShare: number; playerShare: number } {
-  const gross = grossWorkerCash(prostituteCount, turnsSpent);
+  const gross = grossWorkerCash(prostituteCount, turnsSpent, cashPerProstitutePerTurn);
   const playerShare = playerCashFromGross(gross, payoutPercent);
   return {
     gross,

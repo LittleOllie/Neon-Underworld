@@ -11,6 +11,7 @@ export default async function ScoutPage() {
       <RoutePrefetch href="/attack" />
       <PageTitle icon="scout">Scout</PageTitle>
       <ScoutForm
+        districtSlug={ctx.district.slug}
         initialTurns={ctx.turns}
         prostituteHappiness={ctx.prostituteHappiness.score}
         thugHappiness={ctx.thugHappiness.score}

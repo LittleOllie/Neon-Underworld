@@ -539,17 +539,20 @@
   display: block;
   width: 100%;
   text-align: left;
-  padding: 12px 0;
+  padding: 12px 10px;
   background: none;
-  border: none;
+  border: 2px solid transparent;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   color: inherit;
   cursor: pointer;
   min-height: 52px;
+  box-sizing: border-box;
 }
 
 .g-area-row-selected {
-  background: rgba(201, 169, 98, 0.06);
+  background: rgba(201, 169, 98, 0.1);
+  border: 2px solid var(--os-gold-dark);
+  border-radius: 2px;
 }
 
 .g-area-name {

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { scoutAction, type OldSkoolScoutResult } from '@local/server/actions/scout.actions';
@@ -17,6 +16,7 @@ import { workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 
 interface ScoutFormProps {
+  districtSlug: string;
   initialTurns: number;
   prostituteHappiness: number;
   thugHappiness: number;
@@ -24,9 +24,8 @@ interface ScoutFormProps {
   thugCount: number;
 }
 
-const AREA_DISPLAYS = getScoutAreaDisplays();
-
 export function ScoutForm({
+  districtSlug,
   initialTurns,
   prostituteHappiness,
   thugHappiness,
@@ -34,10 +33,12 @@ export function ScoutForm({
   thugCount,
 }: ScoutFormProps) {
   const router = useRouter();
+  const areaDisplays = getScoutAreaDisplays(districtSlug);
   const [turns, setTurns] = useState(initialTurns);
   const [amountRaw, setAmountRaw] = useState('25');
   const [amount, setAmount] = useState(25);
   const [areaSlug, setAreaSlug] = useState<RedliteScoutAreaSlug>('streets');
+  const selectedArea = areaDisplays.find((area) => area.slug === areaSlug);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OldSkoolScoutResult | null>(null);
@@ -112,7 +113,7 @@ export function ScoutForm({
   return (
     <>
       <div role="listbox" aria-label="Scout areas">
-        {AREA_DISPLAYS.map((area) => (
+        {areaDisplays.map((area) => (
           <button
             key={area.slug}
             type="button"
@@ -157,7 +158,7 @@ export function ScoutForm({
       })()}
 
       <PrimaryButton className="g-btn-full" icon="scout" onClick={handleScout} disabled={loading} pending={loading}>
-        {loading ? ACTION_PENDING.scout : 'Scout'}
+        {loading ? ACTION_PENDING.scout : `Scouting ${selectedArea?.name ?? 'Area'}`}
       </PrimaryButton>
     </>
   );

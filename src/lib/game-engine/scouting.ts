@@ -2,6 +2,7 @@ import { SCOUTING_CONFIG, TURNS_CONFIG } from '@/config/game/balance';
 import type { DistrictModifiers } from '@/config/game/balance';
 import type { RedliteScoutAreaSlug } from '@/config/game/redlite-rules';
 import { getScoutArea } from '@/config/game/redlite-rules';
+import { getDistrictScoutAreaName } from '@/config/game/scout-area-names';
 import {
   calculateDepartureRisk,
   happinessRecruitmentModifier,
@@ -20,6 +21,7 @@ export interface ScoutAreaModifiers {
 export interface ScoutInput {
   turnsSpent: number;
   districtModifiers: DistrictModifiers;
+  districtSlug?: string;
   areaSlug?: RedliteScoutAreaSlug | string;
   prostituteHappiness: number;
   thugHappiness: number;
@@ -47,6 +49,9 @@ export function resolveScouting(input: ScoutInput): ScoutOutcome {
   const { varianceMin, varianceMax } = SCOUTING_CONFIG;
 
   const area = getScoutArea(input.areaSlug ?? 'streets');
+  const areaDisplayName = input.districtSlug
+    ? getDistrictScoutAreaName(input.districtSlug, area.slug)
+    : area.name;
 
   const happinessMod = happinessRecruitmentModifier(
     input.prostituteHappiness,
@@ -105,7 +110,7 @@ export function resolveScouting(input: ScoutInput): ScoutOutcome {
     prostitutesLost,
     thugsLost,
     districtTag: input.districtModifiers.descriptionTag,
-    areaName: area.name,
+    areaName: areaDisplayName,
     prostitutesLabel: 'prostitutes',
   });
 

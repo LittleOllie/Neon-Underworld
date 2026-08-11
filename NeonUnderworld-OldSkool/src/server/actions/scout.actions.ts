@@ -4,6 +4,7 @@ import { scoutAction as coreScoutAction, type ScoutResultData } from '@core/serv
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 import { prisma } from '@core/lib/db/prisma';
+import { toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES, buildScoutActivityMessage } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
@@ -21,42 +22,47 @@ export async function scoutAction(
   idempotencyKey: string,
   areaSlug?: string,
 ): Promise<ActionResult<OldSkoolScoutResult>> {
-  const result = await coreScoutAction(turns, idempotencyKey, areaSlug);
+  try {
+    const result = await coreScoutAction(turns, idempotencyKey, areaSlug);
 
-  if (!result.success) {
-    return result;
+    if (!result.success) {
+      return result;
+    }
+
+    const session = await auth();
+    const playerId = session?.user?.playerId;
+    if (!playerId) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    await EmpireService.syncInventory(playerId);
+
+    const updated = await prisma.player.findUniqueOrThrow({
+      where: { id: playerId },
+      include: { district: true },
+    });
+
+    const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
+
+    await ActivityService.record(
+      playerId,
+      ACTIVITY_TYPES.SCOUT,
+      buildScoutActivityMessage(result.data),
+      { scout: result.data },
+    );
+
+    revalidatePlayerGameplayCache(playerId, updated.seasonId);
+
+    return {
+      success: true,
+      data: {
+        ...result.data,
+        canonicalNetWorth,
+        newNetWorth: canonicalNetWorth,
+      },
+    };
+  } catch (error) {
+    console.error('Scout wrapper error:', error);
+    return { success: false, error: toUserMessage(error) };
   }
-
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
-  await EmpireService.syncInventory(playerId);
-
-  const updated = await prisma.player.findUniqueOrThrow({
-    where: { id: playerId },
-    include: { district: true },
-  });
-
-  const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
-
-  await ActivityService.record(
-    playerId,
-    ACTIVITY_TYPES.SCOUT,
-    buildScoutActivityMessage(result.data),
-    { scout: result.data },
-  );
-
-  revalidatePlayerGameplayCache(playerId, updated.seasonId);
-
-  return {
-    success: true,
-    data: {
-      ...result.data,
-      canonicalNetWorth,
-      newNetWorth: canonicalNetWorth,
-    },
-  };
 }

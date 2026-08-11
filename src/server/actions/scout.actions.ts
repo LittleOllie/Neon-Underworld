@@ -1,5 +1,6 @@
 'use server';
 
+import { unstable_rethrow } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { requirePlayer } from '@/lib/auth/session';
 import { scoutSchema } from '@/lib/validation/schemas';
@@ -131,6 +132,7 @@ export async function scoutAction(
       const scoutOutcome = resolveScouting({
         turnsSpent: parsed.data.turns,
         districtModifiers,
+        districtSlug: player.district.slug,
         areaSlug: parsed.data.areaSlug,
         prostituteHappiness,
         thugHappiness,
@@ -282,6 +284,7 @@ export async function scoutAction(
 
     return { success: true, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof DuplicateActionError) {
       return { success: false, error: error.message };
     }

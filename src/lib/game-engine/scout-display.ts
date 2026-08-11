@@ -1,4 +1,5 @@
 import { REDLITE_SCOUT_AREAS, type RedliteScoutAreaSlug } from '@/config/game/redlite-rules';
+import { getDistrictScoutAreaName } from '@/config/game/scout-area-names';
 
 export type RecruitmentTier = 'High' | 'Medium' | 'Low';
 
@@ -23,13 +24,16 @@ export interface ScoutAreaDisplay {
   risk: 'Low' | 'Medium' | 'High';
 }
 
-export function getScoutAreaDisplays(): ScoutAreaDisplay[] {
+export function getScoutAreaDisplays(districtSlug?: string): ScoutAreaDisplay[] {
   return REDLITE_SCOUT_AREAS.map((area) => {
     const workers = recruitmentTier(area.prostituteRecruitment);
     const thugs = recruitmentTier(area.thugRecruitment);
+    const name = districtSlug
+      ? getDistrictScoutAreaName(districtSlug, area.slug)
+      : area.name;
     return {
       slug: area.slug,
-      name: area.name.toUpperCase(),
+      name,
       tagline: area.description,
       workers,
       thugs,

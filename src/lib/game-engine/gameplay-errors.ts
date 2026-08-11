@@ -1,4 +1,5 @@
 import { DomainError } from './errors';
+import { Prisma } from '@prisma/client';
 
 /** Player-safe gameplay failure codes — never expose internal details to the client. */
 export type GameplayErrorCode =
@@ -199,6 +200,14 @@ export function throwIfValidationMessage(message: string | null): void {
 export function toUserMessage(error: unknown): string {
   if (error instanceof GameplayError) return error.message;
   if (error instanceof DomainError) return error.message;
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2022') {
+      return 'The game database is out of date. Run migrations on production, then try again.';
+    }
+    if (error.code === 'P2034') {
+      return 'That action conflicted with another update. Please try again.';
+    }
+  }
   if (error instanceof Error && error.message.trim()) {
     const mapped = tryGameplayErrorFromMessage(error.message);
     if (mapped) return mapped.message;

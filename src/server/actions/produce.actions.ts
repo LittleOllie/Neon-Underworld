@@ -16,6 +16,7 @@ import {
 import { deriveScoutSeed } from '@/lib/game-engine/rng';
 import { calculateNetWorth, netWorthDelta } from '@/lib/game-engine/net-worth';
 import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
+import { PRODUCTION_CONFIG } from '@/config/game/balance';
 import { workerCashBreakdown } from '@/lib/game-engine/worker-economics';
 import {
   InvalidScoutAmountError,
@@ -191,6 +192,7 @@ export async function produceAction(
         player.prostitutes,
         parsed.data.turns,
         player.prostitutePayoutPercent,
+        PRODUCTION_CONFIG.cashPerProstitutePerTurn,
       );
 
       const resultData: ProduceResultData = {
