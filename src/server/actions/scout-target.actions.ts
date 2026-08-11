@@ -80,7 +80,10 @@ export async function scoutTargetAction(
       if (!target) throw new GameplayError('INVALID_TARGET');
       if (target.id === playerId) throw new GameplayError('INVALID_TARGET', 'You cannot scout yourself.');
       if (scout.districtId !== target.districtId) {
-        throw new GameplayError('TARGET_WRONG_DISTRICT');
+        throw new GameplayError(
+          'TARGET_WRONG_DISTRICT',
+          'You need to be in the same city to gather intel on this player.',
+        );
       }
 
       const settled = settleTurnRegeneration(

@@ -60,6 +60,7 @@ export default async function PlayerProfilePage({ params }: Props) {
           sameCity={profile.districtId === ctx.district.id}
           viewerCity={ctx.district.name}
           targetCity={profile.city}
+          targetCitySlug={profile.citySlug}
         />
       )}
 

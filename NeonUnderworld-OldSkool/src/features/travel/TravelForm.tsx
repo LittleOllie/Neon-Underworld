@@ -17,9 +17,9 @@ import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { Divider } from '@local/components/game/Divider';
 
-type Props = TravelPageData;
+type Props = TravelPageData & { initialDestination?: string };
 
-export function TravelForm(props: Props) {
+export function TravelForm({ initialDestination, ...props }: Props) {
   const router = useRouter();
   const [data, setData] = useState(props);
   const [loading, setLoading] = useState<string | null>(null);
@@ -107,10 +107,18 @@ export function TravelForm(props: Props) {
       {data.destinations.map((dest) => {
         const blocked = ridesShort > 0 || turnsShort;
         const isPending = loading === dest.slug;
+        const isHighlighted =
+          initialDestination != null && dest.slug === initialDestination.trim().toLowerCase();
         return (
-          <div key={dest.slug} className="g-area-row">
+          <div
+            key={dest.slug}
+            className={`g-area-row${isHighlighted ? ' g-area-row-selected g-area-row-highlight' : ''}`}
+          >
             <div className="g-area-name">{dest.name}</div>
-            <div className="g-area-meta">{dest.description}</div>
+            <div className="g-area-meta">
+              {dest.description}
+              {isHighlighted ? ' · Selected destination' : ''}
+            </div>
             <PrimaryButton
               icon="travel"
               disabled={blocked || loading !== null}

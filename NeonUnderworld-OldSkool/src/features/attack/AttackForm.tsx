@@ -17,18 +17,24 @@ import {
 } from '@core/lib/game-engine/combat/weapon-allocation';
 import { forceEstimate } from '@core/lib/game-engine/combat/force-score';
 import {
+  thugBand,
+  weaponStrengthBand,
+  exposureBand,
+  cartelProtectionBand,
+  computeConfidencePercent,
+} from '@core/lib/game-engine/combat/intel-bands';
+import {
   launchAttackAction,
-  launchDirectAttackAction,
   type AttackLaunchResult,
 } from '@local/server/actions/attack.actions';
-import { parseDirectAttackReportId } from '@local/features/attack/direct-attack';
+import { scoutTargetAction } from '@local/server/actions/scout-target.actions';
 import { NumericInput } from '@local/components/game/NumericInput';
-import { ActionButton } from '@local/components/game/ActionButton';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { ActionResult } from '@local/components/game/ActionResult';
 import { StatRow } from '@local/components/game/StatRow';
-import { parsePositiveInteger } from '@local/lib/numeric-input';
-import type { AttackTargetRow } from './AttackForm.types';
+import { Divider } from '@local/components/game/Divider';
+import { formatRank } from '@local/lib/format-rank';
+import type { AttackTargetCandidate } from './AttackForm.types';
 
 interface AttackFormProps {
   thugs: number;
@@ -37,9 +43,12 @@ interface AttackFormProps {
   uzis: number;
   aks: number;
   turns: number;
-  targets: AttackTargetRow[];
+  targets: AttackTargetCandidate[];
+  initialTargetAlias?: string;
   initialReportId?: string;
   attackRangeMinNetWorth?: number;
+  intelTurnCost: number;
+  viewerCity: string;
 }
 
 const ATTACK_TYPES: AttackType[] = ['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS'];
@@ -51,19 +60,81 @@ function riskFromForce(estimate: string): string {
   return 'Severe';
 }
 
+function bandsFromIntel(intel: {
+  estimatedThugs: number;
+  estimatedWeaponStrength: number;
+  estimatedCash: number;
+  estimatedDrugs: number;
+  cartelId: string | null;
+  scoutedAt: string;
+  expiresAt: string;
+}) {
+  return {
+    thugs: thugBand(intel.estimatedThugs),
+    weapons: weaponStrengthBand(intel.estimatedWeaponStrength, intel.estimatedThugs),
+    cash: exposureBand(intel.estimatedCash),
+    drugs: exposureBand(intel.estimatedDrugs * 5),
+    cartel: cartelProtectionBand(intel.cartelId, ATTACK_RULES.cartelDefenceActive),
+    confidence: computeConfidencePercent(new Date(intel.scoutedAt), new Date(intel.expiresAt)),
+  };
+}
+
+function resolveInitialTarget(
+  targets: AttackTargetCandidate[],
+  initialTargetAlias?: string,
+  initialReportId?: string,
+): AttackTargetCandidate | null {
+  if (initialReportId) {
+    const byReport = targets.find((t) => t.reportId === initialReportId);
+    if (byReport) return byReport;
+  }
+  if (initialTargetAlias) {
+    const byAlias = targets.find((t) => t.aliasNormalized === initialTargetAlias);
+    if (byAlias) return byAlias;
+  }
+  return null;
+}
+
+function TargetCard({
+  target,
+  onSelect,
+}: {
+  target: AttackTargetCandidate;
+  onSelect: () => void;
+}) {
+  return (
+    <div className="g-attack-target-card">
+      <div className="g-attack-target-header">
+        <span className="g-attack-target-alias">{target.alias}</span>
+        {target.hasIntel && <span className="g-attack-target-tag">Intel available</span>}
+        {!target.eligible && (
+          <span className="g-attack-target-tag g-attack-target-tag-muted">
+            {target.eligibilityNote}
+          </span>
+        )}
+      </div>
+      <StatRow label="Net Worth" value={`$${target.netWorth.toLocaleString()}`} />
+      <StatRow label="Rank" value={formatRank(target.rank)} />
+      <StatRow label="Status" value={target.statusLabel} />
+      <PrimaryButton className="g-btn-full g-btn-secondary" variant="secondary" onClick={onSelect}>
+        {target.hasIntel ? 'View Intel / Attack' : 'Select Target'}
+      </PrimaryButton>
+    </div>
+  );
+}
+
 export function AttackForm(props: AttackFormProps) {
   const router = useRouter();
+  const [targets, setTargets] = useState(props.targets);
+  const [turns, setTurns] = useState(props.turns);
+  const [selected, setSelected] = useState<AttackTargetCandidate | null>(() =>
+    resolveInitialTarget(props.targets, props.initialTargetAlias, props.initialReportId),
+  );
+  const [intelLoading, setIntelLoading] = useState(false);
+  const [showIntel, setShowIntel] = useState(false);
+
   const forceMax = Math.min(props.thugs, ATTACK_RULES.maxAttackingThugs);
   const defaultForce = Math.min(50, forceMax);
-
-  const defaultReportId = (() => {
-    if (props.initialReportId && props.targets.some((t) => t.reportId === props.initialReportId)) {
-      return props.initialReportId;
-    }
-    return props.targets.find((t) => t.eligible)?.reportId ?? props.targets[0]?.reportId ?? '';
-  })();
-
-  const [selectedReportId, setSelectedReportId] = useState(defaultReportId);
   const [attackType, setAttackType] = useState<AttackType>('HOME_INVASION');
   const [forceRaw, setForceRaw] = useState(String(defaultForce));
   const [force, setForce] = useState(defaultForce);
@@ -71,8 +142,6 @@ export function AttackForm(props: AttackFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<AttackLaunchResult | null>(null);
-
-  const selectedTarget = props.targets.find((t) => t.reportId === selectedReportId) ?? null;
 
   const ridesNeeded = useMemo(
     () => ridesRequiredForThugs(force, ATTACK_RULES.thugsPerRide),
@@ -90,52 +159,68 @@ export function AttackForm(props: AttackFormProps) {
   );
 
   const turnCost = ATTACK_RULES.turnCosts[attackType];
-  const weaponPct =
-    force <= 0 ? 0 : Math.round((weaponAlloc.armedThugs / force) * 100);
+  const weaponPct = force <= 0 ? 0 : Math.round((weaponAlloc.armedThugs / force) * 100);
 
   const forceEstimateLabel = useMemo(() => {
-    if (!selectedTarget || selectedTarget.isDirect) return 'Unknown';
+    if (!selected?.bands) return 'Unknown';
     const defenderStrength =
-      selectedTarget.bands.weapons === 'Heavily Armed'
+      selected.bands.weapons === 'Heavily Armed'
         ? 500
-        : selectedTarget.bands.weapons === 'Armed'
+        : selected.bands.weapons === 'Armed'
           ? 150
           : 40;
     const thugMult =
-      selectedTarget.bands.thugs === 'Massive'
+      selected.bands.thugs === 'Massive'
         ? 400
-        : selectedTarget.bands.thugs === 'High'
+        : selected.bands.thugs === 'High'
           ? 150
-          : selectedTarget.bands.thugs === 'Moderate'
+          : selected.bands.thugs === 'Moderate'
             ? 60
             : 20;
     return forceEstimate(weaponAlloc.totalStrength, defenderStrength + thugMult);
-  }, [selectedTarget, weaponAlloc.totalStrength]);
+  }, [selected, weaponAlloc.totalStrength]);
 
   const canAttack =
-    selectedTarget?.eligible &&
+    selected?.eligible &&
+    selected.reportId &&
     force > 0 &&
     force <= props.thugs &&
     force <= ATTACK_RULES.maxAttackingThugs &&
     ridesNeeded <= props.rides &&
-    turnCost <= props.turns;
+    turnCost <= turns;
 
-  function handleForceChange(raw: string, parsed: number | null) {
-    setForceRaw(raw);
-    setForce(parsed ?? 0);
-    setConfirming(false);
+  async function handleGatherIntel() {
+    if (!selected) return;
+    setIntelLoading(true);
     setError('');
+    const response = await scoutTargetAction(selected.alias, uuidv4());
+    setIntelLoading(false);
+    if (!response.success) {
+      setError(response.error);
+      return;
+    }
+    setTurns(response.data.newTurns);
+    const bands = bandsFromIntel(response.data.intel);
+    const updated: AttackTargetCandidate = {
+      ...selected,
+      hasIntel: true,
+      reportId: response.data.reportId,
+      bands,
+    };
+    setSelected(updated);
+    setTargets((prev) =>
+      prev.map((t) => (t.playerId === updated.playerId ? updated : t)),
+    );
+    setShowIntel(true);
+    router.refresh();
   }
 
   async function handleLaunch() {
-    if (!selectedReportId || !canAttack) return;
+    if (!selected?.reportId || !canAttack) return;
     setLoading(true);
     setError('');
     try {
-      const directTarget = parseDirectAttackReportId(selectedReportId);
-      const response = directTarget
-        ? await launchDirectAttackAction(directTarget, attackType, force, uuidv4())
-        : await launchAttackAction(selectedReportId, attackType, force, uuidv4());
+      const response = await launchAttackAction(selected.reportId, attackType, force, uuidv4());
       if (!response.success) {
         setError(response.error);
         setConfirming(false);
@@ -162,18 +247,6 @@ export function AttackForm(props: AttackFormProps) {
     if (result.attackerLosses > 0) {
       lines.push({ text: `-${result.attackerLosses} thugs lost`, tone: 'negative' });
     }
-    const weaponLossTotal =
-      result.attackerWeaponLosses.glocks +
-      result.attackerWeaponLosses.uzis +
-      result.attackerWeaponLosses.aks;
-    if (weaponLossTotal > 0) {
-      const parts: string[] = [];
-      if (result.attackerWeaponLosses.glocks) parts.push(`${result.attackerWeaponLosses.glocks} Glocks`);
-      if (result.attackerWeaponLosses.uzis) parts.push(`${result.attackerWeaponLosses.uzis} Uzis`);
-      if (result.attackerWeaponLosses.aks) parts.push(`${result.attackerWeaponLosses.aks} AKs`);
-      lines.push({ text: `Equipment lost: ${parts.join(', ')}`, tone: 'negative' });
-    }
-    lines.push({ text: `${result.defenderLosses} enemy losses` });
     lines.push({ text: `${result.turnsSpent} turns used` });
 
     return (
@@ -181,143 +254,208 @@ export function AttackForm(props: AttackFormProps) {
         title={`Attack ${result.outcome}`}
         lines={lines}
         actions={[
-          {
-            href: `/players/${encodeURIComponent(result.targetAliasNormalized)}`,
-            label: 'Back to Target',
-            primary: true,
-            icon: 'player',
-          },
+          { href: '/attack', label: 'Back to Targets', primary: true, icon: 'attack' },
         ]}
       />
     );
   }
 
-  if (props.targets.length === 0) {
+  if (!selected) {
     return (
       <>
         <p className="g-note">
-          Find a target through Rankings. Gather intel first for force estimates, or attack directly
-          from a player profile.
+          Players in <strong>{props.viewerCity}</strong> you can attack right now. Gather intel
+          before launching an attack.
         </p>
-        <ActionButton href="/rankings" icon="rankings" className="g-btn-full">
-          View Rankings
-        </ActionButton>
+        {props.attackRangeMinNetWorth != null && props.attackRangeMinNetWorth > 0 && (
+          <p className="g-note">
+            Attack range: targets worth at least $
+            {props.attackRangeMinNetWorth.toLocaleString()}+
+          </p>
+        )}
+        {targets.length === 0 ? (
+          <>
+            <p className="g-note">
+              No attackable players in your city right now. Check{' '}
+              <Link href="/rankings">Rankings</Link> to find rivals elsewhere, then{' '}
+              <Link href="/travel">Travel</Link> to their city.
+            </p>
+          </>
+        ) : (
+          targets.map((target) => (
+            <TargetCard
+              key={target.playerId}
+              target={target}
+              onSelect={() => {
+                setSelected(target);
+                setShowIntel(!!target.hasIntel);
+                setError('');
+              }}
+            />
+          ))
+        )}
       </>
     );
   }
 
   return (
     <>
-      {props.attackRangeMinNetWorth != null && props.attackRangeMinNetWorth > 0 && (
-        <p className="g-note">
-          Attack range: targets worth at least ${props.attackRangeMinNetWorth.toLocaleString()}+
-        </p>
-      )}
-
-      <label htmlFor="attackTarget" className="g-section-label">
-        Target
-      </label>
-      <select
-        id="attackTarget"
-        className="g-select"
-        value={selectedReportId}
-        onChange={(e) => {
-          setSelectedReportId(e.target.value);
+      <PrimaryButton
+        className="g-btn-full g-btn-secondary"
+        variant="secondary"
+        onClick={() => {
+          setSelected(null);
+          setShowIntel(false);
           setConfirming(false);
+          setError('');
         }}
       >
-        {props.targets.map((t) => (
-          <option key={t.reportId} value={t.reportId} disabled={!t.eligible}>
-            {t.alias}
-            {t.isDirect ? ' — direct' : ''} — {t.eligible ? t.city : t.eligibilityNote}
-          </option>
-        ))}
-      </select>
+        ← All Targets
+      </PrimaryButton>
 
-      {selectedTarget && !selectedTarget.eligible && (
-        <p className="g-error">{selectedTarget.eligibilityNote}</p>
+      <p className="g-section-label">{selected.alias}</p>
+      <StatRow label="Net Worth" value={`$${selected.netWorth.toLocaleString()}`} />
+      <StatRow label="Rank" value={formatRank(selected.rank)} />
+      <StatRow label="Status" value={selected.statusLabel} />
+
+      {!selected.eligible && (
+        <p className="g-error">{selected.eligibilityNote}</p>
       )}
 
-      <label htmlFor="attackType" className="g-section-label">
-        Attack type
-      </label>
-      <select
-        id="attackType"
-        className="g-select"
-        value={attackType}
-        onChange={(e) => {
-          setAttackType(e.target.value as AttackType);
-          setConfirming(false);
-        }}
-      >
-        {ATTACK_TYPES.map((type) => (
-          <option key={type} value={type}>
-            {ATTACK_TYPE_LABELS[type]} ({ATTACK_RULES.turnCosts[type]} turns)
-          </option>
-        ))}
-      </select>
+      <Divider />
 
-      <NumericInput
-        id="attack-force"
-        label="Thugs to send"
-        value={forceRaw}
-        onChange={handleForceChange}
-        suffix="thugs"
-      />
-
-      {force > 0 && force > forceMax && (
-        <p className="g-error">Maximum force is {forceMax.toLocaleString()} thugs.</p>
-      )}
-
-      <StatRow label="Weapon coverage" value={`${weaponPct}% · ${weaponCoverageBand(weaponAlloc.armedThugs, force)}`} />
-      <StatRow label="Rides required" value={String(ridesNeeded)} />
-      <StatRow label="Turn cost" value={String(turnCost)} />
-      <StatRow label="Risk" value={riskFromForce(forceEstimateLabel)} />
-
-      {ridesNeeded > props.rides && (
-        <p className="g-error">Need {ridesNeeded - props.rides} more rides for this force.</p>
-      )}
-
-      {error && <p className="g-error">{error}</p>}
-
-      {!confirming ? (
-        <PrimaryButton
-          className="g-btn-full g-btn-danger"
-          icon="attack"
-          iconTone="danger"
-          disabled={!canAttack}
-          onClick={() => setConfirming(true)}
-        >
-          Attack
-        </PrimaryButton>
+      {selected.hasIntel && selected.bands ? (
+        <>
+          {showIntel ? (
+            <>
+              <p className="g-section-label">INTEL REPORT</p>
+              <StatRow label="Intel quality" value={`${selected.bands.confidence}%`} />
+              <StatRow label="Thugs" value={selected.bands.thugs} />
+              <StatRow label="Weapon coverage" value={selected.bands.weapons} />
+              <StatRow label="Cash" value={selected.bands.cash} />
+              <StatRow label="Drug stock" value={selected.bands.drugs} />
+              {selected.reportId && (
+                <p className="g-note">
+                  <Link href={`/reports/${selected.reportId}`}>View in Reports</Link>
+                </p>
+              )}
+            </>
+          ) : (
+            <PrimaryButton
+              className="g-btn-full g-btn-secondary"
+              variant="secondary"
+              icon="intel"
+              onClick={() => setShowIntel(true)}
+            >
+              View Intel
+            </PrimaryButton>
+          )}
+        </>
       ) : (
-        <div className="g-confirm">
+        <>
           <p className="g-note">
-            Launch {ATTACK_TYPE_LABELS[attackType]} on {selectedTarget?.alias} with {force} thugs?
+            Gather intel for {props.intelTurnCost} turns to estimate their force before attacking.
           </p>
           <PrimaryButton
-            className="g-btn-full g-btn-danger"
-            icon="attack"
-            iconTone="danger"
-            disabled={loading || !canAttack}
-            pending={loading}
-            onClick={handleLaunch}
+            className="g-btn-full"
+            icon="intel"
+            disabled={intelLoading || turns < props.intelTurnCost}
+            onClick={handleGatherIntel}
           >
-            {loading ? ACTION_PENDING.attack : 'Confirm Attack'}
+            {intelLoading ? 'Gathering…' : `Gather Intel — ${props.intelTurnCost} Turns`}
           </PrimaryButton>
-          <PrimaryButton
-            className="g-btn-full g-btn-secondary"
-            variant="secondary"
-            icon="failure"
-            iconTone="muted"
-            onClick={() => setConfirming(false)}
-          >
-            Cancel
-          </PrimaryButton>
-        </div>
+        </>
       )}
+
+      {selected.hasIntel && selected.reportId && (
+        <>
+          <Divider />
+          <label htmlFor="attackType" className="g-section-label">
+            Attack type
+          </label>
+          <select
+            id="attackType"
+            className="g-select"
+            value={attackType}
+            onChange={(e) => {
+              setAttackType(e.target.value as AttackType);
+              setConfirming(false);
+            }}
+          >
+            {ATTACK_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {ATTACK_TYPE_LABELS[type]} ({ATTACK_RULES.turnCosts[type]} turns)
+              </option>
+            ))}
+          </select>
+
+          <NumericInput
+            id="attack-force"
+            label="Thugs to send"
+            value={forceRaw}
+            onChange={(raw, parsed) => {
+              setForceRaw(raw);
+              setForce(parsed ?? 0);
+              setConfirming(false);
+              setError('');
+            }}
+            suffix="thugs"
+          />
+
+          <StatRow
+            label="Weapon coverage"
+            value={`${weaponPct}% · ${weaponCoverageBand(weaponAlloc.armedThugs, force)}`}
+          />
+          <StatRow label="Rides required" value={String(ridesNeeded)} />
+          <StatRow label="Turn cost" value={String(turnCost)} />
+          <StatRow label="Risk" value={riskFromForce(forceEstimateLabel)} />
+
+          {ridesNeeded > props.rides && (
+            <p className="g-error">Need {ridesNeeded - props.rides} more rides for this force.</p>
+          )}
+
+          {error && <p className="g-error">{error}</p>}
+
+          {!confirming ? (
+            <PrimaryButton
+              className="g-btn-full g-btn-danger"
+              icon="attack"
+              iconTone="danger"
+              disabled={!canAttack}
+              onClick={() => setConfirming(true)}
+            >
+              Attack
+            </PrimaryButton>
+          ) : (
+            <div className="g-confirm">
+              <p className="g-note">
+                Launch {ATTACK_TYPE_LABELS[attackType]} on {selected.alias} with {force} thugs?
+              </p>
+              <PrimaryButton
+                className="g-btn-full g-btn-danger"
+                icon="attack"
+                iconTone="danger"
+                disabled={loading || !canAttack}
+                pending={loading}
+                onClick={handleLaunch}
+              >
+                {loading ? ACTION_PENDING.attack : 'Confirm Attack'}
+              </PrimaryButton>
+              <PrimaryButton
+                className="g-btn-full g-btn-secondary"
+                variant="secondary"
+                onClick={() => setConfirming(false)}
+              >
+                Cancel
+              </PrimaryButton>
+            </div>
+          )}
+        </>
+      )}
+
+      {error && !selected.hasIntel && <p className="g-error">{error}</p>}
     </>
   );
 }
 
-export type { AttackTargetRow };
+export type { AttackTargetCandidate };

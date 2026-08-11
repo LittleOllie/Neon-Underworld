@@ -50,7 +50,7 @@ export function GameShell({
             <GlobalStatus stats={stats} />
           </div>
         )}
-        <GameNav />
+        <GameNav stats={stats} />
       </div>
       <main className="g-main">
         <Suspense fallback={children}>

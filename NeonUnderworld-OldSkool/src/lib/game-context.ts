@@ -35,7 +35,10 @@ async function buildNotifications(ctx: CanonicalPlayerContext): Promise<Attentio
   return buildAttentionItems(ctx);
 }
 
-export function globalStatsFromContext(ctx: CanonicalPlayerContext): GlobalStats {
+export async function globalStatsFromContext(
+  ctx: CanonicalPlayerContext,
+): Promise<GlobalStats> {
+  const unreadReports = await ReportService.getUnreadCount(ctx.id);
   return {
     cash: ctx.cash,
     bankCash: ctx.bankCash,
@@ -45,11 +48,15 @@ export function globalStatsFromContext(ctx: CanonicalPlayerContext): GlobalStats
     rank: ctx.rank,
     alias: ctx.alias,
     district: ctx.district.name,
+    attention: {
+      unreadReports,
+      total: unreadReports,
+    },
   };
 }
 
 /** @deprecated Use globalStatsFromContext */
-export function headerStatsFromContext(ctx: CanonicalPlayerContext): GlobalStats {
+export async function headerStatsFromContext(ctx: CanonicalPlayerContext): Promise<GlobalStats> {
   return globalStatsFromContext(ctx);
 }
 

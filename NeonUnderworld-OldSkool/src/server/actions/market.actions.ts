@@ -9,6 +9,7 @@ import { prisma } from '@core/lib/db/prisma';
 import { GameplayError, toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
+import { revalidatePath } from 'next/cache';
 import {
   revalidatePlayerGameplayCache,
   revalidatePlayersGameplayCache,
@@ -109,6 +110,7 @@ export async function createMarketListingAction(
       select: { seasonId: true },
     });
     revalidatePlayerGameplayCache(playerId, player.seasonId);
+    revalidatePath('/market');
 
     return { success: true, data: result };
   } catch (error) {

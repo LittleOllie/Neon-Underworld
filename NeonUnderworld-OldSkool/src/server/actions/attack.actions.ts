@@ -7,7 +7,7 @@ import {
 } from '@core/server/actions/attack.actions';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import type { AttackType } from '@core/config/game/attack-rules';
-import { ATTACK_TYPE_LABELS } from '@core/config/game/attack-rules';
+import { ATTACK_TYPE_LABELS, ATTACK_RULES } from '@core/config/game/attack-rules';
 import { auth } from '@local/lib/auth/config';
 import { prisma } from '@core/lib/db/prisma';
 import {
@@ -23,13 +23,14 @@ import { toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { evaluateAttackTargetPreview } from '@core/lib/game-engine/combat/eligibility';
 import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
+import { RankingsService } from '@local/server/services/rankings.service';
 import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
 import { revalidatePath } from 'next/cache';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
 import type { CombatPlayerRecord } from '@core/server/services/combat.service';
-import { directAttackReportId } from '@local/features/attack/direct-attack';
+import type { AttackTargetCandidate } from '@local/features/attack/AttackForm.types';
 
-export type { AttackLaunchResult };
+export type { AttackLaunchResult, AttackTargetCandidate };
 
 const calculateNetWorth = (player: CombatPlayerRecord) =>
   NetWorthService.calculateFromPlayer(player);
@@ -262,56 +263,64 @@ function totalDrugs(d: { hash: number; shrooms: number; coke: number; heroin: nu
   return d.hash + d.shrooms + d.coke + d.heroin;
 }
 
+function eligibilityDisplayNote(
+  code: ReturnType<typeof evaluateAttackTargetPreview>['code'],
+  fallback: string | null,
+): string {
+  if (code === 'OFFLINE_PROTECTION_ACTIVE') return 'Protected';
+  if (code === 'ATTACK_CAP_REACHED') return 'Attack limit reached';
+  if (code === 'TARGET_UNAVAILABLE') return 'Unavailable';
+  return fallback ?? 'Eligible';
+}
+
 export async function getAttackPageData(
   ctx: CanonicalPlayerContext,
-  options?: { targetAlias?: string },
+  options?: { targetAlias?: string; reportId?: string },
 ) {
-  const intelReports = await ReportService.listValidPlayerIntelReports(ctx.id);
   const attackerNw = ctx.netWorth;
-  const activeIntel = intelReports.filter((r) => !r.expired);
-  const targetIds = activeIntel.map((r) => r.intel.targetPlayerId);
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [attackCounts, targetPlayers, defenderStatusRows] = await Promise.all([
-    targetIds.length > 0
+  const [seasonRankings, candidates, intelReports] = await Promise.all([
+    RankingsService.getSeasonRankings(ctx.seasonId, 'overall'),
+    prisma.player.findMany({
+      where: {
+        seasonId: ctx.seasonId,
+        districtId: ctx.district.id,
+        isSystemPlayer: false,
+        id: { not: ctx.id },
+      },
+      include: {
+        district: true,
+        user: { select: { lastLoginAt: true } },
+        statusExt: true,
+      },
+    }),
+    ReportService.listValidPlayerIntelReports(ctx.id),
+  ]);
+
+  const rankById = new Map(seasonRankings.map((row) => [row.id, row.rank]));
+  const activeIntelByTarget = new Map(
+    intelReports
+      .filter((report) => !report.expired)
+      .map((report) => [report.intel.targetPlayerId, report]),
+  );
+
+  const candidateIds = candidates.map((player) => player.id);
+  const [attackCounts, defenderStatusRows] = await Promise.all([
+    candidateIds.length > 0
       ? prisma.combatEncounter.groupBy({
           by: ['defenderId'],
           where: {
             attackerId: ctx.id,
-            defenderId: { in: targetIds },
+            defenderId: { in: candidateIds },
             createdAt: { gte: since24h },
           },
           _count: { _all: true },
         })
       : Promise.resolve([]),
-    targetIds.length > 0
-      ? prisma.player.findMany({
-          where: { id: { in: targetIds } },
-          select: {
-            id: true,
-            districtId: true,
-            lifeStatus: true,
-            travelling: true,
-            district: true,
-            cash: true,
-            bankCash: true,
-            prostitutes: true,
-            thugs: true,
-            rides: true,
-            glocks: true,
-            uzis: true,
-            aks: true,
-            hash: true,
-            shrooms: true,
-            coke: true,
-            heroin: true,
-            businesses: true,
-          },
-        })
-      : Promise.resolve([]),
-    targetIds.length > 0
+    candidateIds.length > 0
       ? prisma.playerStatusExt.findMany({
-          where: { playerId: { in: targetIds } },
+          where: { playerId: { in: candidateIds } },
           select: {
             playerId: true,
             offlineDamagingHits: true,
@@ -322,137 +331,73 @@ export async function getAttackPageData(
       : Promise.resolve([]),
   ]);
 
+  const attacksByDefender = new Map(
+    attackCounts.map((row) => [row.defenderId, row._count._all]),
+  );
   const offlineStateByDefender = new Map(
-    defenderStatusRows.map((row) => [
-      row.playerId,
-      {
-        offlineDamagingHits: row.offlineDamagingHits,
-        offlineProtectionActive: row.offlineProtectionActive,
-        lastSeenAt: row.lastSeenAt,
-      },
-    ]),
+    defenderStatusRows.map((row) => [row.playerId, row]),
   );
 
-  function defenderOfflineProtected(defenderId: string): boolean {
-    const state = offlineStateByDefender.get(defenderId) ?? {
+  const targets: AttackTargetCandidate[] = [];
+
+  for (const player of candidates) {
+    const targetNw = NetWorthService.calculateFromPlayer(player);
+    const attacksOnTarget = attacksByDefender.get(player.id) ?? 0;
+    const offlineState = offlineStateByDefender.get(player.id) ?? {
       offlineDamagingHits: 0,
       offlineProtectionActive: false,
       lastSeenAt: null,
     };
-    return OfflineProtectionService.isDefenderProtected(state);
-  }
-
-  const attacksByDefender = new Map(
-    attackCounts.map((row) => [row.defenderId, row._count._all]),
-  );
-  const playersById = new Map(targetPlayers.map((p) => [p.id, p]));
-
-  const targets = activeIntel.flatMap((r) => {
-    const attacksOnTarget = attacksByDefender.get(r.intel.targetPlayerId) ?? 0;
-    const targetPlayer = playersById.get(r.intel.targetPlayerId);
-    if (!targetPlayer) return [];
-
-    const targetNw = NetWorthService.calculateFromPlayer(targetPlayer);
     const preview = evaluateAttackTargetPreview({
       attackerId: ctx.id,
-      defenderId: targetPlayer.id,
+      defenderId: player.id,
       attackerDistrictId: ctx.district.id,
-      defenderDistrictId: targetPlayer.districtId,
+      defenderDistrictId: player.districtId,
       attackerNw,
       defenderNw: targetNw,
-      defenderLifeStatus: targetPlayer.lifeStatus,
-      defenderTravelling: targetPlayer.travelling,
+      defenderLifeStatus: player.lifeStatus,
+      defenderTravelling: player.travelling,
       attacksOnTargetLast24h: attacksOnTarget,
-      defenderOfflineProtected: defenderOfflineProtected(targetPlayer.id),
+      defenderOfflineProtected: OfflineProtectionService.isDefenderProtected(offlineState),
     });
 
-    if (preview.code === 'TARGET_OUT_OF_RANGE') return [];
+    if (preview.code === 'TARGET_OUT_OF_RANGE') continue;
 
-    return [{
-      reportId: r.reportId,
-      alias: r.intel.targetAlias,
-      city: r.intel.targetCity,
-      bands: r.bands,
-      netWorthEstimate: targetNw,
-      reportAge: r.createdAt.toISOString(),
-      attacksOnTarget,
+    const intel = activeIntelByTarget.get(player.id);
+    const lastSeen = PlayerStatusService.resolveLastSeen(
+      player.user.lastLoginAt,
+      player.statusExt?.lastSeenAt,
+      player.updatedAt,
+    );
+    const online = PlayerStatusService.isOnline(lastSeen);
+
+    targets.push({
+      playerId: player.id,
+      alias: player.alias,
+      aliasNormalized: player.aliasNormalized,
+      rank: rankById.get(player.id) ?? 0,
+      netWorth: targetNw,
+      online,
+      statusLabel: online ? 'Online' : 'Offline',
+      hasIntel: !!intel,
+      reportId: intel?.reportId ?? null,
+      bands: intel?.bands ?? null,
       eligible: preview.eligible,
-      eligibilityNote: preview.message ?? 'Eligible',
-      isDirect: false,
-    }];
+      eligibilityNote: eligibilityDisplayNote(preview.code, preview.message),
+      attacksOnTarget,
+    });
+  }
+
+  targets.sort((a, b) => {
+    if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
+    return b.netWorth - a.netWorth;
   });
 
-  if (options?.targetAlias) {
-    const aliasNormalized = options.targetAlias.trim().toLowerCase();
-    const alreadyListed = targets.some(
-      (t) => t.alias.toLowerCase() === aliasNormalized || t.reportId === directAttackReportId(aliasNormalized),
-    );
-    if (!alreadyListed && aliasNormalized !== ctx.aliasNormalized) {
-      const targetPlayer = await prisma.player.findFirst({
-        where: {
-          aliasNormalized,
-          seasonId: ctx.seasonId,
-          isSystemPlayer: false,
-        },
-        include: { district: true },
-      });
-      if (targetPlayer) {
-        const attacksOnTarget = await prisma.combatEncounter.count({
-          where: {
-            attackerId: ctx.id,
-            defenderId: targetPlayer.id,
-            createdAt: { gte: since24h },
-          },
-        });
-        const targetNw = NetWorthService.calculateFromPlayer(targetPlayer);
-        const directStatus = await prisma.playerStatusExt.findUnique({
-          where: { playerId: targetPlayer.id },
-          select: {
-            offlineDamagingHits: true,
-            offlineProtectionActive: true,
-            lastSeenAt: true,
-          },
-        });
-        const preview = evaluateAttackTargetPreview({
-          attackerId: ctx.id,
-          defenderId: targetPlayer.id,
-          attackerDistrictId: ctx.district.id,
-          defenderDistrictId: targetPlayer.districtId,
-          attackerNw,
-          defenderNw: targetNw,
-          defenderLifeStatus: targetPlayer.lifeStatus,
-          defenderTravelling: targetPlayer.travelling,
-          attacksOnTargetLast24h: attacksOnTarget,
-          defenderOfflineProtected: OfflineProtectionService.isDefenderProtected({
-            offlineDamagingHits: directStatus?.offlineDamagingHits ?? 0,
-            offlineProtectionActive: directStatus?.offlineProtectionActive ?? false,
-            lastSeenAt: directStatus?.lastSeenAt ?? null,
-          }),
-        });
-        const eligibilityNote = preview.eligible
-          ? 'Direct attack — no intel'
-          : preview.message ?? 'Not eligible';
-
-        targets.unshift({
-          reportId: directAttackReportId(aliasNormalized),
-          alias: targetPlayer.alias,
-          city: targetPlayer.district.name,
-          bands: {
-            thugs: 'Unknown',
-            weapons: 'Unknown',
-            cash: 'Unknown',
-            drugs: 'Unknown',
-            cartel: 'Unknown',
-            confidence: 0,
-          },
-          netWorthEstimate: targetNw,
-          reportAge: new Date().toISOString(),
-          attacksOnTarget,
-          eligible: preview.eligible,
-          eligibilityNote,
-          isDirect: true,
-        });
-      }
+  let initialTargetAlias = options?.targetAlias?.trim().toLowerCase();
+  if (options?.reportId && !initialTargetAlias) {
+    const fromReport = intelReports.find((r) => r.reportId === options.reportId);
+    if (fromReport) {
+      initialTargetAlias = fromReport.intel.targetAlias.trim().toLowerCase();
     }
   }
 
@@ -464,7 +409,10 @@ export async function getAttackPageData(
     aks: ctx.aks,
     turns: ctx.turns,
     targets,
-    attackerNetWorth: attackerNw,
+    initialTargetAlias,
+    initialReportId: options?.reportId,
     attackRangeMinNetWorth: minAttackTargetNetWorth(attackerNw),
+    intelTurnCost: ATTACK_RULES.intelGatherTurnCost,
+    viewerCity: ctx.district.name,
   };
 }

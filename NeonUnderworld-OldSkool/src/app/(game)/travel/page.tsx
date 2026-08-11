@@ -4,14 +4,19 @@ import { TravelForm } from '@local/features/travel/TravelForm';
 import { getTravelPageDataFromContext } from '@local/server/actions/travel.actions';
 import { devPerf } from '@local/lib/dev-perf';
 
-export default async function TravelPage() {
+interface Props {
+  searchParams: Promise<{ destination?: string }>;
+}
+
+export default async function TravelPage({ searchParams }: Props) {
+  const params = await searchParams;
   const { ctx } = await requireGameSession();
   const data = await devPerf('/travel data', () => getTravelPageDataFromContext(ctx));
 
   return (
     <>
       <PageTitle icon="travel">Travel</PageTitle>
-      <TravelForm {...data} />
+      <TravelForm {...data} initialDestination={params.destination} />
     </>
   );
 }

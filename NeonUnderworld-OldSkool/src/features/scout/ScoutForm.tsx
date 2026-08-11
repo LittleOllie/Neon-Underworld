@@ -130,7 +130,10 @@ export function ScoutForm({
             className={`g-area-row${areaSlug === area.slug ? ' g-area-row-selected' : ''}`}
             onClick={() => setAreaSlug(area.slug)}
           >
-            <div className="g-area-name">{area.name}</div>
+            <div className="g-area-name-row">
+              <div className="g-area-name">{area.name}</div>
+              {areaSlug === area.slug && <span className="g-area-selected-badge">Selected</span>}
+            </div>
             <div className="g-area-meta">
               Workers: {area.workers} · Thugs: {area.thugs} · Risk: {area.risk}
             </div>

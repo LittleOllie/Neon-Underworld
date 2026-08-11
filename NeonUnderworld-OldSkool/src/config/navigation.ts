@@ -15,7 +15,6 @@ export const DESKTOP_NAV: NavItem[] = [
   { href: '/scout', label: 'Scout', icon: 'scout' },
   { href: '/produce', label: 'Produce', icon: 'produce' },
   { href: '/shop', label: 'Shop', icon: 'shop' },
-  { href: '/rankings', label: 'Rankings', icon: 'rankings' },
   { href: '#more', label: 'More', icon: 'more', isMore: true },
 ];
 
@@ -23,7 +22,7 @@ export const MOBILE_NAV: NavItem[] = [
   { href: '/command', label: 'Home', icon: 'home' },
   { href: '/empire', label: 'Empire', icon: 'empire' },
   { href: '/scout', label: 'Scout', icon: 'scout' },
-  { href: '/rankings', label: 'Rankings', icon: 'rankings' },
+  { href: '/produce', label: 'Produce', icon: 'produce' },
   { href: '#more', label: 'More', icon: 'more', isMore: true },
 ];
 
@@ -33,6 +32,14 @@ export interface MoreNavItem {
   icon?: GameIconName;
   unavailable?: string;
   action?: 'logout';
+  /** Optional count badge (e.g. unread reports). */
+  badge?: number;
+}
+
+export interface MoreMenuSection {
+  id: 'actions' | 'underworld' | 'help';
+  label: string;
+  items: MoreNavItem[];
 }
 
 const PLAYTEST_MORE_ITEM: MoreNavItem = {
@@ -41,26 +48,62 @@ const PLAYTEST_MORE_ITEM: MoreNavItem = {
   icon: 'produce',
 };
 
-const CORE_MORE_ITEMS: MoreNavItem[] = [
-  { href: '/how-to-play', label: 'How to Play', icon: 'guides' },
-  { href: '/reports', label: 'Reports', icon: 'reports' },
-  { href: '/guides', label: 'Guides', icon: 'guides' },
-  { href: '/attack', label: 'Attack', icon: 'attack' },
-  { href: '/produce', label: 'Produce', icon: 'produce' },
-  { href: '/shop', label: 'Shop', icon: 'shop' },
-  { href: '/rankings', label: 'Rankings', icon: 'rankings' },
-  { href: '/travel', label: 'Travel', icon: 'travel' },
-  { href: '/market', label: 'Market', icon: 'market' },
-  { href: '/cartels', label: 'Cartels', icon: 'cartel' },
-  { href: '#logout', label: 'Logout', action: 'logout' },
-];
+const LOGOUT_ITEM: MoreNavItem = {
+  href: '#logout',
+  label: 'Logout',
+  action: 'logout',
+};
 
-/** More menu entries — playtest link only when NEXT_PUBLIC_PLAYTEST_TURNS=true */
-export const MORE_ITEMS: MoreNavItem[] = [
-  ...CORE_MORE_ITEMS.slice(0, 4),
-  ...(process.env.NEXT_PUBLIC_PLAYTEST_TURNS === 'true' ? [PLAYTEST_MORE_ITEM] : []),
-  ...CORE_MORE_ITEMS.slice(4),
-];
+/** Grouped MORE menu — counts injected at render time via buildMoreMenuSections. */
+export function buildMoreMenuSections(counts?: { unreadReports?: number }): MoreMenuSection[] {
+  const unread = counts?.unreadReports ?? 0;
+
+  const sections: MoreMenuSection[] = [
+    {
+      id: 'actions',
+      label: 'Actions',
+      items: [
+        { href: '/attack', label: 'Attack', icon: 'attack' },
+        { href: '/shop', label: 'Shop', icon: 'shop' },
+        { href: '/market', label: 'Market', icon: 'market' },
+        { href: '/travel', label: 'Travel', icon: 'travel' },
+      ],
+    },
+    {
+      id: 'underworld',
+      label: 'Underworld',
+      items: [
+        { href: '/cartels', label: 'Cartels', icon: 'cartel' },
+        { href: '/rankings', label: 'Rankings', icon: 'rankings' },
+        {
+          href: '/reports',
+          label: 'Reports',
+          icon: 'reports',
+          badge: unread > 0 ? unread : undefined,
+        },
+      ],
+    },
+    {
+      id: 'help',
+      label: 'Help',
+      items: [
+        { href: '/how-to-play', label: 'How to Play', icon: 'guides' },
+        { href: '/guides', label: 'Guides', icon: 'guides' },
+      ],
+    },
+  ];
+
+  if (process.env.NEXT_PUBLIC_PLAYTEST_TURNS === 'true') {
+    sections[0].items.push(PLAYTEST_MORE_ITEM);
+  }
+
+  sections[sections.length - 1].items.push(LOGOUT_ITEM);
+  return sections;
+}
+
+/** @deprecated Use buildMoreMenuSections — kept for tests expecting flat list order. */
+export const MORE_ITEMS: MoreNavItem[] = buildMoreMenuSections()
+  .flatMap((s) => s.items);
 
 export function navIsActive(pathname: string, href: string): boolean {
   if (href === '#more') return false;

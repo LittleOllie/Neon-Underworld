@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +14,7 @@ import {
 } from '@core/lib/game-engine/combat/intel-bands';
 import { scoutTargetAction } from '@local/server/actions/scout-target.actions';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
+import { ActionButton } from '@local/components/game/ActionButton';
 import { StatRow } from '@local/components/game/StatRow';
 import { Divider } from '@local/components/game/Divider';
 
@@ -38,6 +39,7 @@ interface Props {
   sameCity: boolean;
   viewerCity: string;
   targetCity: string;
+  targetCitySlug: string;
 }
 
 function bandsFromIntel(intel: {
@@ -76,27 +78,28 @@ function IntelReportStats({ intel }: { intel: PlayerIntelDisplay }) {
 }
 
 function CrossCityNotice({
-  targetAlias,
-  viewerCity,
   targetCity,
+  targetCitySlug,
   intel,
 }: {
-  targetAlias: string;
-  viewerCity: string;
   targetCity: string;
+  targetCitySlug: string;
   intel: PlayerIntelDisplay | null;
 }) {
   return (
     <>
       <Divider />
-      <p className="g-note">
-        <strong>{targetAlias}</strong> is in <strong>{targetCity}</strong>. You&apos;re in{' '}
-        <strong>{viewerCity}</strong>. Travel to their city before you can gather intel or attack.
-      </p>
-      <p className="g-note">
-        <Link href="/travel">Travel</Link>
-      </p>
-      {intel && <IntelReportStats intel={intel} />}
+      <p className="g-section-label">CURRENT LOCATION</p>
+      <StatRow label="City" value={targetCity.toUpperCase()} />
+      <ActionButton className="g-btn-full" icon="travel" href={`/travel?destination=${encodeURIComponent(targetCitySlug)}`}>
+        Travel to {targetCity}
+      </ActionButton>
+      {intel && (
+        <>
+          <p className="g-note">Historical intel from a previous visit — attack unavailable from here.</p>
+          <IntelReportStats intel={intel} />
+        </>
+      )}
     </>
   );
 }
@@ -107,8 +110,8 @@ export function PlayerProfilePanel({
   initialTurns,
   existingIntel,
   sameCity,
-  viewerCity,
   targetCity,
+  targetCitySlug,
 }: Props) {
   const router = useRouter();
   const [turns, setTurns] = useState(initialTurns);
@@ -119,12 +122,7 @@ export function PlayerProfilePanel({
 
   if (!sameCity) {
     return (
-      <CrossCityNotice
-        targetAlias={targetAlias}
-        viewerCity={viewerCity}
-        targetCity={targetCity}
-        intel={intel}
-      />
+      <CrossCityNotice targetCity={targetCity} targetCitySlug={targetCitySlug} intel={intel} />
     );
   }
 
@@ -146,29 +144,17 @@ export function PlayerProfilePanel({
     router.refresh();
   }
 
-  const attackNowHref = `/attack?target=${encodeURIComponent(targetAliasNormalized)}`;
-
   if (intel) {
     return (
       <>
         <IntelReportStats intel={intel} />
-        <PrimaryButton
-          className="g-btn-full"
+        <ActionButton
+          className="g-btn-full g-btn-danger"
           icon="attack"
-          iconTone="danger"
-          onClick={() => router.push(`/attack?reportId=${intel.reportId}`)}
+          href={`/attack?reportId=${intel.reportId}`}
         >
-          Attack with Intel
-        </PrimaryButton>
-        <PrimaryButton
-          className="g-btn-full g-btn-secondary"
-          variant="secondary"
-          icon="attack"
-          iconTone="danger"
-          onClick={() => router.push(attackNowHref)}
-        >
-          Attack Now (No Intel)
-        </PrimaryButton>
+          View Intel / Attack
+        </ActionButton>
       </>
     );
   }
@@ -178,8 +164,7 @@ export function PlayerProfilePanel({
       <Divider />
       <p className="g-note">No current intel on this player.</p>
       <p className="g-note">
-        Gather intel for {intelTurnCost} turns to see force estimates, or attack directly without
-        intel.
+        Gather intel for {intelTurnCost} turns to see force estimates before attacking.
       </p>
       {error && <p className="g-error">{error}</p>}
       <PrimaryButton
@@ -190,14 +175,13 @@ export function PlayerProfilePanel({
       >
         {loading ? 'Gathering…' : `Gather Intel — ${intelTurnCost} Turns`}
       </PrimaryButton>
-      <PrimaryButton
-        className="g-btn-full g-btn-danger"
+      <ActionButton
+        className="g-btn-full g-btn-secondary"
         icon="attack"
-        iconTone="danger"
-        onClick={() => router.push(attackNowHref)}
+        href={`/attack?target=${encodeURIComponent(targetAliasNormalized)}`}
       >
-        Attack Now
-      </PrimaryButton>
+        Open in Attack
+      </ActionButton>
     </>
   );
 }

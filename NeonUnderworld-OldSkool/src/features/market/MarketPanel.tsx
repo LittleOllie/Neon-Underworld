@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -48,12 +48,26 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   const [filter, setFilter] = useState<MarketFilter>(initialFilter);
   const [data, setData] = useState(initial);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
 
   const [sellItem, setSellItem] = useState<string>(initial.tradableInventory[0]?.key ?? '');
   const [sellQty, setSellQty] = useState('1');
   const [startPrice, setStartPrice] = useState(String(initial.minStartingPrice));
   const [duration, setDuration] = useState<MarketDurationMinutes>(60);
+
+  useEffect(() => {
+    setData(initial);
+    if (initial.tradableInventory.length > 0) {
+      setSellItem((current) =>
+        initial.tradableInventory.some((item) => item.key === current)
+          ? current
+          : initial.tradableInventory[0]!.key,
+      );
+    }
+  }, [initial]);
+
+  const selectedInventory = data.tradableInventory.find((item) => item.key === sellItem);
 
   const filteredListings = useMemo(() => {
     if (filter === 'all') return data.listings;
@@ -63,6 +77,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   async function handleBid(listingId: string, minNextBid: number) {
     setLoading(listingId);
     setError('');
+    setSuccess('');
     const response = await placeMarketBidAction(listingId, minNextBid, uuidv4());
     setLoading(null);
     if (!response.success) {
@@ -79,12 +94,18 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       setError('Enter a valid quantity.');
       return;
     }
+    const owned = selectedInventory?.quantity ?? 0;
+    if (qty > owned) {
+      setError(`You only have ${owned.toLocaleString()} ${selectedInventory?.name ?? 'items'} available.`);
+      return;
+    }
     if (!price || price < data.minStartingPrice) {
       setError(`Minimum starting price is $${data.minStartingPrice}.`);
       return;
     }
     setLoading('sell');
     setError('');
+    setSuccess('');
     const response = await createMarketListingAction(
       sellItem,
       qty,
@@ -97,6 +118,8 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       setError(response.error);
       return;
     }
+    setSuccess(`Listed ${qty}× ${selectedInventory?.name ?? sellItem} on the Market.`);
+    setSellQty('1');
     setTab('mine');
     router.refresh();
   }
@@ -120,6 +143,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       </div>
 
       {error && <p className="g-note g-note-error">{error}</p>}
+      {success && <p className="g-note g-note-success">{success}</p>}
 
       {tab === 'browse' && (
         <>
@@ -183,6 +207,9 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                   </option>
                 ))}
               </select>
+              {selectedInventory && (
+                <StatRow label="Owned" value={String(selectedInventory.quantity)} />
+              )}
               <NumericInput
                 id="market-qty"
                 label="Quantity"
@@ -212,7 +239,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 disabled={loading !== null}
                 onClick={handleCreateListing}
               >
-                {loading === 'sell' ? ACTION_PENDING.marketList : 'Create Auction'}
+                {loading === 'sell' ? ACTION_PENDING.marketList : 'List Item'}
               </PrimaryButton>
             </>
           )}

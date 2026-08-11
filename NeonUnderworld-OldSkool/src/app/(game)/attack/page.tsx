@@ -2,7 +2,6 @@ import { PageTitle } from '@local/components/game';
 import { requireGameSession } from '@local/lib/game-context';
 import { AttackForm } from '@local/features/attack/AttackForm';
 import { getAttackPageData } from '@local/server/actions/attack.actions';
-import { directAttackReportId } from '@local/features/attack/direct-attack';
 import { devPerf } from '@local/lib/dev-perf';
 
 interface Props {
@@ -13,16 +12,11 @@ export default async function AttackPage({ searchParams }: Props) {
   const params = await searchParams;
   const { ctx } = await requireGameSession();
   const data = await devPerf('/attack data', () =>
-    getAttackPageData(ctx, { targetAlias: params.target }),
+    getAttackPageData(ctx, {
+      targetAlias: params.target,
+      reportId: params.reportId,
+    }),
   );
-
-  const initialReportId =
-    params.reportId ??
-    (params.target
-      ? data.targets.find(
-          (t) => t.reportId === directAttackReportId(params.target!.trim().toLowerCase()),
-        )?.reportId
-      : undefined);
 
   return (
     <>
@@ -35,8 +29,11 @@ export default async function AttackPage({ searchParams }: Props) {
         aks={data.aks}
         turns={data.turns}
         targets={data.targets}
-        initialReportId={initialReportId}
+        initialTargetAlias={data.initialTargetAlias}
+        initialReportId={data.initialReportId}
         attackRangeMinNetWorth={data.attackRangeMinNetWorth}
+        intelTurnCost={data.intelTurnCost}
+        viewerCity={data.viewerCity}
       />
     </>
   );

@@ -62,14 +62,17 @@ describe('navigation shell config', () => {
   it('uses direct action links without abstract categories', () => {
     expect(DESKTOP_NAV.some((n) => n.label === 'Home')).toBe(true);
     expect(DESKTOP_NAV.some((n) => n.label === 'Empire')).toBe(true);
+    expect(DESKTOP_NAV.some((n) => n.label === 'Produce')).toBe(true);
     expect(DESKTOP_NAV.some((n) => n.label === 'Operations')).toBe(false);
     expect(DESKTOP_NAV.some((n) => n.label === 'Attack')).toBe(false);
-    expect(DESKTOP_NAV.some((n) => n.label === 'Rankings')).toBe(true);
-    expect(MOBILE_NAV.some((n) => n.label === 'Rankings')).toBe(true);
+    expect(DESKTOP_NAV.some((n) => n.label === 'Rankings')).toBe(false);
+    expect(MOBILE_NAV.some((n) => n.label === 'Produce')).toBe(true);
+    expect(MOBILE_NAV.some((n) => n.label === 'Rankings')).toBe(false);
     expect(MOBILE_NAV.some((n) => n.label === 'Attack')).toBe(false);
     expect(MORE_ITEMS.some((n) => n.href === '/bank')).toBe(false);
     expect(MORE_ITEMS.some((n) => n.href === '/reports')).toBe(true);
     expect(MORE_ITEMS.some((n) => n.href === '/attack')).toBe(true);
+    expect(MORE_ITEMS.some((n) => n.href === '/rankings')).toBe(true);
     expect(MORE_ITEMS.some((n) => n.href === '/playtest/turns')).toBe(false);
   });
 

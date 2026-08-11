@@ -255,7 +255,13 @@ export async function resolveAttackEncounter(
       defenderOfflineProtected,
       allowDirectAttack: target.kind === 'direct',
     });
-    if (eligibilityCode) throw new GameplayError(eligibilityCode);
+    if (eligibilityCode) {
+      const message =
+        eligibilityCode === 'TARGET_WRONG_DISTRICT' && intel && target.kind !== 'direct'
+          ? 'This player is no longer in your city.'
+          : undefined;
+      throw new GameplayError(eligibilityCode, message);
+    }
 
     const turnCost = ATTACK_RULES.turnCosts[attackType];
     const { newState: turnStateAfter } = consumeTurns(settled, turnCost);

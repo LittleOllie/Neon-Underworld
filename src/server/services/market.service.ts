@@ -195,7 +195,12 @@ export const MarketService = {
       assertPlayerCanPerformAction(player);
 
       const owned = readPlayerItemQuantity(player, itemKey);
-      if (owned < quantity) throw new GameplayError('MARKET_INSUFFICIENT_QUANTITY');
+      if (owned < quantity) {
+        throw new GameplayError(
+          'MARKET_INSUFFICIENT_QUANTITY',
+          `You only have ${owned.toLocaleString()} ${marketItemDisplayName(itemKey)} available.`,
+        );
+      }
 
       await adjustPlayerItem(tx, playerId, itemKey, -quantity);
 

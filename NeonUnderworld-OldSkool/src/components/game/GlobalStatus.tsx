@@ -2,6 +2,13 @@ import { formatTurnsExact } from '@local/server/domain/status-presentation';
 import { formatRank } from '@local/lib/format-rank';
 import { GameLabel, GameValue } from './GameValue';
 
+export interface ShellAttentionCounts {
+  /** Unread inbox reports — drives MORE nav indicator. */
+  unreadReports: number;
+  /** Reserved for future MORE badges (market, cartel, etc.). */
+  total: number;
+}
+
 export interface GlobalStats {
   cash: number;
   bankCash?: number;
@@ -11,6 +18,7 @@ export interface GlobalStats {
   rank: number;
   alias?: string;
   district?: string;
+  attention?: ShellAttentionCounts;
 }
 
 export function GlobalStatus({ stats }: { stats: GlobalStats }) {

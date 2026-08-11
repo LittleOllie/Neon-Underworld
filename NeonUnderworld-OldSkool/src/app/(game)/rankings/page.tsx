@@ -17,8 +17,8 @@ function districtFilter(slug: string): RankingsFilter | null {
   return DISTRICT_FILTERS.has(slug as RankingsFilter) ? (slug as RankingsFilter) : null;
 }
 
-function defaultFilterForPlayer(districtSlug: string): RankingsFilter {
-  return districtFilter(districtSlug) ?? 'overall';
+function defaultFilterForPlayer(_districtSlug: string): RankingsFilter {
+  return 'overall';
 }
 
 function resolveFilter(param: string | undefined, districtSlug: string): RankingsFilter {

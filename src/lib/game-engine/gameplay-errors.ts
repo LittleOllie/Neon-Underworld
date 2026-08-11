@@ -67,6 +67,12 @@ export const GAMEPLAY_ERROR_MESSAGES: Record<GameplayErrorCode, string> = {
   OFFLINE_PROTECTION_ACTIVE: 'This player is under offline protection after repeated attacks.',
 };
 
+/** Context-specific overrides — pass as GameplayError second argument. */
+export const GAMEPLAY_CONTEXT_MESSAGES = {
+  intelWrongDistrict: 'You need to be in the same city to gather intel on this player.',
+  targetNoLongerInCity: 'This player is no longer in your city.',
+} as const;
+
 export class GameplayError extends DomainError {
   constructor(
     public readonly gameplayCode: GameplayErrorCode,

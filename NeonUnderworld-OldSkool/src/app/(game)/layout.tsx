@@ -5,5 +5,6 @@ import { requireGameSession, globalStatsFromContext } from '@local/lib/game-cont
 export default async function GameLayout({ children }: { children: React.ReactNode }) {
   const { ctx } = await requireGameSession();
 
-  return <GameShell stats={globalStatsFromContext(ctx)}>{children}</GameShell>;
+  const stats = await globalStatsFromContext(ctx);
+  return <GameShell stats={stats}>{children}</GameShell>;
 }
