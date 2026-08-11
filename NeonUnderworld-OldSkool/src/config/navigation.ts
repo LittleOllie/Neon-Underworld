@@ -1,6 +1,7 @@
 /** Direct game-action navigation — no abstract categories */
 
 import type { GameIconName } from '@local/config/game-icons';
+import { isPlaytestTurnsNavVisible } from '@core/config/game/playtest';
 
 export interface NavItem {
   href: string;
@@ -93,7 +94,7 @@ export function buildMoreMenuSections(counts?: { unreadReports?: number }): More
     },
   ];
 
-  if (process.env.NEXT_PUBLIC_PLAYTEST_TURNS === 'true') {
+  if (isPlaytestTurnsNavVisible()) {
     sections[0].items.push(PLAYTEST_MORE_ITEM);
   }
 

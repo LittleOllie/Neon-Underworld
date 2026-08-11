@@ -50,6 +50,7 @@ describe('MORE menu structure', () => {
       'Shop',
       'Market',
       'Travel',
+      'Add Turns',
     ]);
     expect(sections[1]?.items.map((item) => item.label)).toEqual([
       'Cartels',

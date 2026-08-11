@@ -1,17 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isPlaytestTurnsEnabled } from '@/config/game/playtest';
+import { isPlaytestTurnsEnabled, isPlaytestTurnsNavVisible } from '@/config/game/playtest';
 
 describe('playtest turns safety', () => {
-  const original = process.env.PLAYTEST_TURNS;
+  const originalServer = process.env.PLAYTEST_TURNS;
+  const originalPublic = process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
 
   afterEach(() => {
-    if (original === undefined) delete process.env.PLAYTEST_TURNS;
-    else process.env.PLAYTEST_TURNS = original;
+    if (originalServer === undefined) delete process.env.PLAYTEST_TURNS;
+    else process.env.PLAYTEST_TURNS = originalServer;
+    if (originalPublic === undefined) delete process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
+    else process.env.NEXT_PUBLIC_PLAYTEST_TURNS = originalPublic;
   });
 
-  it('is disabled by default when env unset', () => {
+  it('is enabled by default when env unset', () => {
     delete process.env.PLAYTEST_TURNS;
-    expect(isPlaytestTurnsEnabled()).toBe(false);
+    expect(isPlaytestTurnsEnabled()).toBe(true);
   });
 
   it('is disabled when env is false', () => {
@@ -19,8 +22,18 @@ describe('playtest turns safety', () => {
     expect(isPlaytestTurnsEnabled()).toBe(false);
   });
 
-  it('is enabled only when explicitly true', () => {
+  it('is enabled when explicitly true', () => {
     process.env.PLAYTEST_TURNS = 'true';
     expect(isPlaytestTurnsEnabled()).toBe(true);
+  });
+
+  it('shows nav by default when public env unset', () => {
+    delete process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
+    expect(isPlaytestTurnsNavVisible()).toBe(true);
+  });
+
+  it('hides nav when public env is false', () => {
+    process.env.NEXT_PUBLIC_PLAYTEST_TURNS = 'false';
+    expect(isPlaytestTurnsNavVisible()).toBe(false);
   });
 });
