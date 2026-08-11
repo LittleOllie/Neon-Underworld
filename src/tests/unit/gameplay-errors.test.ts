@@ -51,6 +51,22 @@ describe('GameplayError', () => {
     expect(toUserMessage(err)).toBe(GAMEPLAY_ERROR_MESSAGES.INVALID_INTEL);
   });
 
+  it('does not map prisma combat validation errors to scout turn messages', () => {
+    const prismaLike = {
+      name: 'PrismaClientValidationError',
+      message:
+        "Invalid `prisma.combatEncounter.create()` invocation: Invalid value for argument `turnsSpent`. Expected Int.",
+    };
+    expect(toUserMessage(prismaLike)).toBe('Attack could not be saved. Refresh and try again.');
+  });
+
+  it('maps serialised prisma known request errors from bundled server chunks', () => {
+    const serialised = { name: 'PrismaClientKnownRequestError', code: 'P2034', message: 'deadlock' };
+    expect(toUserMessage(serialised)).toBe(
+      'That action conflicted with another update. Please try again.',
+    );
+  });
+
   it('recognises serialised GameplayError shapes from bundled server chunks', () => {
     const err = new GameplayError('TARGET_WRONG_DISTRICT', 'This player is no longer in your city.');
     const serialised = { name: err.name, message: err.message, gameplayCode: err.gameplayCode };

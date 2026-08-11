@@ -167,7 +167,21 @@ export function tryGameplayErrorFromMessage(message: string): GameplayError | nu
   if (normalized.includes('no active season')) {
     return new GameplayError('SEASON_INACTIVE');
   }
-  if (normalized.includes('turn') && (normalized.includes('invalid') || normalized.includes('between') || normalized.includes('whole number') || normalized.includes('minimum') || normalized.includes('maximum'))) {
+  // Prisma combat/DB validation mentions turnsSpent — must not read as scout input error
+  if (
+    normalized.includes('prisma') ||
+    normalized.includes('combatencounter') ||
+    normalized.includes('turnsspent')
+  ) {
+    return null;
+  }
+  if (
+    normalized.includes('turn') &&
+    (normalized.includes('scout') ||
+      normalized.includes('between') ||
+      normalized.includes('whole number') ||
+      (normalized.includes('invalid') && !normalized.includes('invocation')))
+  ) {
     return new GameplayError('INVALID_SCOUT_AMOUNT');
   }
 
@@ -226,12 +240,69 @@ function readTypedDomainMessage(error: unknown): string | null {
   return null;
 }
 
+function isPrismaValidationError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientValidationError) return true;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: string }).name === 'PrismaClientValidationError'
+  );
+}
+
+function readPrismaKnownRequestCode(error: unknown): string | null {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) return error.code;
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { name?: string; code?: string };
+    if (candidate.name === 'PrismaClientKnownRequestError' && typeof candidate.code === 'string') {
+      return candidate.code;
+    }
+  }
+  return null;
+}
+
+function prismaKnownRequestUserMessage(code: string): string | null {
+  if (code === 'P2022') {
+    return 'The game database is out of date. Run migrations on production, then try again.';
+  }
+  if (code === 'P2034') {
+    return 'That action conflicted with another update. Please try again.';
+  }
+  if (code === 'P2025') {
+    return 'That record is no longer available. Refresh and try again.';
+  }
+  if (code === 'P2002') {
+    return 'This action has already been processed.';
+  }
+  return null;
+}
+
+function prismaValidationUserMessage(error: unknown): string | null {
+  if (!isPrismaValidationError(error)) return null;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && typeof (error as { message?: string }).message === 'string'
+        ? (error as { message: string }).message
+        : '';
+  if (message.includes('turnsSpent') || message.includes('CombatEncounter')) {
+    return 'Attack could not be saved. Refresh and try again.';
+  }
+  return 'Attack could not be processed. Refresh and try again.';
+}
+
 /** Normalise any caught error to a player-safe message. */
 export function toUserMessage(error: unknown): string {
   const gameplay = readTypedGameplayMessage(error);
   if (gameplay) return gameplay;
   const domain = readTypedDomainMessage(error);
   if (domain) return domain;
+  const prismaValidation = prismaValidationUserMessage(error);
+  if (prismaValidation) return prismaValidation;
+  const prismaCode = readPrismaKnownRequestCode(error);
+  if (prismaCode) {
+    const prismaMessage = prismaKnownRequestUserMessage(prismaCode);
+    if (prismaMessage) return prismaMessage;
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2022') {
       return 'The game database is out of date. Run migrations on production, then try again.';
@@ -245,9 +316,6 @@ export function toUserMessage(error: unknown): string {
     if (error.code === 'P2002') {
       return 'This action has already been processed.';
     }
-  }
-  if (error instanceof Prisma.PrismaClientValidationError) {
-    return 'Attack could not be processed. Refresh and try again.';
   }
   if (error instanceof Prisma.PrismaClientUnknownRequestError) {
     const mapped = tryGameplayErrorFromMessage(error.message);

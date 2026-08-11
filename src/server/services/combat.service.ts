@@ -113,6 +113,16 @@ export async function resolveAttackEncounter(
   idempotencyKey: string,
   calculateNetWorth: NetWorthCalculator,
 ): Promise<CombatResolutionOutput> {
+  const thugs = Math.floor(Number(attackingThugs));
+  if (!Number.isFinite(thugs) || thugs < ATTACK_RULES.minAttackingThugs) {
+    throw new GameplayError('INVALID_FORCE', 'Enter a valid number of thugs.');
+  }
+  const turnCost = ATTACK_RULES.turnCosts[attackType];
+  if (!Number.isInteger(turnCost) || turnCost < 1) {
+    throw new GameplayError('INVALID_FORCE', 'Invalid attack type.');
+  }
+  attackingThugs = thugs;
+
   const scoutReportId =
     target.kind === 'intel' ? target.scoutReportId : DIRECT_ATTACK_SCOUT_REPORT_ID;
 
@@ -266,6 +276,9 @@ export async function resolveAttackEncounter(
     }
 
     const turnCost = ATTACK_RULES.turnCosts[attackType];
+    if (!Number.isInteger(turnCost) || turnCost < 1) {
+      throw new GameplayError('INVALID_FORCE', 'Invalid attack type.');
+    }
     const { newState: turnStateAfter } = consumeTurns(settled, turnCost);
 
     const defenderThugsBefore = defender.thugs;
@@ -397,8 +410,8 @@ export async function resolveAttackEncounter(
         turnsSpent: turnCost,
         attackingThugs,
         ridesUsed,
-        attackerForceSnapshot: combat.attackerForceSnapshot as object,
-        defenderForceSnapshot: combat.defenderForceSnapshot as object,
+        attackerForceSnapshot: JSON.parse(JSON.stringify(combat.attackerForceSnapshot)) as object,
+        defenderForceSnapshot: JSON.parse(JSON.stringify(combat.defenderForceSnapshot)) as object,
         attackerLosses: combat.attackerLosses,
         defenderLosses: combat.defenderLosses,
         attackerReturned: combat.attackerReturned,

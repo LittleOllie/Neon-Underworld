@@ -66,14 +66,22 @@ export const scoutTargetSchema = z.object({
 export const attackLaunchSchema = z.object({
   scoutReportId: z.string().min(1),
   attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS']),
-  attackingThugs: z.number().int().min(1).max(5000),
+  attackingThugs: z.coerce
+    .number()
+    .int('Enter a valid number of thugs.')
+    .min(1, 'Enter a valid number of thugs.')
+    .max(5000),
   idempotencyKey: z.string().uuid(),
 });
 
 export const directAttackLaunchSchema = z.object({
   targetAliasNormalized: z.string().min(2).max(32),
   attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS']),
-  attackingThugs: z.number().int().min(1).max(5000),
+  attackingThugs: z.coerce
+    .number()
+    .int('Enter a valid number of thugs.')
+    .min(1, 'Enter a valid number of thugs.')
+    .max(5000),
   idempotencyKey: z.string().uuid(),
 });
 

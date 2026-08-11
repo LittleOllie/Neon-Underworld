@@ -245,7 +245,12 @@ export function AttackForm(props: AttackFormProps) {
     setLoading(true);
     setError('');
     try {
-      const response = await launchAttackAction(selected.reportId, attackType, force, uuidv4());
+      const response = await launchAttackAction(
+        selected.reportId,
+        attackType,
+        Math.max(1, Math.floor(force)),
+        uuidv4(),
+      );
       if (!response.success) {
         setError(response.error);
         setConfirming(false);

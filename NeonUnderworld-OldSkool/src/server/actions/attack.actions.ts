@@ -286,7 +286,7 @@ export async function launchAttackAction(
       calculateNetWorth,
     );
 
-    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, attackType);
+    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, parsed.data.attackType);
   } catch (error) {
     console.error('Attack launch error:', error);
     if (typeof error === 'object' && error !== null) {
@@ -361,7 +361,7 @@ export async function launchDirectAttackAction(
       calculateNetWorth,
     );
 
-    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, attackType);
+    return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, parsed.data.attackType);
   } catch (error) {
     console.error('Direct attack launch error:', error);
     return { success: false, error: toUserMessage(error) };
