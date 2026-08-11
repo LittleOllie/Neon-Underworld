@@ -199,9 +199,15 @@ export function AttackForm(props: AttackFormProps) {
     return forceEstimate(weaponAlloc.totalStrength, defenderStrength + thugMult);
   }, [selected, weaponAlloc.totalStrength]);
 
+  const usingStaleReport =
+    !!props.staleIntelNotice &&
+    !!props.initialReportId &&
+    selected?.reportId === props.initialReportId;
+
   const canAttack =
     selected?.eligible &&
     selected.reportId &&
+    !usingStaleReport &&
     force > 0 &&
     force <= props.thugs &&
     force <= ATTACK_RULES.maxAttackingThugs &&
@@ -433,6 +439,13 @@ export function AttackForm(props: AttackFormProps) {
 
           {ridesNeeded > props.rides && (
             <p className="g-error">Need {ridesNeeded - props.rides} more rides for this force.</p>
+          )}
+
+          {usingStaleReport && (
+            <p className="g-error">
+              This intel is for a player in another city. Pick a target in {props.viewerCity} or travel
+              first.
+            </p>
           )}
 
           {error && <p className="g-error">{error}</p>}

@@ -50,4 +50,10 @@ describe('GameplayError', () => {
     const err = new GameplayError('INVALID_INTEL');
     expect(toUserMessage(err)).toBe(GAMEPLAY_ERROR_MESSAGES.INVALID_INTEL);
   });
+
+  it('recognises serialised GameplayError shapes from bundled server chunks', () => {
+    const err = new GameplayError('TARGET_WRONG_DISTRICT', 'This player is no longer in your city.');
+    const serialised = { name: err.name, message: err.message, gameplayCode: err.gameplayCode };
+    expect(toUserMessage(serialised)).toBe('This player is no longer in your city.');
+  });
 });

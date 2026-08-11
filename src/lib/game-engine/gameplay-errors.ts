@@ -202,10 +202,36 @@ export function throwIfValidationMessage(message: string | null): void {
   }
 }
 
+function readTypedGameplayMessage(error: unknown): string | null {
+  if (error instanceof GameplayError) return error.message;
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as GameplayError & { name?: string };
+    if (candidate.name === 'GameplayError' && candidate.message) return candidate.message;
+    if (
+      typeof candidate.gameplayCode === 'string' &&
+      candidate.gameplayCode in GAMEPLAY_ERROR_MESSAGES
+    ) {
+      return candidate.message ?? GAMEPLAY_ERROR_MESSAGES[candidate.gameplayCode];
+    }
+  }
+  return null;
+}
+
+function readTypedDomainMessage(error: unknown): string | null {
+  if (error instanceof DomainError) return error.message;
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as DomainError & { name?: string };
+    if (candidate.name === 'DomainError' && candidate.message) return candidate.message;
+  }
+  return null;
+}
+
 /** Normalise any caught error to a player-safe message. */
 export function toUserMessage(error: unknown): string {
-  if (error instanceof GameplayError) return error.message;
-  if (error instanceof DomainError) return error.message;
+  const gameplay = readTypedGameplayMessage(error);
+  if (gameplay) return gameplay;
+  const domain = readTypedDomainMessage(error);
+  if (domain) return domain;
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2022') {
       return 'The game database is out of date. Run migrations on production, then try again.';
@@ -219,6 +245,13 @@ export function toUserMessage(error: unknown): string {
     if (error.code === 'P2002') {
       return 'This action has already been processed.';
     }
+  }
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    return 'Attack could not be processed. Refresh and try again.';
+  }
+  if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+    const mapped = tryGameplayErrorFromMessage(error.message);
+    if (mapped) return mapped.message;
   }
   if (error instanceof Error && error.message.trim()) {
     if (error.message.includes('NEXT_REDIRECT')) {

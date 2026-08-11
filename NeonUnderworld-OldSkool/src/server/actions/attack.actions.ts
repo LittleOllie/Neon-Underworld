@@ -289,6 +289,15 @@ export async function launchAttackAction(
     return finalizeAttackLaunch(attackerId, { success: true, data: buildLaunchResult(data) }, attackType);
   } catch (error) {
     console.error('Attack launch error:', error);
+    if (typeof error === 'object' && error !== null) {
+      const detail = error as { name?: string; message?: string; code?: string; gameplayCode?: string };
+      console.error('Attack launch detail:', {
+        name: detail.name,
+        code: detail.code,
+        gameplayCode: detail.gameplayCode,
+        message: detail.message,
+      });
+    }
     return { success: false, error: toUserMessage(error) };
   }
 }
