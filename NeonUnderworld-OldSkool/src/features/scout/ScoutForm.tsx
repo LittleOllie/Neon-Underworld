@@ -169,7 +169,7 @@ export function ScoutForm({
       })()}
 
       <PrimaryButton className="g-btn-full" icon="scout" onClick={handleScout} disabled={loading} pending={loading}>
-        {loading ? ACTION_PENDING.scout : `Scouting ${selectedArea?.name ?? 'Area'}`}
+        {loading ? ACTION_PENDING.scout : `Scout ${selectedArea?.name ?? 'Area'}?`}
       </PrimaryButton>
     </>
   );

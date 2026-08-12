@@ -129,5 +129,3 @@ export async function hireThugsAction(
     return { success: false, error: toUserMessage(error) };
   }
 }
-
-export { THUG_HIRE_PRICE, HIRE_THUGS_MAX_QUANTITY, hireThugsTotalCost };

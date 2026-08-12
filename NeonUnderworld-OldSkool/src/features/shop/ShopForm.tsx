@@ -176,22 +176,27 @@ export function ShopForm({
     }
     setLoading('hire-thugs');
     setError('');
-    const response = await hireThugsAction(quantity!, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
+    try {
+      const response = await hireThugsAction(quantity!, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setCash(response.data.newCash);
+      setInventory((prev) => ({ ...prev, thugs: response.data.newThugs }));
+      setResult({
+        mode: 'hire',
+        name: 'Thugs',
+        qty: quantity!,
+        amount: response.data.totalCost,
+        newThugs: response.data.newThugs,
+      });
+      reconcile(response.data.shell);
+    } catch {
+      setError('Could not complete hire. Please try again.');
+    } finally {
+      setLoading(null);
     }
-    setCash(response.data.newCash);
-    setInventory((prev) => ({ ...prev, thugs: response.data.newThugs }));
-    setResult({
-      mode: 'hire',
-      name: 'Thugs',
-      qty: quantity!,
-      amount: response.data.totalCost,
-      newThugs: response.data.newThugs,
-    });
-    reconcile(response.data.shell);
   }
 
   async function handleSellThugs() {
@@ -207,22 +212,27 @@ export function ShopForm({
     }
     setLoading('sell-thugs');
     setError('');
-    const response = await sellThugsAction(quantity!, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
+    try {
+      const response = await sellThugsAction(quantity!, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setCash(response.data.newCash);
+      setInventory((prev) => ({ ...prev, thugs: response.data.newThugs }));
+      setResult({
+        mode: 'sell-thugs',
+        name: 'Thugs',
+        qty: quantity!,
+        amount: response.data.totalPayout,
+        newThugs: response.data.newThugs,
+      });
+      reconcile(response.data.shell);
+    } catch {
+      setError('Could not complete release. Please try again.');
+    } finally {
+      setLoading(null);
     }
-    setCash(response.data.newCash);
-    setInventory((prev) => ({ ...prev, thugs: response.data.newThugs }));
-    setResult({
-      mode: 'sell-thugs',
-      name: 'Thugs',
-      qty: quantity!,
-      amount: response.data.totalPayout,
-      newThugs: response.data.newThugs,
-    });
-    reconcile(response.data.shell);
   }
 
   const hireQty = parsePositiveInteger(hireQtyRaw);

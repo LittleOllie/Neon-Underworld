@@ -84,6 +84,16 @@ function riskFromForce(estimate: string): string {
   return 'Severe';
 }
 
+function formatOwnedWeapons(aks: number, uzis: number, glocks: number): string {
+  const parts = [
+    aks > 0 ? `${aks.toLocaleString()} AK` : null,
+    uzis > 0 ? `${uzis.toLocaleString()} Uzi` : null,
+    glocks > 0 ? `${glocks.toLocaleString()} Glock` : null,
+  ].filter((part): part is string => part != null);
+
+  return parts.length > 0 ? parts.join(' · ') : 'None';
+}
+
 function AttackCrewSummary({
   thugs,
   rides,
@@ -106,10 +116,7 @@ function AttackCrewSummary({
       <SectionLabel>YOUR CREW</SectionLabel>
       <StatRow label="Thugs available" value={thugs.toLocaleString()} />
       <StatRow label="Rides" value={rides.toLocaleString()} />
-      <StatRow
-        label="Weapons owned"
-        value={`${aks.toLocaleString()} AK · ${uzis.toLocaleString()} Uzi · ${glocks.toLocaleString()} Glock`}
-      />
+      <StatRow label="Weapons owned" value={formatOwnedWeapons(aks, uzis, glocks)} />
       {force > 0 && (
         <>
           <p className="g-note">
