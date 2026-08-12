@@ -198,10 +198,8 @@ export const REDLITE_COFFEE_SHOP = {
   marketStartPrice: 5000,
 } as const;
 
-/** Make drugs — output scales with thugs + turns (guide §2) */
+/** Make drugs — output scales with thugs + turns + drug type (see drug-production-rates.ts) */
 export const REDLITE_PRODUCTION = {
-  baseDrugUnitsPerTurnPerThug: 0.012,
-  maxDrugUnitsPerAction: 2000,
   defaultDrug: 'hash' as const,
   /** Workers earn cash while you use turns (scout + produce) */
   cashPerProstitutePerTurn: 12,

@@ -1,7 +1,7 @@
 /**
  * Produce / supply economy simulation — run: npx tsx scripts/produce-economy-sim.ts
  */
-import { PRODUCTION_CONFIG } from '../src/config/game/balance';
+import { getDrugProductionRate } from '../src/config/game/drug-production-rates';
 import { planSupplyConsumption } from '../src/config/game/supply-economy';
 import { getDrugStreetPrice } from '../src/config/game/drug-street-prices';
 import { getCityShopItem } from '../src/config/game/shop-rules';
@@ -12,6 +12,7 @@ import {
 } from '../src/lib/game-engine/produce-economy';
 import { grossWorkerCash, playerCashFromGross } from '../src/lib/game-engine/worker-economics';
 import { happinessEfficiencyModifier } from '../src/lib/game-engine/happiness';
+import { PRODUCTION_CONFIG } from '../src/config/game/balance';
 import type { ProductionDrug } from '../src/lib/game-engine/production';
 
 const CREW_PROFILES = [
@@ -32,11 +33,10 @@ const condomShop = getCityShopItem('condom')!;
 const beerShop = getCityShopItem('beer')!;
 
 console.log('=== Authoritative constants ===');
-console.log(`baseDrugUnitsPerTurnPerThug: ${PRODUCTION_CONFIG.baseDrugUnitsPerTurnPerThug}`);
-console.log(`cashPerProstitutePerTurn (produce): ${PRODUCTION_CONFIG.cashPerProstitutePerTurn}`);
-console.log(`SUPPLY_CREW_TURNS_PER_UNIT: 150`);
-console.log(`Hash break-even thug:worker ratio (continuous): ${hashProduceBreakEvenThugRatio().toFixed(4)}`);
-console.log(`  (~${Math.round(hashProduceBreakEvenThugRatio() * 100)} thugs per 100 workers)\n`);
+for (const drug of DRUGS) {
+  console.log(`${drug} rate: ${getDrugProductionRate(drug)}`);
+}
+console.log('Per-action cap: NONE');
 
 console.log('=== Hash net when PRODUCING HASH (healthy morale, expected avg RNG) ===');
 console.log('Crew          | Turns |  Produced | Consumed | Net Hash');
@@ -56,13 +56,14 @@ for (const crew of CREW_PROFILES) {
   console.log('');
 }
 
-console.log('=== Gross drug production (all drugs identical rate) ===');
+console.log('=== Gross hash production by crew ===');
 console.log('Crew          | Turns | Units produced');
 for (const crew of CREW_PROFILES) {
   for (const turns of [10, 50, 100, 500, 1000]) {
     const units = estimateDrugUnitsProduced({
       turnsSpent: turns,
       thugCount: crew.thugs,
+      drugType: 'hash',
       thugHappiness: HEALTHY_MORALE,
     });
     console.log(`${crew.label.padEnd(13)} | ${String(turns).padStart(5)} | ${units}`);
@@ -106,7 +107,12 @@ const supplyReplace =
 
 console.log('Drug     | Units | Street $ (best city) | Street $ (worst) | NW @$5');
 for (const drug of DRUGS) {
-  const units = estimateDrugUnitsProduced({ turnsSpent: turns, thugCount: thugs, thugHappiness: HEALTHY_MORALE });
+  const units = estimateDrugUnitsProduced({
+    turnsSpent: turns,
+    thugCount: thugs,
+    drugType: drug,
+    thugHappiness: HEALTHY_MORALE,
+  });
   const prices = DISTRICTS.map((d) => getDrugStreetPrice(d, drug));
   const best = Math.max(...prices);
   const worst = Math.min(...prices);
@@ -133,6 +139,7 @@ for (const split of splits) {
     units += estimateDrugUnitsProduced({
       turnsSpent: run.turns,
       thugCount: thugs,
+      drugType: 'hash',
       thugHappiness: HEALTHY_MORALE,
     });
     const p = planSupplyConsumption(workers, thugs, run.turns, {

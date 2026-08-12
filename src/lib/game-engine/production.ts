@@ -1,4 +1,5 @@
 import { PRODUCTION_CONFIG } from '@/config/game/balance';
+import { getDrugProductionRate } from '@/config/game/drug-production-rates';
 import {
   calculateDepartureRisk,
   happinessEfficiencyModifier,
@@ -28,10 +29,6 @@ export interface ProductionOutcome {
   summary: string;
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
 export function resolveProduction(input: ProductionInput): ProductionOutcome {
   const rng = createSeededRng(input.seed);
   const variance = rng.nextFloat(0.85, 1.15);
@@ -42,15 +39,11 @@ export function resolveProduction(input: ProductionInput): ProductionOutcome {
   const rawUnits =
     input.turnsSpent *
     input.thugCount *
-    PRODUCTION_CONFIG.baseDrugUnitsPerTurnPerThug *
+    getDrugProductionRate(input.drugType) *
     variance *
     thugEfficiency;
 
-  const drugUnitsProduced = clamp(
-    Math.floor(rawUnits),
-    0,
-    PRODUCTION_CONFIG.maxDrugUnitsPerAction,
-  );
+  const drugUnitsProduced = Math.max(0, Math.floor(rawUnits));
 
   const grossCash = grossWorkerCash(
     input.prostituteCount,

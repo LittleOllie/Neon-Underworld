@@ -1,4 +1,4 @@
-import { PRODUCTION_CONFIG } from '@/config/game/balance';
+import { getDrugProductionRate } from '@/config/game/drug-production-rates';
 import type { PlayerResources } from '@/config/game/balance';
 import {
   planSupplyConsumption,
@@ -11,17 +11,35 @@ import type { ProductionDrug } from '@/lib/game-engine/production';
 export function estimateDrugUnitsProduced(input: {
   turnsSpent: number;
   thugCount: number;
+  drugType: ProductionDrug;
   thugHappiness?: number;
 }): number {
   const efficiency = happinessEfficiencyModifier(input.thugHappiness ?? 80);
   const raw =
     input.turnsSpent *
     input.thugCount *
-    PRODUCTION_CONFIG.baseDrugUnitsPerTurnPerThug *
+    getDrugProductionRate(input.drugType) *
     efficiency;
-  return Math.min(
-    Math.floor(raw),
-    PRODUCTION_CONFIG.maxDrugUnitsPerAction,
+  return Math.max(0, Math.floor(raw));
+}
+
+/** Sum of per-action floor estimates — matches multi-action production totals. */
+export function estimateSplitDrugUnitsProduced(input: {
+  turnChunks: number[];
+  thugCount: number;
+  drugType: ProductionDrug;
+  thugHappiness?: number;
+}): number {
+  return input.turnChunks.reduce(
+    (sum, turnsSpent) =>
+      sum +
+      estimateDrugUnitsProduced({
+        turnsSpent,
+        thugCount: input.thugCount,
+        drugType: input.drugType,
+        thugHappiness: input.thugHappiness,
+      }),
+    0,
   );
 }
 
@@ -45,6 +63,7 @@ export function estimateHashProduceNet(input: {
   const hashProduced = estimateDrugUnitsProduced({
     turnsSpent: input.turnsSpent,
     thugCount: input.thugs,
+    drugType: 'hash',
     thugHappiness: input.thugHappiness,
   });
   const hashConsumed = plan.required.hash ?? 0;
@@ -57,7 +76,7 @@ export function estimateHashProduceNet(input: {
 
 /** Approximate break-even thug:worker ratio for hash self-supply (continuous, no rounding). */
 export function hashProduceBreakEvenThugRatio(): number {
-  const perThugPerTurn = PRODUCTION_CONFIG.baseDrugUnitsPerTurnPerThug;
+  const perThugPerTurn = getDrugProductionRate('hash');
   const perWorkerPerTurn = 1 / 150;
   return perWorkerPerTurn / perThugPerTurn;
 }

@@ -25,11 +25,11 @@ interface ProduceFormProps {
   thugHappiness: number;
 }
 
-const DRUGS: { key: ProductionDrug; label: string }[] = [
-  { key: 'hash', label: 'Hash' },
-  { key: 'shrooms', label: 'Shrooms' },
-  { key: 'coke', label: 'Coke' },
-  { key: 'heroin', label: 'Heroin' },
+const DRUGS: { key: ProductionDrug; label: string; hint: string }[] = [
+  { key: 'hash', label: 'Hash', hint: 'High output · Worker supply' },
+  { key: 'shrooms', label: 'Shrooms', hint: 'Reliable yield' },
+  { key: 'coke', label: 'Coke', hint: 'High street value' },
+  { key: 'heroin', label: 'Heroin', hint: 'Premium street value · Lower output' },
 ];
 
 export function ProduceForm({
@@ -166,6 +166,11 @@ export function ProduceForm({
           </button>
         ))}
       </div>
+
+      {(() => {
+        const selected = DRUGS.find((d) => d.key === drugType);
+        return selected ? <p className="g-note">{selected.hint}</p> : null;
+      })()}
 
       <NumericInput
         id="produce-turns"

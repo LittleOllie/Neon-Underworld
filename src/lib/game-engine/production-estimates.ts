@@ -1,5 +1,6 @@
-import { PRODUCTION_CONFIG } from '@/config/game/balance';
+import { getDrugProductionRate } from '@/config/game/drug-production-rates';
 import { grossWorkerCash, playerCashFromGross } from '@/lib/game-engine/worker-economics';
+import type { ProductionDrug } from '@/lib/game-engine/production';
 
 export interface ProductionEstimate {
   drugMin: number;
@@ -16,8 +17,10 @@ export function estimateProduction(input: {
   thugs: number;
   workers: number;
   payoutPercent: number;
+  drugType?: ProductionDrug;
 }): ProductionEstimate {
   const { turns, thugs, workers, payoutPercent } = input;
+  const drugType = input.drugType ?? 'hash';
   if (turns <= 0 || thugs <= 0) {
     return {
       drugMin: 0,
@@ -29,12 +32,10 @@ export function estimateProduction(input: {
     };
   }
 
-  const base = turns * thugs * PRODUCTION_CONFIG.baseDrugUnitsPerTurnPerThug;
+  const rate = getDrugProductionRate(drugType);
+  const base = turns * thugs * rate;
   const drugMin = Math.floor(base * 0.85);
-  const drugMax = Math.min(
-    PRODUCTION_CONFIG.maxDrugUnitsPerAction,
-    Math.floor(base * 1.15),
-  );
+  const drugMax = Math.floor(base * 1.15);
 
   const grossMin = grossWorkerCash(workers, turns);
   const grossMax = grossMin;
