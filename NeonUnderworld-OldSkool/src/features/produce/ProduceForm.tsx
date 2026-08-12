@@ -14,6 +14,7 @@ import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
+import { isHashProduceLikelyNetNegative } from '@core/lib/game-engine/produce-economy';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 interface ProduceFormProps {
@@ -78,7 +79,16 @@ export function ProduceForm({
 
   if (result) {
     const lines: ActionResultLine[] = [
-      { text: `+${result.drugUnitsProduced.toLocaleString()} ${result.drugType}`, tone: 'positive' },
+      ...buildSupplyImpactLines({
+        drugType: result.drugType,
+        drugUnitsProduced: result.drugUnitsProduced,
+        suppliesUsed: result.suppliesUsed,
+        hashNetChange: result.hashNetChange,
+        workerMoraleBefore: result.workerMoraleBefore,
+        workerMoraleAfter: result.workerMoraleAfter,
+        thugMoraleBefore: result.thugMoraleBefore,
+        thugMoraleAfter: result.thugMoraleAfter,
+      }),
       ...buildStreetIncomeBreakdownLines({
         grossIncome: result.workerRevenueGross,
         workerPayoutShare: result.workerPayoutShare,
@@ -86,7 +96,6 @@ export function ProduceForm({
         cartelContribution: result.cartelContribution,
         retainedCash: result.cashEarned,
       }),
-      ...buildSupplyImpactLines(result),
     ];
     if (result.prostitutesLost > 0) {
       lines.push({
@@ -126,6 +135,17 @@ export function ProduceForm({
     thugCount,
   );
 
+  const hashNetWarning =
+    drugType === 'hash' &&
+    amount > 0 &&
+    thugCount > 0 &&
+    isHashProduceLikelyNetNegative({
+      prostitutes: prostituteCount,
+      thugs: thugCount,
+      turnsSpent: amount,
+      thugHappiness,
+    });
+
   return (
     <>
       {thugCount === 0 && (
@@ -161,6 +181,12 @@ export function ProduceForm({
         <p className={`g-note${walkout.level === 'critical' ? ' g-error' : ''}`} role="alert">
           {walkout.level === 'critical' ? 'LOW MORALE — ' : ''}
           {walkout.message}
+        </p>
+      )}
+
+      {hashNetWarning && (
+        <p className="g-note" role="alert">
+          Your Worker/Thug ratio may consume more Hash than this run produces at current morale.
         </p>
       )}
 

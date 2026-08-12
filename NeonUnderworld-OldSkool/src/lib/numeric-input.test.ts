@@ -42,6 +42,11 @@ describe('validateQuantity', () => {
     expect(validateQuantity(null)).toBe('Enter a valid quantity.');
     expect(validateQuantity(10)).toBeNull();
   });
+
+  it('rejects quantities above shop max', () => {
+    expect(validateQuantity(5001)).toMatch(/Maximum 5,000/);
+    expect(validateQuantity(5000)).toBeNull();
+  });
 });
 
 describe('shopPreviewTotal', () => {

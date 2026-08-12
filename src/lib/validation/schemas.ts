@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AUTH_CONFIG } from '@/config/game/balance';
+import { SHOP_MAX_QUANTITY_PER_REQUEST } from '@/config/game/shop-rules';
 
 export const registerSchema = z
   .object({
@@ -43,7 +44,7 @@ export const shopPurchaseSchema = z.object({
     'glock', 'uzi', 'ak', 'ride',
     'hash', 'shroom', 'coke', 'heroin', 'beer', 'condom',
   ]),
-  quantity: z.number().int().min(1).max(1000),
+  quantity: z.number().int().min(1).max(SHOP_MAX_QUANTITY_PER_REQUEST),
   idempotencyKey: z.string().uuid(),
 });
 
@@ -116,13 +117,13 @@ export const shopSellSchema = z.object({
     'glock', 'uzi', 'ak', 'ride',
     'hash', 'shroom', 'coke', 'heroin', 'beer', 'condom',
   ]),
-  quantity: z.number().int().min(1).max(1000),
+  quantity: z.number().int().min(1).max(SHOP_MAX_QUANTITY_PER_REQUEST),
   idempotencyKey: z.string().uuid(),
 });
 
 export const streetDrugSaleSchema = z.object({
   drug: z.enum(['hash', 'shrooms', 'coke', 'heroin']),
-  quantity: z.number().int().min(1).max(1000),
+  quantity: z.number().int().min(1).max(SHOP_MAX_QUANTITY_PER_REQUEST),
   idempotencyKey: z.string().uuid(),
 });
 

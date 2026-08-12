@@ -68,8 +68,8 @@ export function buildMoreMenuSections(counts?: { unreadReports?: number }): More
       items: [
         { href: '/attack', label: 'Attack', icon: 'attack' },
         { href: '/shop', label: 'Shop', icon: 'shop' },
-        { href: '/market', label: 'Market', icon: 'market', unavailable: COMING_SOON },
-        { href: '/travel', label: 'Travel', icon: 'travel', unavailable: COMING_SOON },
+        { href: '/market', label: 'Market', icon: 'market' },
+        { href: '/travel', label: 'Travel', icon: 'travel' },
       ],
     },
     {

@@ -7,19 +7,11 @@ import type { GameIconName } from '@local/config/game-icons';
 const LIVE_ROUTE_REDIRECTS: Record<string, string> = {
   cartel: '/cartels',
   cartels: '/cartels',
+  market: '/market',
+  travel: '/travel',
 };
 
 const UNAVAILABLE: Record<string, { title: string; reason: string; icon?: GameIconName }> = {
-  market: {
-    title: 'Market',
-    reason: 'COMING SOON — player auctions are not live yet.',
-    icon: 'market',
-  },
-  travel: {
-    title: 'Travel',
-    reason: 'COMING SOON — city travel is not live yet.',
-    icon: 'travel',
-  },
   businesses: { title: 'Businesses', reason: 'Coming soon — business income not yet live.' },
   messages: { title: 'Messages', reason: 'Coming soon.' },
   online: { title: 'Online Players', reason: 'Coming soon.' },

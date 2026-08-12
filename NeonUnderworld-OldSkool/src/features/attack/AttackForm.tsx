@@ -328,8 +328,8 @@ export function AttackForm(props: AttackFormProps) {
           <>
             <p className="g-note">
               No attackable players in your city right now. Check{' '}
-              <Link href="/rankings">Rankings</Link> to find rivals in other cities (travel — COMING
-              SOON).
+              <Link href="/rankings">Rankings</Link> to find rivals elsewhere, then{' '}
+              <Link href="/travel">Travel</Link> to their city.
             </p>
           </>
         ) : (

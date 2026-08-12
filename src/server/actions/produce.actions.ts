@@ -27,6 +27,7 @@ import { OfflineProtectionService } from '@/server/services/offline-protection.s
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { CartelService } from '@/server/services/cartel.service';
 import { resolveSupplyConsumptionForAction } from '@/lib/game-engine/supply-consumption';
+import { resolvePostProduceDrugCounts } from '@/lib/game-engine/produce-economy';
 import type { ActionResult } from './auth.actions';
 
 export interface ProduceResultData {
@@ -48,6 +49,10 @@ export interface ProduceResultData {
   summary: string;
   newCash: number;
   suppliesUsed?: { condoms?: number; hash?: number; beer?: number };
+  /** Hash inventory delta when drugType is hash (produced − consumed). */
+  hashNetChange?: number;
+  hashBefore?: number;
+  hashAfter?: number;
   workerMoraleBefore?: number;
   workerMoraleAfter?: number;
   thugMoraleBefore?: number;
@@ -161,9 +166,20 @@ export async function produceAction(
 
       const { newState } = consumeTurns(settled, parsed.data.turns, now);
       const beforeResources = playerToResources(player);
+      const hashBefore = player.hash;
 
-      const drugField = parsed.data.drugType as keyof typeof beforeResources;
-      const newDrugCount = (beforeResources[drugField] as number) + outcome.drugUnitsProduced;
+      const drugCounts = resolvePostProduceDrugCounts({
+        drugType: parsed.data.drugType,
+        drugUnitsProduced: outcome.drugUnitsProduced,
+        beforeDrugs: beforeResources,
+        suppliesAfter,
+      });
+      const hashAfter = drugCounts.hash;
+      const hashNetChange =
+        parsed.data.drugType === 'hash'
+          ? outcome.drugUnitsProduced - (supplyResult.plan.consumed.hash ?? 0)
+          : undefined;
+
       const newProstitutes = Math.max(0, player.prostitutes - outcome.prostitutesLost);
       const newThugs = Math.max(0, player.thugs - outcome.thugsLost);
       const incomeSplit = await CartelService.applyIncomeContribution(
@@ -178,7 +194,7 @@ export async function produceAction(
         cash: newCash,
         prostitutes: newProstitutes,
         thugs: newThugs,
-        [parsed.data.drugType]: newDrugCount,
+        ...drugCounts,
       };
 
       const newProstituteHappiness = calculateProstituteHappiness({
@@ -204,9 +220,11 @@ export async function produceAction(
           prostitutes: newProstitutes,
           thugs: newThugs,
           condoms: suppliesAfter.condoms,
-          hash: suppliesAfter.hash,
           beer: suppliesAfter.beer,
-          [parsed.data.drugType]: newDrugCount,
+          hash: drugCounts.hash,
+          shrooms: drugCounts.shrooms,
+          coke: drugCounts.coke,
+          heroin: drugCounts.heroin,
           prostituteHappiness: newProstituteHappiness,
           thugHappiness: newThugHappiness,
         },
@@ -248,6 +266,9 @@ export async function produceAction(
         summary: outcome.summary,
         newCash,
         suppliesUsed: supplyResult.plan.consumed,
+        hashNetChange,
+        hashBefore,
+        hashAfter,
         workerMoraleBefore,
         workerMoraleAfter: newProstituteHappiness,
         thugMoraleBefore,

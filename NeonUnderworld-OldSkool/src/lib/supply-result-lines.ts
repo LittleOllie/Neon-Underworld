@@ -1,7 +1,10 @@
 import type { ActionResultLine } from '@local/components/game/ActionResult';
 
 export function buildSupplyImpactLines(input: {
+  drugType?: string;
+  drugUnitsProduced?: number;
   suppliesUsed?: { condoms?: number; hash?: number; beer?: number };
+  hashNetChange?: number;
   workerMoraleBefore?: number;
   workerMoraleAfter?: number;
   thugMoraleBefore?: number;
@@ -9,13 +12,36 @@ export function buildSupplyImpactLines(input: {
 }): ActionResultLine[] {
   const lines: ActionResultLine[] = [];
   const used = input.suppliesUsed;
+
+  if (input.drugUnitsProduced != null && input.drugUnitsProduced > 0 && input.drugType) {
+    lines.push({
+      text: `Produced: +${input.drugUnitsProduced.toLocaleString()} ${input.drugType}`,
+      tone: 'positive',
+    });
+  }
+
   if (used?.beer || used?.condoms || used?.hash) {
     const parts: string[] = [];
-    if (used.beer) parts.push(`Beer −${used.beer}`);
-    if (used.condoms) parts.push(`Condoms −${used.condoms}`);
-    if (used.hash) parts.push(`Hash −${used.hash}`);
+    if (used.hash) parts.push(`Hash −${used.hash.toLocaleString()}`);
+    if (used.condoms) parts.push(`Condoms −${used.condoms.toLocaleString()}`);
+    if (used.beer) parts.push(`Beer −${used.beer.toLocaleString()}`);
     lines.push({ text: `Supplies used: ${parts.join(' · ')}` });
   }
+
+  if (input.drugType === 'hash' && input.hashNetChange != null) {
+    const sign = input.hashNetChange >= 0 ? '+' : '';
+    lines.push({
+      text: `Net Hash: ${sign}${input.hashNetChange.toLocaleString()}`,
+      tone: input.hashNetChange >= 0 ? 'positive' : 'negative',
+    });
+    if (input.hashNetChange < 0) {
+      lines.push({
+        text: 'Your Workers used more Hash in supplies than your Thugs produced this run.',
+        tone: 'negative',
+      });
+    }
+  }
+
   if (
     input.workerMoraleBefore != null &&
     input.workerMoraleAfter != null &&
