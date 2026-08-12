@@ -33,6 +33,18 @@ vi.mock('@local/server/services/gameplay-cache', () => ({
   revalidatePlayerGameplayCache: vi.fn(),
 }));
 
+vi.mock('@local/server/services/shell-snapshot.service', () => ({
+  finalizeLocalMutationShell: vi.fn(async () => ({
+    cash: 15000,
+    turns: 400,
+    turnCap: 5000,
+    netWorth: 25000,
+    rank: 5,
+    district: 'Neon Strip',
+    unreadReports: 0,
+  })),
+}));
+
 vi.mock('@local/lib/auth/config', () => ({
   auth: () => mockAuth(),
 }));
@@ -42,8 +54,15 @@ describe('scoutAction — district scout', () => {
     vi.clearAllMocks();
     mockAuth.mockResolvedValue({ user: { playerId: 'player-1' } });
     mockFindUniqueOrThrow.mockResolvedValue({
+      id: 'player-1',
       seasonId: 'season-1',
       district: { name: 'Neon Strip', slug: 'neon-strip' },
+      turnState: {
+        currentTurns: 400,
+        lastRegeneratedAt: new Date(),
+        turnCap: 5000,
+        regenerationRate: 0.00000667,
+      },
       cash: 1000,
       bankCash: 0,
       prostitutes: 10,
@@ -88,6 +107,7 @@ describe('scoutAction — district scout', () => {
     expect(category).toBe(ACTIVITY_TYPES.SCOUT);
     if (result.success) {
       expect(result.data.canonicalNetWorth).toBe(25000);
+      expect(result.data.shell.rank).toBe(5);
     }
   });
 });

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   grantPlaytestTurnsAction,
   type PlaytestTurnGrant,
 } from '@local/server/actions/playtest.actions';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { ActionResult } from '@local/components/game/ActionResult';
 
@@ -21,7 +21,7 @@ const GRANTS: Array<{ grant: PlaytestTurnGrant; label: string }> = [
 ];
 
 export function AddTurnsPanel({ currentTurns, turnCap }: AddTurnsPanelProps) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [loading, setLoading] = useState<PlaytestTurnGrant | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState<number | null>(null);
@@ -37,7 +37,7 @@ export function AddTurnsPanel({ currentTurns, turnCap }: AddTurnsPanelProps) {
       return;
     }
     setResult(response.data.newTurns);
-    router.refresh();
+    reconcile(response.data.shell);
   }
 
   return (

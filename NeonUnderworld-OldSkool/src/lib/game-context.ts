@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@local/lib/auth/config';
 import { PlayerService, type CanonicalPlayerContext } from '@local/server/services/player.service';
 import { RankingsService } from '@local/server/services/rankings.service';
-import { ReportService } from '@local/server/services/report.service';
+import { ReportService, getUnreadReportCount } from '@local/server/services/report.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import type { GlobalStats } from '@local/components/game/Shell';
 import type { AttentionItem } from '@local/lib/attention-items';
@@ -21,7 +21,7 @@ export const requireGameSession = cache(async (): Promise<{
 
 export async function buildAttentionItems(ctx: CanonicalPlayerContext): Promise<AttentionItem[]> {
   const [unreadCount, defenceAlerts] = await Promise.all([
-    ReportService.getUnreadCount(ctx.id),
+    getUnreadReportCount(ctx.id),
     ReportService.getUnreadDefenceAlerts(ctx.id, 5),
   ]);
   const brief = EmpireService.buildCommandBrief(ctx);
@@ -38,7 +38,7 @@ async function buildNotifications(ctx: CanonicalPlayerContext): Promise<Attentio
 export async function globalStatsFromContext(
   ctx: CanonicalPlayerContext,
 ): Promise<GlobalStats> {
-  const unreadReports = await ReportService.getUnreadCount(ctx.id);
+  const unreadReports = await getUnreadReportCount(ctx.id);
   return {
     cash: ctx.cash,
     bankCash: ctx.bankCash,

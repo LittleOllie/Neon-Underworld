@@ -8,8 +8,8 @@ import { toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES, buildScoutActivityMessage } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
-import { NetWorthService } from '@local/server/services/net-worth.service';
-import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
 export type { ScoutResultData };
 
@@ -21,7 +21,7 @@ export async function scoutAction(
   turns: number,
   idempotencyKey: string,
   areaSlug?: string,
-): Promise<ActionResult<OldSkoolScoutResult>> {
+): Promise<ActionResult<WithPlayerShell<OldSkoolScoutResult>>> {
   try {
     const result = await coreScoutAction(turns, idempotencyKey, areaSlug);
 
@@ -39,10 +39,14 @@ export async function scoutAction(
 
     const updated = await prisma.player.findUniqueOrThrow({
       where: { id: playerId },
-      include: { district: true },
+      include: { district: true, turnState: true },
     });
 
-    const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
+    const shell = await finalizeLocalMutationShell(playerId, updated, ['/scout', '/command'], {
+      cash: result.data.newCash,
+      turns: result.data.newTurns,
+      netWorth: result.data.newNetWorth,
+    });
 
     await ActivityService.record(
       playerId,
@@ -51,14 +55,13 @@ export async function scoutAction(
       { scout: result.data },
     );
 
-    revalidatePlayerGameplayCache(playerId, updated.seasonId);
-
     return {
       success: true,
       data: {
         ...result.data,
-        canonicalNetWorth,
-        newNetWorth: canonicalNetWorth,
+        canonicalNetWorth: shell.netWorth,
+        newNetWorth: shell.netWorth,
+        shell,
       },
     };
   } catch (error) {

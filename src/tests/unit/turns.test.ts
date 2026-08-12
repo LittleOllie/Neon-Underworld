@@ -16,20 +16,20 @@ describe('turn regeneration', () => {
     expect(TURNS_CONFIG.turnCap).toBe(5000);
     expect(TURNS_CONFIG.startingTurns).toBe(5000);
     expect(REDLITE_TURNS.turnsPerInterval).toBe(2);
-    expect(REDLITE_TURNS.intervalMinutes).toBe(6);
+    expect(REDLITE_TURNS.intervalMinutes).toBe(5);
     expect(TURNS_CONFIG.regenerationRatePerMs).toBe(REDLITE_TURNS.regenerationRatePerMs);
   });
 
-  it('generates approximately 480 turns per day (Redlite: 2 per 6 min)', () => {
+  it('generates approximately 576 turns per day (2 per 5 min)', () => {
     const perDay = turnsPerDay(TURNS_CONFIG.regenerationRatePerMs);
-    expect(perDay).toBeCloseTo(480, 0);
+    expect(perDay).toBeCloseTo(576, 0);
   });
 
   it('regenerates turns based on elapsed time', () => {
     const last = new Date('2026-01-01T00:00:00Z');
     const now = new Date('2026-01-01T01:00:00Z');
     const regen = calculateRegeneratedTurns(last, TURNS_CONFIG.regenerationRatePerMs, now);
-    expect(regen).toBe(20);
+    expect(regen).toBe(24);
   });
 
   it('never exceeds turn cap', () => {

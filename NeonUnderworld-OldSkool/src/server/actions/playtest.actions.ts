@@ -1,12 +1,13 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { prisma } from '@core/lib/db/prisma';
 import { TURNS_CONFIG } from '@core/config/game/balance';
 import { isPlaytestTurnsEnabled } from '@core/config/game/playtest';
 import { settleTurnRegeneration } from '@core/lib/game-engine/turns';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
 export type PlaytestTurnGrant = '500' | '1000' | 'fill';
 
@@ -16,7 +17,7 @@ export async function isPlaytestTurnsAvailable(): Promise<boolean> {
 
 export async function grantPlaytestTurnsAction(
   grant: PlaytestTurnGrant,
-): Promise<ActionResult<{ newTurns: number }>> {
+): Promise<ActionResult<WithPlayerShell<{ newTurns: number }>>> {
   if (!isPlaytestTurnsEnabled()) {
     return { success: false, error: 'Playtest turn grants are disabled.' };
   }
@@ -50,6 +51,13 @@ export async function grantPlaytestTurnsAction(
     },
   });
 
-  revalidatePath('/', 'layout');
-  return { success: true, data: { newTurns } };
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true },
+  });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/playtest/turns'], {
+    turns: newTurns,
+  });
+
+  return { success: true, data: { newTurns, shell } };
 }

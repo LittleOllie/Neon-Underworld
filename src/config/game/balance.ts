@@ -32,7 +32,7 @@ export interface PlayerResources {
 
 export const TURNS_CONFIG = {
   startingTurns: REDLITE_TURNS.startingTurns,
-  /** Redlite: 2 turns every 6 minutes (~480/day) */
+  /** Redlite-aligned: 2 turns every 5 minutes (~576/day) */
   regenerationRatePerHour: REDLITE_TURNS.regenerationRatePerHour,
   regenerationRatePerMs: REDLITE_TURNS.regenerationRatePerMs,
   turnCap: REDLITE_TURNS.turnCap,
@@ -71,8 +71,8 @@ export const STARTING_RESOURCES = {
 
 export const SCOUTING_CONFIG = {
   /** Per-turn recruitment chance before district/area/happiness modifiers (0–1 scale). */
-  baseProstitutesPerTurn: 0.058,
-  baseThugsPerTurn: 0.06,
+  baseProstitutesPerTurn: 0.078,
+  baseThugsPerTurn: 0.088,
   varianceMin: 0.65,
   varianceMax: 1.35,
   /** Scout-only worker revenue — lower than Produce to keep Scout crew-focused. */

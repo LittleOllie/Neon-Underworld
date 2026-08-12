@@ -1,4 +1,5 @@
 import type { ReportCategory } from '@prisma/client';
+import { cache } from 'react';
 import { prisma } from '@core/lib/db/prisma';
 import type { ScoutResultData } from '@core/server/actions/scout.actions';
 import type { PlayerIntelSnapshot } from '@core/lib/game-engine/combat/eligibility';
@@ -435,3 +436,8 @@ function extractSubject(metadata: unknown): string | undefined {
   if (snap && 'attackerAlias' in snap && snap.attackerAlias) return snap.attackerAlias;
   return undefined;
 }
+
+/** Request-scoped dedupe for unread inbox count (layout + command + reports). */
+export const getUnreadReportCount = cache((playerId: string) =>
+  ReportService.getUnreadCount(playerId),
+);

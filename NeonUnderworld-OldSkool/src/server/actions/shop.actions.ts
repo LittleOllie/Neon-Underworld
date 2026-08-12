@@ -15,8 +15,8 @@ import { prisma } from '@core/lib/db/prisma';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
-import { NetWorthService } from '@local/server/services/net-worth.service';
-import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import {
   streetDrugSaleAction as coreStreetDrugSaleAction,
@@ -148,7 +148,7 @@ export async function shopPurchaseAction(
   item: ShopItemKey,
   quantity: number,
   idempotencyKey: string,
-): Promise<ActionResult<ShopPurchaseResult & { canonicalNetWorth: number }>> {
+): Promise<ActionResult<WithPlayerShell<ShopPurchaseResult & { canonicalNetWorth: number }>>> {
   const result = await coreShopPurchaseAction(item, quantity, idempotencyKey);
   if (!result.success) return result;
 
@@ -157,8 +157,11 @@ export async function shopPurchaseAction(
   if (!playerId) return { success: false, error: 'Not authenticated' };
 
   await EmpireService.syncInventory(playerId);
-  const updated = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
-  const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true },
+  });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/shop']);
 
   await ActivityService.record(
     playerId,
@@ -167,14 +170,13 @@ export async function shopPurchaseAction(
     { shop: result.data },
   );
 
-  revalidatePlayerGameplayCache(playerId, updated.seasonId);
-
   return {
     success: true,
     data: {
       ...result.data,
-      newNetWorth: canonicalNetWorth,
-      canonicalNetWorth,
+      newNetWorth: shell.netWorth,
+      canonicalNetWorth: shell.netWorth,
+      shell,
     },
   };
 }
@@ -183,7 +185,7 @@ export async function shopSellAction(
   item: ShopItemKey,
   quantity: number,
   idempotencyKey: string,
-): Promise<ActionResult<ShopSellResult>> {
+): Promise<ActionResult<WithPlayerShell<ShopSellResult>>> {
   const result = await coreShopSellAction(item, quantity, idempotencyKey);
   if (!result.success) return result;
 
@@ -195,8 +197,11 @@ export async function shopSellAction(
   const label = catalog.find((e) => e.key === item)?.displayName ?? item;
 
   await EmpireService.syncInventory(playerId);
-  const updated = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
-  const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true },
+  });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/shop']);
 
   await ActivityService.record(
     playerId,
@@ -205,14 +210,13 @@ export async function shopSellAction(
     { shopSell: result.data },
   );
 
-  revalidatePlayerGameplayCache(playerId, updated.seasonId);
-
   return {
     success: true,
     data: {
       ...result.data,
-      newNetWorth: canonicalNetWorth,
-      canonicalNetWorth,
+      newNetWorth: shell.netWorth,
+      canonicalNetWorth: shell.netWorth,
+      shell,
     },
   };
 }
@@ -221,7 +225,7 @@ export async function streetDrugSaleAction(
   drug: StreetDrugType,
   quantity: number,
   idempotencyKey: string,
-): Promise<ActionResult<StreetDrugSaleResult>> {
+): Promise<ActionResult<WithPlayerShell<StreetDrugSaleResult>>> {
   const result = await coreStreetDrugSaleAction(drug, quantity, idempotencyKey);
   if (!result.success) return result;
 
@@ -232,8 +236,9 @@ export async function streetDrugSaleAction(
   await EmpireService.syncInventory(playerId);
   const updated = await prisma.player.findUniqueOrThrow({
     where: { id: playerId },
-    include: { district: true },
+    include: { district: true, turnState: true },
   });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/shop']);
 
   await ActivityService.record(
     playerId,
@@ -242,7 +247,12 @@ export async function streetDrugSaleAction(
     { streetDrugSale: result.data },
   );
 
-  revalidatePlayerGameplayCache(playerId, updated.seasonId);
-
-  return result;
+  return {
+    success: true,
+    data: {
+      ...result.data,
+      newNetWorth: shell.netWorth,
+      shell,
+    },
+  };
 }

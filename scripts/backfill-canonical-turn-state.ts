@@ -6,6 +6,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { TURNS_CONFIG } from '../src/config/game/balance';
+import { REDLITE_TURNS } from '../src/config/game/redlite-rules';
 
 const prisma = new PrismaClient();
 
@@ -58,8 +59,8 @@ async function main() {
       note: 'Init migration defaults before Redlite alignment',
     },
     finalConfiguration: {
-      turnsPerInterval: 2,
-      intervalMinutes: 6,
+      turnsPerInterval: REDLITE_TURNS.turnsPerInterval,
+      intervalMinutes: REDLITE_TURNS.intervalMinutes,
       turnCap: CANONICAL_CAP,
       startingTurns: TURNS_CONFIG.startingTurns,
       regenerationRatePerMs: CANONICAL_RATE,

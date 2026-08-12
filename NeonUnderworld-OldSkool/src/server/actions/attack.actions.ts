@@ -33,10 +33,16 @@ import { RankingsService } from '@local/server/services/rankings.service';
 import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
 import { revalidatePath } from 'next/cache';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import type { CombatPlayerRecord } from '@core/server/services/combat.service';
 import type { AttackTargetCandidate } from '@local/features/attack/AttackForm.types';
 
 export type { AttackLaunchResult, AttackTargetCandidate };
+
+export type OldSkoolAttackLaunchResult = AttackLaunchResult & {
+  shell?: PlayerShellSnapshot;
+};
 
 const calculateNetWorth = (player: CombatPlayerRecord) =>
   NetWorthService.calculateFromPlayer(player);
@@ -149,9 +155,9 @@ async function withAttackRetry<T>(fn: () => Promise<T>): Promise<T> {
 
 async function finalizeAttackLaunch(
   attackerId: string,
-  result: ActionResult<AttackLaunchResult>,
+  result: ActionResult<OldSkoolAttackLaunchResult>,
   attackType: AttackType,
-): Promise<ActionResult<AttackLaunchResult>> {
+): Promise<ActionResult<OldSkoolAttackLaunchResult>> {
   if (!result.success) return result;
 
   try {
@@ -179,9 +185,9 @@ async function finalizeAttackLaunch(
 
 async function finalizeAttackLaunchInner(
   attackerId: string,
-  result: ActionResult<AttackLaunchResult>,
+  result: ActionResult<OldSkoolAttackLaunchResult>,
   attackType: AttackType,
-): Promise<ActionResult<AttackLaunchResult>> {
+): Promise<ActionResult<OldSkoolAttackLaunchResult>> {
   if (!result.success) return result;
 
   const encounter = await prisma.combatEncounter.findUniqueOrThrow({
@@ -268,6 +274,17 @@ async function finalizeAttackLaunchInner(
   await revalidatePlayersGameplayCache([attackerId, defender.id]);
   safeRevalidateAttackPaths();
 
+  const attackerUpdated = await prisma.player.findUniqueOrThrow({
+    where: { id: attackerId },
+    include: { district: true, turnState: true },
+  });
+  const shell = await finalizeLocalMutationShell(
+    attackerId,
+    attackerUpdated,
+    ['/attack', '/command', '/reports'],
+    { turns: result.data.newTurns },
+  );
+
   return {
     success: true,
     data: {
@@ -275,6 +292,7 @@ async function finalizeAttackLaunchInner(
       attackerReportId,
       defenderReportId,
       idempotentReplay: false,
+      shell,
     },
   };
 }
@@ -284,7 +302,7 @@ export async function launchAttackAction(
   attackType: AttackType,
   attackingThugs: number,
   idempotencyKey: string,
-): Promise<ActionResult<AttackLaunchResult>> {
+): Promise<ActionResult<OldSkoolAttackLaunchResult>> {
   try {
     const session = await auth();
     const attackerId = session?.user?.playerId;
@@ -314,7 +332,7 @@ export async function launchAttackAction(
     }
 
     if (existingEncounter) {
-      const partialResult: ActionResult<AttackLaunchResult> = {
+      const partialResult: ActionResult<OldSkoolAttackLaunchResult> = {
         success: true,
         data: buildLaunchResultFromEncounter(existingEncounter),
       };
@@ -362,7 +380,7 @@ export async function launchDirectAttackAction(
   attackType: AttackType,
   attackingThugs: number,
   idempotencyKey: string,
-): Promise<ActionResult<AttackLaunchResult>> {
+): Promise<ActionResult<OldSkoolAttackLaunchResult>> {
   try {
     const session = await auth();
     const attackerId = session?.user?.playerId;
@@ -392,7 +410,7 @@ export async function launchDirectAttackAction(
     }
 
     if (existingEncounter) {
-      const partialResult: ActionResult<AttackLaunchResult> = {
+      const partialResult: ActionResult<OldSkoolAttackLaunchResult> = {
         success: true,
         data: buildLaunchResultFromEncounter(existingEncounter),
       };

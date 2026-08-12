@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import {
   travelAction,
   type TravelPageData,
@@ -20,7 +20,7 @@ import { Divider } from '@local/components/game/Divider';
 type Props = TravelPageData & { initialDestination?: string };
 
 export function TravelForm({ initialDestination, ...props }: Props) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [data, setData] = useState(props);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -45,8 +45,10 @@ export function TravelForm({ initialDestination, ...props }: Props) {
     setData((prev) => ({
       ...prev,
       turnsAvailable: response.data.newTurns,
+      currentCity: response.data.destinationName,
+      currentSlug: response.data.destinationSlug,
     }));
-    router.refresh();
+    reconcile(response.data.shell);
   }
 
   if (result) {
@@ -65,7 +67,6 @@ export function TravelForm({ initialDestination, ...props }: Props) {
             icon: 'travel',
             onClick: () => {
               setResult(null);
-              router.refresh();
             },
           },
         ]}

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import {
   createMarketListingAction,
   placeMarketBidAction,
@@ -43,7 +43,7 @@ function formatTimeLeft(endsAt: string): string {
 type Props = MarketPageData & { initialFilter?: MarketFilter };
 
 export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [tab, setTab] = useState<Tab>('browse');
   const [filter, setFilter] = useState<MarketFilter>(initialFilter);
   const [data, setData] = useState(initial);
@@ -84,7 +84,8 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       setError(response.error);
       return;
     }
-    router.refresh();
+    setData((prev) => ({ ...prev, cash: response.data.shell.cash }));
+    reconcile(response.data.shell);
   }
 
   async function handleCreateListing() {
@@ -121,7 +122,16 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
     setSuccess(`Listed ${qty}× ${selectedInventory?.name ?? sellItem} on the Market.`);
     setSellQty('1');
     setTab('mine');
-    router.refresh();
+    setData((prev) => ({
+      ...prev,
+      cash: response.data.shell.cash,
+      tradableInventory: prev.tradableInventory
+        .map((item) =>
+          item.key === sellItem ? { ...item, quantity: Math.max(0, item.quantity - qty) } : item,
+        )
+        .filter((item) => item.quantity > 0),
+    }));
+    reconcile(response.data.shell);
   }
 
   return (

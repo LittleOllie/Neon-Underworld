@@ -67,7 +67,7 @@ const pricing = validateStreetDrugPricing();
 console.log(pricing.valid ? 'Street pricing validation PASS' : pricing.violations.join(', '));
 
 console.log('\n=== Active player 7-day sketch (500 workers/thugs, 70% turn use) ===');
-const dailyTurns = 480;
+const dailyTurns = 576;
 const activeUse = Math.floor(dailyTurns * 0.7 * 7);
 const supplyPlan = planSupplyConsumption(500, 500, activeUse, { condoms: 5000, hash: 5000, beer: 5000 });
 const scoutGross = grossWorkerCash(500, activeUse, SCOUTING_CONFIG.cashPerProstitutePerTurn);

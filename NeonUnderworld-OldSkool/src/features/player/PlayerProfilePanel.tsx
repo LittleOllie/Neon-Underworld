@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import { ATTACK_RULES } from '@core/config/game/attack-rules';
 import {
   thugBand,
@@ -109,7 +109,7 @@ export function PlayerProfilePanel({
   targetCity,
   targetCitySlug,
 }: Props) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [turns, setTurns] = useState(initialTurns);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -137,7 +137,7 @@ export function PlayerProfilePanel({
       bands: bandsFromIntel(response.data.intel),
       expiresAt: response.data.intel.expiresAt,
     });
-    router.refresh();
+    reconcile(response.data.shell);
   }
 
   if (intel) {

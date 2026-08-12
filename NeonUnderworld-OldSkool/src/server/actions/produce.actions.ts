@@ -7,8 +7,8 @@ import { prisma } from '@core/lib/db/prisma';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
-import { NetWorthService } from '@local/server/services/net-worth.service';
-import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 export type { ProduceResultData };
@@ -21,7 +21,7 @@ export async function produceAction(
   turns: number,
   drugType: ProductionDrug,
   idempotencyKey: string,
-): Promise<ActionResult<OldSkoolProduceResult>> {
+): Promise<ActionResult<WithPlayerShell<OldSkoolProduceResult>>> {
   const result = await coreProduceAction(turns, drugType, idempotencyKey);
   if (!result.success) return result;
 
@@ -30,8 +30,14 @@ export async function produceAction(
   if (!playerId) return { success: false, error: 'Not authenticated' };
 
   await EmpireService.syncInventory(playerId);
-  const updated = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
-  const canonicalNetWorth = NetWorthService.calculateFromPlayer(updated);
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true },
+  });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/produce', '/command'], {
+    turns: result.data.newTurns,
+    netWorth: result.data.newNetWorth,
+  });
 
   await ActivityService.record(
     playerId,
@@ -40,14 +46,13 @@ export async function produceAction(
     { production: result.data },
   );
 
-  revalidatePlayerGameplayCache(playerId, updated.seasonId);
-
   return {
     success: true,
     data: {
       ...result.data,
-      canonicalNetWorth,
-      newNetWorth: canonicalNetWorth,
+      canonicalNetWorth: shell.netWorth,
+      newNetWorth: shell.netWorth,
+      shell,
     },
   };
 }

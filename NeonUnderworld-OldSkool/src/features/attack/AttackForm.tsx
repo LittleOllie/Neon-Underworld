@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import {
   ATTACK_RULES,
   ATTACK_TYPE_LABELS,
@@ -25,7 +27,7 @@ import {
 } from '@core/lib/game-engine/combat/intel-bands';
 import {
   launchAttackAction,
-  type AttackLaunchResult,
+  type OldSkoolAttackLaunchResult,
 } from '@local/server/actions/attack.actions';
 import { scoutTargetAction } from '@local/server/actions/scout-target.actions';
 import { NumericInput } from '@local/components/game/NumericInput';
@@ -126,6 +128,7 @@ function TargetCard({
 
 export function AttackForm(props: AttackFormProps) {
   const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [targets, setTargets] = useState(props.targets);
   const [turns, setTurns] = useState(props.turns);
   const [selected, setSelected] = useState<AttackTargetCandidate | null>(() =>
@@ -142,7 +145,7 @@ export function AttackForm(props: AttackFormProps) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<AttackLaunchResult | null>(null);
+  const [result, setResult] = useState<OldSkoolAttackLaunchResult | null>(null);
 
   useEffect(() => {
     setTargets(props.targets);
@@ -237,7 +240,7 @@ export function AttackForm(props: AttackFormProps) {
       prev.map((t) => (t.playerId === updated.playerId ? updated : t)),
     );
     setShowIntel(true);
-    router.refresh();
+    reconcile(response.data.shell);
   }
 
   async function handleLaunch() {
@@ -257,7 +260,10 @@ export function AttackForm(props: AttackFormProps) {
         return;
       }
       setResult(response.data);
-      router.refresh();
+      setTurns(response.data.newTurns);
+      if (response.data.shell) {
+        reconcile(response.data.shell);
+      }
     } catch (err) {
       setError('Something went wrong launching the attack. Try again.');
       setConfirming(false);
@@ -274,7 +280,6 @@ export function AttackForm(props: AttackFormProps) {
     setConfirming(false);
     setError('');
     router.replace('/attack');
-    router.refresh();
   }
 
   if (result) {

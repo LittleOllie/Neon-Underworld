@@ -13,7 +13,8 @@ import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import { prisma } from '@core/lib/db/prisma';
-import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
 export type { TravelResult };
 
@@ -49,22 +50,35 @@ export async function getTravelPageDataFromContext(ctx: CanonicalPlayerContext):
 export async function travelAction(
   destinationDistrictSlug: string,
   idempotencyKey: string,
-): Promise<ActionResult<TravelResult>> {
+): Promise<ActionResult<WithPlayerShell<TravelResult>>> {
   const result = await coreTravelAction(destinationDistrictSlug, idempotencyKey);
   if (!result.success) return result;
 
   const session = await auth();
   const playerId = session?.user?.playerId;
-  if (playerId) {
-    await ActivityService.record(
-      playerId,
-      ACTIVITY_TYPES.TRAVEL,
-      result.data.message,
-      { travel: result.data },
-    );
-    const player = await prisma.player.findUnique({ where: { id: playerId }, select: { seasonId: true } });
-    if (player) revalidatePlayerGameplayCache(playerId, player.seasonId);
-  }
+  if (!playerId) return { success: false, error: 'Not authenticated' };
 
-  return result;
+  await ActivityService.record(
+    playerId,
+    ACTIVITY_TYPES.TRAVEL,
+    result.data.message,
+    { travel: result.data },
+  );
+
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true },
+  });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/travel', '/scout', '/attack'], {
+    turns: result.data.newTurns,
+    district: result.data.destinationName,
+  });
+
+  return {
+    success: true,
+    data: {
+      ...result.data,
+      shell,
+    },
+  };
 }

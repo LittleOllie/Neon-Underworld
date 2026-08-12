@@ -8,6 +8,8 @@ import { ACTIVITY_TYPES, buildPlayerIntelActivityMessage } from '@local/config/a
 import { ActivityService } from '@local/server/services/activity.service';
 import { ReportService } from '@local/server/services/report.service';
 import { NetWorthService } from '@local/server/services/net-worth.service';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
 export type { ScoutTargetResultData };
 
@@ -21,7 +23,7 @@ const calculateNetWorth = (player: Parameters<typeof NetWorthService.calculateFr
 export async function scoutTargetAction(
   targetAlias: string,
   idempotencyKey: string,
-): Promise<ActionResult<OldSkoolScoutTargetResult>> {
+): Promise<ActionResult<WithPlayerShell<OldSkoolScoutTargetResult>>> {
   const result = await coreScoutTargetAction(targetAlias, idempotencyKey, calculateNetWorth);
   if (!result.success) return result;
 
@@ -38,9 +40,16 @@ export async function scoutTargetAction(
   });
 
   if (existingReport) {
+    const updated = await prisma.player.findUniqueOrThrow({
+      where: { id: playerId },
+      include: { district: true, turnState: true },
+    });
+    const shell = await finalizeLocalMutationShell(playerId, updated, ['/attack', '/reports'], {
+      turns: result.data.newTurns,
+    });
     return {
       success: true,
-      data: { ...result.data, reportId: existingReport.id },
+      data: { ...result.data, reportId: existingReport.id, shell },
     };
   }
 
@@ -57,8 +66,16 @@ export async function scoutTargetAction(
     { reportId, intel: result.data.intel },
   );
 
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true },
+  });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/attack', '/reports', '/command'], {
+    turns: result.data.newTurns,
+  });
+
   return {
     success: true,
-    data: { ...result.data, reportId },
+    data: { ...result.data, reportId, shell },
   };
 }

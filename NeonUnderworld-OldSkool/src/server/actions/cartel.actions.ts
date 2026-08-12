@@ -8,6 +8,17 @@ import { auth } from '@local/lib/auth/config';
 import { GameplayError, toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
+import { prisma } from '@core/lib/db/prisma';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
+
+async function revalidateCartelMutation(playerId: string): Promise<PlayerShellSnapshot> {
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true },
+  });
+  return finalizeLocalMutationShell(playerId, updated, ['/cartels']);
+}
 
 export type CartelPageData = Awaited<ReturnType<typeof CartelService.getCartelPageForPlayer>> & {
   donationOptions: readonly number[];
@@ -34,6 +45,7 @@ export async function createCartelAction(
       `You created cartel ${cartel.name} [${cartel.tag}].`,
       { cartelId: cartel.id },
     );
+    await revalidateCartelMutation(playerId);
     return { success: true, data: { cartelId: cartel.id } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
@@ -55,6 +67,7 @@ export async function inviteToCartelAction(
       `You invited ${inviteeAlias} to your cartel.`,
       { inviteId: invite.id },
     );
+    await revalidateCartelMutation(playerId);
     return { success: true, data: { inviteId: invite.id } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
@@ -76,6 +89,7 @@ export async function acceptCartelInviteAction(
       'You joined a cartel.',
       { cartelId },
     );
+    await revalidateCartelMutation(playerId);
     return { success: true, data: { cartelId } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
@@ -103,6 +117,7 @@ export async function leaveCartelAction(): Promise<ActionResult<void>> {
 
     await CartelService.leaveCartel(playerId);
     await ActivityService.record(playerId, ACTIVITY_TYPES.CARTEL, 'You left your cartel.');
+    await revalidateCartelMutation(playerId);
     return { success: true, data: undefined };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
@@ -117,6 +132,7 @@ export async function removeCartelMemberAction(memberId: string): Promise<Action
 
     await CartelService.removeMember(playerId, memberId);
     await ActivityService.record(playerId, ACTIVITY_TYPES.CARTEL, 'You removed a cartel member.');
+    await revalidateCartelMutation(playerId);
     return { success: true, data: undefined };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
@@ -132,6 +148,7 @@ export async function setCartelDonationAction(
     if (!playerId) return { success: false, error: 'Not authenticated' };
 
     const normalized = await CartelService.setDonationPercent(playerId, percent);
+    await revalidateCartelMutation(playerId);
     return { success: true, data: { percent: normalized } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
@@ -179,6 +196,7 @@ export async function purchaseCartelArmouryAction(
       { item, quantity, totalCost: result.totalCost },
     );
 
+    await revalidateCartelMutation(playerId);
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };

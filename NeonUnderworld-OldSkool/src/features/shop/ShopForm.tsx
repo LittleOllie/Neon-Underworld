@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import {
   shopPurchaseAction,
   shopSellAction,
@@ -46,7 +46,7 @@ export function ShopForm({
   initialTab = 'weapons',
   highlightItem = null,
 }: ShopFormProps) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const highlightRef = useRef<HTMLDivElement | null>(null);
   const [cash, setCash] = useState(initialCash);
   const [inventory, setInventory] = useState(initialInventory);
@@ -112,7 +112,7 @@ export function ShopForm({
       qty: quantity!,
       amount: response.data.totalCost,
     });
-    router.refresh();
+    reconcile(response.data.shell);
   }
 
   async function handleSell(entry: ShopCatalogEntry) {
@@ -153,7 +153,7 @@ export function ShopForm({
       qty: quantity!,
       amount: response.data.totalPayout,
     });
-    router.refresh();
+    reconcile(response.data.shell);
   }
 
   if (result) {

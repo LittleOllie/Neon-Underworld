@@ -24,8 +24,12 @@ export function PlayerShellRefresh() {
       }
     }
 
+    function onFocus() {
+      maybeRefresh(true);
+    }
+
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('focus', () => maybeRefresh(true));
+    window.addEventListener('focus', onFocus);
 
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -35,7 +39,7 @@ export function PlayerShellRefresh() {
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('focus', () => maybeRefresh(true));
+      window.removeEventListener('focus', onFocus);
       window.clearInterval(interval);
     };
   }, [router]);

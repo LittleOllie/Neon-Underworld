@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { PageTitle } from '@local/components/game';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
-import { ReportService } from '@local/server/services/report.service';
+import { ReportService, getUnreadReportCount } from '@local/server/services/report.service';
 import { MarkAllReadButton } from '@local/features/reports/MarkAllReadButton';
 import { devPerf } from '@local/lib/dev-perf';
 
@@ -24,7 +24,7 @@ export default async function ReportsPage({ searchParams }: Props) {
   const { reports, unreadCount } = await devPerf('/reports data', async () => {
     const [reports, unreadCount] = await Promise.all([
       ReportService.listFiltered(playerId, filter),
-      ReportService.getUnreadCount(playerId),
+      getUnreadReportCount(playerId),
     ]);
     return { reports, unreadCount };
   });

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import { produceAction, type OldSkoolProduceResult } from '@local/server/actions/produce.actions';
 import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
 import { NumericInput } from '@local/components/game/NumericInput';
@@ -38,7 +38,7 @@ export function ProduceForm({
   prostituteHappiness,
   thugHappiness,
 }: ProduceFormProps) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [turns, setTurns] = useState(initialTurns);
   const [amountRaw, setAmountRaw] = useState('100');
   const [amount, setAmount] = useState(100);
@@ -73,7 +73,7 @@ export function ProduceForm({
     }
     setResult(response.data);
     setTurns(response.data.newTurns);
-    router.refresh();
+    reconcile(response.data.shell);
   }
 
   if (result) {

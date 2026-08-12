@@ -40,15 +40,15 @@ function monteCarlo(
 describe('scout economy simulation', () => {
   it('50 turns averages meaningful recruitment at healthy morale', () => {
     const r = monteCarlo(50, 2000, 40_000);
-    expect(r.avgTotal).toBeGreaterThan(3);
-    expect(r.avgTotal).toBeLessThan(12);
-    expect(r.zeroTotalPct).toBeLessThan(0.03);
+    expect(r.avgTotal).toBeGreaterThan(5);
+    expect(r.avgTotal).toBeLessThan(16);
+    expect(r.zeroTotalPct).toBeLessThan(0.02);
   });
 
   it('100 turns stays in target crew band', () => {
     const r = monteCarlo(100, 1500, 50_000, 10);
-    expect(r.avgTotal).toBeGreaterThan(6);
-    expect(r.avgTotal).toBeLessThan(20);
+    expect(r.avgTotal).toBeGreaterThan(10);
+    expect(r.avgTotal).toBeLessThan(28);
   });
 
   it('scout cash scales down vs large rosters', () => {

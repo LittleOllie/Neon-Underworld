@@ -11,20 +11,19 @@ import { GameNav } from './GameNav';
 import { GameMainTransition } from './GameMainTransition';
 import { GamePageBackground } from './GamePageBackground';
 import { PlayerShellRefresh } from './PlayerShellRefresh';
+import { PlayerShellProvider, usePlayerShell } from './PlayerShellProvider';
 
 export type { GlobalStats };
 
-export function GameShell({
-  stats,
+function GameShellFrame({
   background,
   children,
 }: {
-  stats?: GlobalStats;
-  /** Explicit override; otherwise derived from current pathname. */
   background?: GameBackgroundKey;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { stats } = usePlayerShell();
   const resolvedBackground = background ?? getBackgroundForPath(pathname);
 
   return (
@@ -39,17 +38,15 @@ export function GameShell({
           </Link>
           <LogoutLink />
         </div>
-        {stats && (
-          <div className="g-header-meta">
-            {stats.alias && (
-              <div className="g-player-line">
-                {stats.alias}
-                {stats.district ? ` · ${stats.district}` : ''}
-              </div>
-            )}
-            <GlobalStatus stats={stats} />
-          </div>
-        )}
+        <div className="g-header-meta">
+          {stats.alias && (
+            <div className="g-player-line">
+              {stats.alias}
+              {stats.district ? ` · ${stats.district}` : ''}
+            </div>
+          )}
+          <GlobalStatus stats={stats} />
+        </div>
         <GameNav stats={stats} />
       </div>
       <main className="g-main">
@@ -60,5 +57,30 @@ export function GameShell({
       <PlayerShellRefresh />
       <footer className="g-footer">Neon Underworld · OldSkool Edition</footer>
     </div>
+  );
+}
+
+export function GameShell({
+  stats,
+  background,
+  children,
+}: {
+  stats?: GlobalStats;
+  /** Explicit override; otherwise derived from current pathname. */
+  background?: GameBackgroundKey;
+  children: React.ReactNode;
+}) {
+  if (!stats) {
+    return (
+      <div className="g-shell">
+        <main className="g-main">{children}</main>
+      </div>
+    );
+  }
+
+  return (
+    <PlayerShellProvider initialStats={stats}>
+      <GameShellFrame background={background}>{children}</GameShellFrame>
+    </PlayerShellProvider>
   );
 }

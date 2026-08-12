@@ -5,13 +5,13 @@
  * Neon Underworld keeps deliberate improvements where noted (bank NW, weighted weapons, reports).
  */
 
-/** 2 turns every 6 minutes */
+/** 2 turns every 5 minutes (alpha — slightly faster than classic Redlite 6 min) */
 export const REDLITE_TURNS = {
   turnsPerInterval: 2,
-  intervalMinutes: 6,
-  /** ~20 turns/hour, ~480/day */
-  regenerationRatePerHour: 20,
-  regenerationRatePerMs: 2 / (6 * 60 * 1000),
+  intervalMinutes: 5,
+  /** ~24 turns/hour, ~576/day */
+  regenerationRatePerHour: 24,
+  regenerationRatePerMs: 2 / (5 * 60 * 1000),
   /** Alpha playtest — friends start with a full turn bank to explore */
   startingTurns: 5000,
   turnCap: 5000,

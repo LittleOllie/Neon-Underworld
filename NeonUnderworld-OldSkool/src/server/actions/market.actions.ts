@@ -9,11 +9,12 @@ import { prisma } from '@core/lib/db/prisma';
 import { GameplayError, toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
-import { revalidatePath } from 'next/cache';
 import {
   revalidatePlayerGameplayCache,
   revalidatePlayersGameplayCache,
 } from '@local/server/services/gameplay-cache';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import { isRoutePrefetch } from '@local/lib/is-route-prefetch';
 
@@ -83,7 +84,7 @@ export async function createMarketListingAction(
   startingPrice: number,
   durationMinutes: MarketDurationMinutes,
   idempotencyKey: string,
-): Promise<ActionResult<{ listingId: string }>> {
+): Promise<ActionResult<WithPlayerShell<{ listingId: string }>>> {
   try {
     const session = await auth();
     const playerId = session?.user?.playerId;
@@ -105,14 +106,13 @@ export async function createMarketListingAction(
       { listingId: result.listingId, itemKey, quantity, startingPrice },
     );
 
-    const player = await prisma.player.findUniqueOrThrow({
+    const updated = await prisma.player.findUniqueOrThrow({
       where: { id: playerId },
-      select: { seasonId: true },
+      include: { district: true, turnState: true },
     });
-    revalidatePlayerGameplayCache(playerId, player.seasonId);
-    revalidatePath('/market');
+    const shell = await finalizeLocalMutationShell(playerId, updated, ['/market']);
 
-    return { success: true, data: result };
+    return { success: true, data: { ...result, shell } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
   }
@@ -122,7 +122,7 @@ export async function placeMarketBidAction(
   listingId: string,
   amount: number,
   idempotencyKey: string,
-): Promise<ActionResult<{ bidId: string; amount: number }>> {
+): Promise<ActionResult<WithPlayerShell<{ bidId: string; amount: number }>>> {
   try {
     const session = await auth();
     const playerId = session?.user?.playerId;
@@ -154,11 +154,6 @@ export async function placeMarketBidAction(
     }
 
     await settleMarketAndRefreshCaches();
-    const player = await prisma.player.findUniqueOrThrow({
-      where: { id: playerId },
-      select: { seasonId: true },
-    });
-    revalidatePlayerGameplayCache(playerId, player.seasonId);
     if (previousBidderId && previousBidderId !== playerId) {
       const previous = await prisma.player.findUnique({
         where: { id: previousBidderId },
@@ -167,7 +162,13 @@ export async function placeMarketBidAction(
       if (previous) revalidatePlayerGameplayCache(previousBidderId, previous.seasonId);
     }
 
-    return { success: true, data: result };
+    const updated = await prisma.player.findUniqueOrThrow({
+      where: { id: playerId },
+      include: { district: true, turnState: true },
+    });
+    const shell = await finalizeLocalMutationShell(playerId, updated, ['/market']);
+
+    return { success: true, data: { ...result, shell } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
   }
