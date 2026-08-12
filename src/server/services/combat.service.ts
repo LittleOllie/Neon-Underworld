@@ -10,6 +10,7 @@ import {
 } from '@/lib/game-engine/combat/eligibility';
 import { allocateWeaponsForThugs, weaponCoverageBand } from '@/lib/game-engine/combat/weapon-allocation';
 import { deriveCombatSeed, resolveCombat } from '@/lib/game-engine/combat/resolve-combat';
+import { calculateProstituteHappiness } from '@/lib/game-engine/happiness';
 import {
   consumeTurns,
   resolveCanonicalTurnState,
@@ -62,6 +63,7 @@ export interface CombatResolutionOutput {
   defenderWeaponLosses: { glocks: number; uzis: number; aks: number };
   attackerReturned: number;
   cashStolen: number;
+  workersStolen: number;
   drugsStolen: { hash: number; shrooms: number; coke: number; heroin: number };
   turnsSpent: number;
   ridesUsed: number;
@@ -170,6 +172,7 @@ export async function resolveAttackEncounter(
       defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
       attackerReturned: existing.attackerReturned,
       cashStolen: existing.cashStolen,
+      workersStolen: existing.workersStolen ?? 0,
       drugsStolen: (existing.drugsStolen as CombatResolutionOutput['drugsStolen']) ?? {
         hash: 0,
         shrooms: 0,
@@ -274,6 +277,7 @@ export async function resolveAttackEncounter(
       defenderTravelling: defender.travelling,
       intelReport: intel,
       attacksOnTargetLast24h: attacksOnTarget,
+      defenderWorkers: defender.prostitutes,
       defenderOfflineProtected,
       allowDirectAttack: target.kind === 'direct',
     });
@@ -304,12 +308,31 @@ export async function resolveAttackEncounter(
       };
     }
     const seed = deriveCombatSeed(attackerId, defender.id, idempotencyKey);
+
+    const defenderThugsForProtection =
+      defender.thugs + cartelSupportThugs + cartelArmoury.thugs;
+    const workerHappiness = calculateProstituteHappiness({
+      prostitutes: defender.prostitutes,
+      thugs: defender.thugs,
+      hash: defender.hash,
+      condoms: defender.condoms,
+      prostitutePayoutPercent: defender.prostitutePayoutPercent,
+    }).score;
+
     const combat = resolveCombat({
       attackType,
       attackingThugs,
       seed,
       cartelSupportThugs,
       cartelArmoury,
+      poachContext:
+        attackType === 'POACH_WORKERS'
+          ? {
+              defenderWorkers: defender.prostitutes,
+              defenderThugsForProtection,
+              workerHappiness,
+            }
+          : undefined,
       attacker: {
         thugs: attacker.thugs,
         glocks: attacker.glocks,
@@ -354,6 +377,7 @@ export async function resolveAttackEncounter(
         uzis: Math.max(0, attacker.uzis - combat.attackerWeaponLosses.uzis),
         aks: Math.max(0, attacker.aks - combat.attackerWeaponLosses.aks),
         cash: safeInt(attacker.cash + combat.cashStolen),
+        prostitutes: safeInt(attacker.prostitutes + combat.workersStolen),
         hash: safeInt(attacker.hash + combat.drugsStolen.hash),
         shrooms: safeInt(attacker.shrooms + combat.drugsStolen.shrooms),
         coke: safeInt(attacker.coke + combat.drugsStolen.coke),
@@ -369,6 +393,7 @@ export async function resolveAttackEncounter(
         uzis: Math.max(0, defender.uzis - combat.defenderWeaponLosses.uzis),
         aks: Math.max(0, defender.aks - combat.defenderWeaponLosses.aks),
         cash: Math.max(0, defender.cash - combat.cashStolen),
+        prostitutes: Math.max(0, defender.prostitutes - combat.workersStolen),
         hash: Math.max(0, defender.hash - combat.drugsStolen.hash),
         shrooms: Math.max(0, defender.shrooms - combat.drugsStolen.shrooms),
         coke: Math.max(0, defender.coke - combat.drugsStolen.coke),
@@ -426,6 +451,7 @@ export async function resolveAttackEncounter(
         defenderLosses: combat.defenderLosses,
         attackerReturned: combat.attackerReturned,
         cashStolen: combat.cashStolen,
+        workersStolen: combat.workersStolen,
         drugsStolen: combat.drugsStolen as object,
         outcome: combat.outcome,
       },
@@ -459,6 +485,7 @@ export async function resolveAttackEncounter(
           uzis: -combat.attackerWeaponLosses.uzis,
           aks: -combat.attackerWeaponLosses.aks,
           cash: combat.cashStolen,
+          prostitutes: combat.workersStolen,
           hash: combat.drugsStolen.hash,
           shrooms: combat.drugsStolen.shrooms,
           coke: combat.drugsStolen.coke,
@@ -492,6 +519,7 @@ export async function resolveAttackEncounter(
     defenderWeaponLosses: result.combat.defenderWeaponLosses,
     attackerReturned: result.combat.attackerReturned,
     cashStolen: result.combat.cashStolen,
+    workersStolen: result.combat.workersStolen,
     drugsStolen: result.combat.drugsStolen,
     turnsSpent: ATTACK_RULES.turnCosts[attackType],
     ridesUsed: ridesRequired(attackingThugs),

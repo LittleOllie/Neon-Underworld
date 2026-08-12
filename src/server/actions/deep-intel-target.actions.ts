@@ -11,6 +11,7 @@ import {
 } from '@/lib/game-engine/turns';
 import { buildDeepIntelSnapshot, type DeepIntelSnapshot } from '@/lib/game-engine/combat/deep-intel';
 import { isIntelReportValid, type PlayerIntelSnapshot } from '@/lib/game-engine/combat/eligibility';
+import { CartelService } from '@/server/services/cartel.service';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
@@ -135,6 +136,12 @@ export async function deepIntelTargetAction(
         throw new GameplayError('INSUFFICIENT_TURNS');
       }
 
+      let cartelSupportThugs = 0;
+      if (ATTACK_RULES.cartelDefenceActive && target.cartelId) {
+        const cartelDefence = await CartelService.getCartelDefenceContextInTx(tx, target.id);
+        cartelSupportThugs = cartelDefence.virtualSupportThugs;
+      }
+
       const { newState } = consumeTurns(settled, turnCost);
       const nw = calculateNetWorth(target);
       const deepIntel = buildDeepIntelSnapshot(
@@ -154,6 +161,9 @@ export async function deepIntelTargetAction(
           heroin: target.heroin,
           cartelId: target.cartelId,
           canonicalNetWorth: nw,
+          condoms: target.condoms,
+          prostitutePayoutPercent: target.prostitutePayoutPercent,
+          cartelSupportThugs,
         },
         playerId,
         idempotencyKey,

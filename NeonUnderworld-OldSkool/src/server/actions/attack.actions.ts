@@ -60,6 +60,7 @@ function buildLaunchResult(data: CombatResolutionOutput): AttackLaunchResult {
     defenderWeaponLosses: data.defenderWeaponLosses,
     attackerReturned: data.attackerReturned,
     cashStolen: data.cashStolen,
+    workersStolen: data.workersStolen,
     drugsStolen: data.drugsStolen,
     turnsSpent: data.turnsSpent,
     ridesUsed: data.ridesUsed,
@@ -84,6 +85,7 @@ function buildLaunchResultFromEncounter(
     defenderLosses: number;
     attackerReturned: number;
     cashStolen: number;
+    workersStolen?: number;
     drugsStolen: unknown;
     turnsSpent: number;
     ridesUsed: number;
@@ -105,6 +107,7 @@ function buildLaunchResultFromEncounter(
     defenderWeaponLosses: { glocks: 0, uzis: 0, aks: 0 },
     attackerReturned: encounter.attackerReturned,
     cashStolen: encounter.cashStolen,
+    workersStolen: encounter.workersStolen ?? 0,
     drugsStolen: (encounter.drugsStolen as AttackLaunchResult['drugsStolen']) ?? {
       hash: 0,
       shrooms: 0,
@@ -234,6 +237,7 @@ async function finalizeAttackLaunchInner(
       attackerReturned: result.data.attackerReturned,
       defenderThugsBefore,
       cashStolen: result.data.cashStolen,
+      workersStolen: result.data.workersStolen,
       drugsStolen: result.data.drugsStolen,
       outcome: result.data.outcome,
       outcomeLabel: result.data.outcomeLabel,
@@ -250,21 +254,37 @@ async function finalizeAttackLaunchInner(
   });
 
   const attackLabel = ATTACK_TYPE_LABELS[attackType];
+  const workersStolen = result.data.workersStolen ?? 0;
+  const attackerActivityMessage =
+    attackType === 'POACH_WORKERS' && workersStolen > 0
+      ? `You poached ${workersStolen.toLocaleString()} Workers from ${defender.alias}.`
+      : buildAttackActivityMessage(defender.alias, attackLabel, result.data.outcome);
+  const defenderActivityMessage =
+    attackType === 'POACH_WORKERS' && workersStolen > 0
+      ? `${attacker.alias} poached ${workersStolen.toLocaleString()} Workers from your operation.`
+      : attackType === 'POACH_WORKERS'
+        ? `${attacker.alias} attempted to poach your Workers — attempt failed.`
+        : buildDefenceActivityMessage(attacker.alias, attackLabel, result.data.outcome);
+
   await ActivityService.record(
     attackerId,
     ACTIVITY_TYPES.ATTACK,
-    buildAttackActivityMessage(defender.alias, attackLabel, result.data.outcome),
+    attackerActivityMessage,
     { encounterId: encounter.id, reportId: attackerReportId },
   );
   await ActivityService.record(
     defender.id,
     ACTIVITY_TYPES.DEFENCE,
-    buildDefenceActivityMessage(attacker.alias, attackLabel, result.data.outcome),
+    defenderActivityMessage,
     { encounterId: encounter.id, reportId: defenderReportId },
   );
 
   const defenderNotification =
-    result.data.cashStolen > 0
+    attackType === 'POACH_WORKERS' && workersStolen > 0
+      ? `${attacker.alias} poached ${workersStolen.toLocaleString()} Workers from your operation.`
+      : attackType === 'POACH_WORKERS'
+        ? `${attacker.alias} attempted to poach your Workers — defenders stopped the attempt.`
+        : result.data.cashStolen > 0
       ? `You were attacked. $${result.data.cashStolen.toLocaleString()} stolen from cash on hand.`
       : totalDrugs(result.data.drugsStolen) > 0
         ? 'You were attacked. Drug stock was raided.'
@@ -588,6 +608,9 @@ export async function getAttackPageData(
             cashExposureBand: deepIntelReport.deepIntel.cashExposureBand,
             drugExposureBand: deepIntelReport.deepIntel.drugExposureBand,
             cartelPresence: deepIntelReport.deepIntel.cartelPresence,
+            workforceStabilityBand: deepIntelReport.deepIntel.workforceStabilityBand,
+            workforceProtectionBand: deepIntelReport.deepIntel.workforceProtectionBand,
+            poachingOutlook: deepIntelReport.deepIntel.poachingOutlook,
             gatheredAt: deepIntelReport.deepIntel.scoutedAt,
           }
         : null,

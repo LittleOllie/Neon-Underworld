@@ -45,6 +45,9 @@ export default async function PlayerProfilePage({ params }: Props) {
         cashExposureBand: deepIntelReport.deepIntel.cashExposureBand,
         drugExposureBand: deepIntelReport.deepIntel.drugExposureBand,
         cartelPresence: deepIntelReport.deepIntel.cartelPresence,
+        workforceStabilityBand: deepIntelReport.deepIntel.workforceStabilityBand,
+        workforceProtectionBand: deepIntelReport.deepIntel.workforceProtectionBand,
+        poachingOutlook: deepIntelReport.deepIntel.poachingOutlook,
         gatheredAt: deepIntelReport.deepIntel.scoutedAt,
       }
     : null;

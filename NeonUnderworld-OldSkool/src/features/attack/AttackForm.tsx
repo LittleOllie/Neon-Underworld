@@ -10,6 +10,7 @@ import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import {
   ATTACK_RULES,
   ATTACK_TYPE_LABELS,
+  ATTACK_TYPE_PURPOSE,
   type AttackType,
 } from '@core/config/game/attack-rules';
 import { ridesRequiredForThugs } from '@core/lib/game-engine/combat-rules';
@@ -32,6 +33,8 @@ import {
 import { scoutTargetAction } from '@local/server/actions/scout-target.actions';
 import { deepIntelTargetAction } from '@local/server/actions/deep-intel-target.actions';
 import { formatCountEstimateRange } from '@core/lib/game-engine/combat/deep-intel';
+import { workforceStabilityHint } from '@core/lib/game-engine/combat/intel-bands';
+import { poachingOutlookHint } from '@core/lib/game-engine/combat/poach-outlook';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { ActionResult } from '@local/components/game/ActionResult';
@@ -65,7 +68,7 @@ function formatIntelAge(iso: string): string {
   return `${Math.floor(mins / 60)}h ago`;
 }
 
-const ATTACK_TYPES: AttackType[] = ['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS'];
+const ATTACK_TYPES: AttackType[] = ['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS', 'POACH_WORKERS'];
 
 function thugForceMultiplier(label: string): number {
   if (label === 'Massive') return 800;
@@ -338,6 +341,9 @@ export function AttackForm(props: AttackFormProps) {
       cashExposureBand: response.data.deepIntel.cashExposureBand,
       drugExposureBand: response.data.deepIntel.drugExposureBand,
       cartelPresence: response.data.deepIntel.cartelPresence,
+      workforceStabilityBand: response.data.deepIntel.workforceStabilityBand,
+      workforceProtectionBand: response.data.deepIntel.workforceProtectionBand,
+      poachingOutlook: response.data.deepIntel.poachingOutlook,
       gatheredAt: response.data.deepIntel.scoutedAt,
     };
     const updated: AttackTargetCandidate = {
@@ -400,6 +406,12 @@ export function AttackForm(props: AttackFormProps) {
     ];
     if (result.cashStolen > 0) {
       lines.push({ text: `+$${result.cashStolen.toLocaleString()} stolen`, tone: 'positive' });
+    }
+    if ((result.workersStolen ?? 0) > 0) {
+      lines.push({
+        text: `+${result.workersStolen!.toLocaleString()} Workers poached`,
+        tone: 'positive',
+      });
     }
     if (result.attackerLosses > 0) {
       lines.push({ text: `-${result.attackerLosses} thugs lost`, tone: 'negative' });
@@ -523,10 +535,17 @@ export function AttackForm(props: AttackFormProps) {
                 )}
               />
               <StatRow label="Weapon Readiness" value={selected.deepIntel.weaponReadinessBand} />
+              <StatRow label="Workforce Stability" value={selected.deepIntel.workforceStabilityBand} />
+              <StatRow label="Protection" value={selected.deepIntel.workforceProtectionBand} />
               <StatRow label="Cash Exposure" value={selected.deepIntel.cashExposureBand} />
               <StatRow label="Drug Exposure" value={selected.deepIntel.drugExposureBand} />
               {selected.deepIntel.cartelPresence && (
                 <StatRow label="Cartel" value={selected.deepIntel.cartelPresence} />
+              )}
+              {workforceStabilityHint(selected.deepIntel.workforceStabilityBand as never) && (
+                <p className="g-note">
+                  {workforceStabilityHint(selected.deepIntel.workforceStabilityBand as never)}
+                </p>
               )}
               <StatRow label="Intel age" value={formatIntelAge(selected.deepIntel.gatheredAt)} />
               {selected.deepIntelReportId && (
@@ -651,6 +670,22 @@ export function AttackForm(props: AttackFormProps) {
               </option>
             ))}
           </select>
+          <p className="g-note">{ATTACK_TYPE_PURPOSE[attackType]}</p>
+          {attackType === 'POACH_WORKERS' && selected.deepIntel && (
+            <>
+              <StatRow
+                label="Workforce"
+                value={formatCountEstimateRange(
+                  selected.deepIntel.estimatedWorkerMin,
+                  selected.deepIntel.estimatedWorkerMax,
+                )}
+              />
+              <StatRow label="Stability" value={selected.deepIntel.workforceStabilityBand} />
+              <StatRow label="Protection" value={selected.deepIntel.workforceProtectionBand} />
+              <StatRow label="Poaching outlook" value={selected.deepIntel.poachingOutlook} />
+              <p className="g-note">{poachingOutlookHint(selected.deepIntel.poachingOutlook as never)}</p>
+            </>
+          )}
 
           <NumericInput
             id="attack-force"

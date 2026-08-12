@@ -1,5 +1,6 @@
 import { isWithinAttackRange } from '@/config/game/redlite-rules';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
+import { WORKER_POACHING_RULES } from '@/config/game/worker-poaching-rules';
 import { ridesRequiredForThugs } from '@/lib/game-engine/combat-rules';
 import {
   GAMEPLAY_ERROR_MESSAGES,
@@ -39,6 +40,7 @@ export interface AttackEligibilityInput {
   defenderTravelling: boolean;
   intelReport: PlayerIntelSnapshot | null;
   attacksOnTargetLast24h: number;
+  defenderWorkers?: number;
   defenderOfflineProtected?: boolean;
   /** Skip intel requirement — blind attack without prior player intel */
   allowDirectAttack?: boolean;
@@ -116,6 +118,13 @@ export function validateAttackEligibilityCode(
 
   if (input.attacksOnTargetLast24h >= ATTACK_RULES.targetAttackCapPer24h) {
     return 'ATTACK_CAP_REACHED';
+  }
+
+  if (input.attackType === 'POACH_WORKERS') {
+    const workers = input.defenderWorkers ?? 0;
+    if (workers < WORKER_POACHING_RULES.minWorkersToPoach) {
+      return 'POACH_TARGET_TOO_SMALL';
+    }
   }
 
   return null;

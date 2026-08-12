@@ -184,7 +184,9 @@ console.log(`Min heroin load to break even on travel: ~${Math.ceil(oppCost10 / d
 console.log(`At Day 30 balanced (~1,786 coke median): travel rational when city delta × inventory > opp cost`);
 
 console.log('\n## O. WORKER POACHING (simulation only)');
-for (const pct of [0.01, 0.02, 0.05, 0.1]) {
+console.log('Run scripts/worker-poaching-sim.ts for full POACH_WORKERS Monte Carlo.');
+console.log('Implemented: POACH_WORKERS attack (4 turns), 2% base / 3% cap, happiness + thug-ratio modifiers.');
+for (const pct of [0.01, 0.02, 0.03]) {
   const victims = Math.round(bal30.prostitutes!.median * pct);
   const scoutTurns = estimateThugRecoveryTurns(victims, bal30.prostitutes!.median, bal30.thugs!.median, 'clubs');
   console.log(`Steal ${(pct * 100).toFixed(0)}% workers (${victims}): ~${(scoutTurns / TURNS_PER_DAY).toFixed(1)} days scout recovery for victim`);

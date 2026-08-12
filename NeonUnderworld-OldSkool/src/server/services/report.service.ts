@@ -64,6 +64,7 @@ export interface CombatReportSnapshot {
   defenderWeaponLosses?: { glocks: number; uzis: number; aks: number };
   defenderThugsBefore: number;
   cashStolen: number;
+  workersStolen: number;
   drugsStolen: { hash: number; shrooms: number; coke: number; heroin: number };
   outcome: string;
   outcomeLabel: string;
@@ -235,7 +236,7 @@ export const ReportService = {
       playerId,
       'SCOUT',
       `Deep Intel — ${deepIntel.targetAlias}`,
-      `${thugRange} thugs · ${workerRange} workers · ${deepIntel.weaponReadinessBand}`,
+      `${thugRange} thugs · ${workerRange} workers · ${deepIntel.weaponReadinessBand} · ${deepIntel.workforceStabilityBand}`,
       {
         body: `Deep intelligence snapshot on ${deepIntel.targetAlias} in ${deepIntel.targetCity}.`,
         metadata: {
@@ -257,8 +258,18 @@ export const ReportService = {
     snapshot: CombatReportSnapshot,
   ): Promise<{ attackerReportId: string; defenderReportId: string }> {
     const label = ATTACK_TYPE_LABELS[snapshot.attackType];
-    const attackerSummary = `${label} vs ${defenderAlias}: ${snapshot.outcome}. Lost ${snapshot.attackerLosses}, killed ${snapshot.defenderLosses}.`;
-    const defenderSummary = `${label} from ${attackerAlias}: ${snapshot.outcome}. Lost ${snapshot.defenderLosses} thugs.`;
+    const attackerSummary =
+      snapshot.attackType === 'POACH_WORKERS'
+        ? snapshot.workersStolen > 0
+          ? `Workers poached from ${defenderAlias}: +${snapshot.workersStolen.toLocaleString()}.`
+          : `Poach attempt vs ${defenderAlias}: ${snapshot.outcome}.`
+        : `${label} vs ${defenderAlias}: ${snapshot.outcome}. Lost ${snapshot.attackerLosses}, killed ${snapshot.defenderLosses}.`;
+    const defenderSummary =
+      snapshot.attackType === 'POACH_WORKERS'
+        ? snapshot.workersStolen > 0
+          ? `Workers poached by ${attackerAlias}: -${snapshot.workersStolen.toLocaleString()}.`
+          : `Poach attempt from ${attackerAlias}: ${snapshot.outcome}.`
+        : `${label} from ${attackerAlias}: ${snapshot.outcome}. Lost ${snapshot.defenderLosses} thugs.`;
 
     const attackerReportId = await this.create(
       attackerId,

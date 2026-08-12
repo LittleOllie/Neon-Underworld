@@ -12,13 +12,14 @@ export function totalDrugsStolen(drugs: DrugStock): number {
 /** Meaningful defender loss — counts toward offline protection. */
 export function isDamagingAttackResult(combat: Pick<
   CombatResolutionResult,
-  'defenderLosses' | 'cartelThugLosses' | 'cashStolen' | 'drugsStolen'
+  'defenderLosses' | 'cartelThugLosses' | 'cashStolen' | 'drugsStolen' | 'workersStolen'
 >): boolean {
   return (
     combat.defenderLosses > 0 ||
     combat.cartelThugLosses > 0 ||
     combat.cashStolen > 0 ||
-    totalDrugsStolen(combat.drugsStolen) > 0
+    totalDrugsStolen(combat.drugsStolen) > 0 ||
+    (combat.workersStolen ?? 0) > 0
   );
 }
 

@@ -17,6 +17,9 @@ export interface DeepIntelDisplay {
   cashExposureBand: string;
   drugExposureBand: string;
   cartelPresence: string | null;
+  workforceStabilityBand: string;
+  workforceProtectionBand: string;
+  poachingOutlook: string;
   gatheredAt: string;
 }
 

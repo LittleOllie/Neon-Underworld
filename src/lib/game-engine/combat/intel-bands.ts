@@ -61,6 +61,29 @@ export function cartelProtectionBand(cartelId: string | null, active: boolean): 
   return 'Strong';
 }
 
+export type WorkforceStabilityBand =
+  | 'Very Stable'
+  | 'Stable'
+  | 'Unsettled'
+  | 'Unhappy'
+  | 'Critical';
+
+export function workforceStabilityBand(happinessScore: number): WorkforceStabilityBand {
+  const score = Math.max(0, Math.min(100, Math.floor(happinessScore)));
+  if (score >= 80) return 'Very Stable';
+  if (score >= 60) return 'Stable';
+  if (score >= 40) return 'Unsettled';
+  if (score >= 20) return 'Unhappy';
+  return 'Critical';
+}
+
+export function workforceStabilityHint(band: WorkforceStabilityBand): string | null {
+  if (band === 'Unsettled' || band === 'Unhappy' || band === 'Critical') {
+    return 'Some of this player\'s Workers may be vulnerable to poaching.';
+  }
+  return null;
+}
+
 export function computeConfidencePercent(scoutedAt: Date, expiresAt: Date, now = new Date()): number {
   const total = expiresAt.getTime() - scoutedAt.getTime();
   if (total <= 0) return 50;

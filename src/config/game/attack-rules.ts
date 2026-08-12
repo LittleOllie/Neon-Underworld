@@ -20,6 +20,7 @@ export const ATTACK_RULES = {
     DRIVE_BY: 2,
     HOME_INVASION: 3,
     RAID_DRUG_LABS: 3,
+    POACH_WORKERS: 4,
   } as const,
 
   /** Turns to gather basic player intel before attacking (optional — direct attacks skip this) */
@@ -66,10 +67,13 @@ export const ATTACK_TYPE_LABELS: Record<AttackType, string> = {
   DRIVE_BY: 'Drive-By Shooting',
   HOME_INVASION: 'Home Invasion',
   RAID_DRUG_LABS: 'Raid Drug Labs',
+  POACH_WORKERS: 'Poach Workers',
 };
 
 export const ATTACK_TYPE_PURPOSE: Record<AttackType, string> = {
   DRIVE_BY: 'Destroy defending thugs and weaken protection. No asset theft.',
   HOME_INVASION: 'Defeat defenders and steal exposed cash on hand. Bank is protected.',
   RAID_DRUG_LABS: 'Defeat defenders and steal drugs from stock.',
+  POACH_WORKERS:
+    'Target their street operation and convince vulnerable Workers to join you.',
 };

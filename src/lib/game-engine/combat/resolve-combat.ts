@@ -5,6 +5,7 @@ import { resolveForceScores, forceEstimate } from './force-score';
 import { resolveCasualties } from './casualties';
 import { resolveTheft, type DrugStock } from './theft';
 import { resolveWeaponAttrition, type WeaponLosses } from './weapon-attrition';
+import { resolveWorkerPoach } from './worker-poach';
 
 export interface CombatParticipant {
   thugs: number;
@@ -28,6 +29,12 @@ export interface CombatResolutionInput {
     glocks: number;
     uzis: number;
   };
+  /** Worker poaching — defender workforce context (authoritative, server-only). */
+  poachContext?: {
+    defenderWorkers: number;
+    defenderThugsForProtection: number;
+    workerHappiness: number;
+  };
   seed: number;
 }
 
@@ -42,6 +49,7 @@ export interface CombatResolutionResult {
   attackerReturned: number;
   cashStolen: number;
   drugsStolen: DrugStock;
+  workersStolen: number;
   outcome: 'SUCCESS' | 'PARTIAL' | 'REPULSED';
   outcomeLabel: string;
   forceEstimate: string;
@@ -116,6 +124,23 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     rng,
   );
 
+  let workersStolen = 0;
+  let poachStrong = false;
+  if (input.attackType === 'POACH_WORKERS' && input.poachContext) {
+    const poach = resolveWorkerPoach({
+      attackerVictory: casualties.attackerVictory,
+      tacticalSuccess: casualties.tacticalSuccess,
+      defenderWorkers: input.poachContext.defenderWorkers,
+      defenderThugsForProtection: input.poachContext.defenderThugsForProtection,
+      workerHappiness: input.poachContext.workerHappiness,
+      survivingAttackers: attackerReturned,
+      attackingThugs: input.attackingThugs,
+      rng,
+    });
+    workersStolen = poach.workersStolen;
+    poachStrong = poach.strongSuccess;
+  }
+
   let outcome: CombatResolutionResult['outcome'];
   let outcomeLabel: string;
 
@@ -126,6 +151,19 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     } else {
       outcome = 'REPULSED';
       outcomeLabel = 'Drive-by repelled — limited damage.';
+    }
+  } else if (input.attackType === 'POACH_WORKERS') {
+    if (!casualties.attackerVictory) {
+      outcome = 'REPULSED';
+      outcomeLabel = 'Poach attempt failed — their crew refused to move.';
+    } else if (workersStolen > 0) {
+      outcome = 'SUCCESS';
+      outcomeLabel = poachStrong
+        ? `Workers poached — ${workersStolen.toLocaleString()} joined your operation.`
+        : `Workers poached — ${workersStolen.toLocaleString()} transferred to your crew.`;
+    } else {
+      outcome = 'PARTIAL';
+      outcomeLabel = 'Poach attempt repelled — defenders stopped the workforce transfer.';
     }
   } else if (casualties.attackerVictory && (theft.cashStolen > 0 || totalDrugs(theft.drugsStolen) > 0)) {
     outcome = 'SUCCESS';
@@ -149,6 +187,7 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
     attackerReturned,
     cashStolen: theft.cashStolen,
     drugsStolen: theft.drugsStolen,
+    workersStolen,
     outcome,
     outcomeLabel,
     forceEstimate: forceEstimate(attackerAlloc.totalStrength, defenderStrength),

@@ -69,6 +69,9 @@ export default async function ReportDetailPage({ params }: Props) {
           {combat.cashStolen > 0 && (
             <StatRow label="Cash stolen" value={`$${combat.cashStolen.toLocaleString()}`} />
           )}
+          {combat.workersStolen > 0 && (
+            <StatRow label="Workers poached" value={String(combat.workersStolen)} />
+          )}
           <StatRow label="Your losses" value={String(combat.attackerLosses)} />
           <StatRow label="Enemy losses" value={String(combat.defenderLosses)} />
         </>
@@ -111,6 +114,9 @@ export default async function ReportDetailPage({ params }: Props) {
             value={formatCountEstimateRange(deepIntel.estimatedWorkerMin, deepIntel.estimatedWorkerMax)}
           />
           <StatRow label="Weapon Readiness" value={deepIntel.weaponReadinessBand} />
+          <StatRow label="Workforce Stability" value={deepIntel.workforceStabilityBand} />
+          <StatRow label="Protection" value={deepIntel.workforceProtectionBand} />
+          <StatRow label="Poaching Outlook" value={deepIntel.poachingOutlook} />
           <StatRow label="Cash Exposure" value={deepIntel.cashExposureBand} />
           <StatRow label="Drug Exposure" value={deepIntel.drugExposureBand} />
           {deepIntel.cartelPresence && (

@@ -83,6 +83,7 @@ enum AttackType {
   DRIVE_BY
   HOME_INVASION
   RAID_DRUG_LABS
+  POACH_WORKERS
 }
 
 enum CombatOutcome {
@@ -246,6 +247,7 @@ model CombatEncounter {
   defenderLosses        Int
   attackerReturned      Int
   cashStolen            Int            @default(0)
+  workersStolen         Int            @default(0)
   drugsStolen           Json?
   outcome               CombatOutcome
   attackerReportId      String?

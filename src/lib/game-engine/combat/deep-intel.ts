@@ -6,9 +6,14 @@ import { allocateWeaponsForThugs, type WeaponAllocation } from './weapon-allocat
 import {
   nwRelativeExposureBand,
   deepWeaponReadinessBand,
+  workforceStabilityBand,
   type ExposureBand6,
   type DeepWeaponBand,
+  type WorkforceStabilityBand,
 } from './intel-bands';
+import { calculateProstituteHappiness } from '@/lib/game-engine/happiness';
+import { workforceProtectionBand, type WorkforceProtectionBand, type PoachingOutlook } from '@/config/game/worker-poaching-rules';
+import { computePoachingOutlook } from './poach-outlook';
 
 export interface DeepIntelSourcePlayer {
   id: string;
@@ -26,6 +31,10 @@ export interface DeepIntelSourcePlayer {
   heroin: number;
   cartelId: string | null;
   canonicalNetWorth: number;
+  condoms: number;
+  prostitutePayoutPercent: number;
+  /** Optional cartel virtual thugs for protection band (not exposed in snapshot). */
+  cartelSupportThugs?: number;
 }
 
 /** Client-safe deep intel payload — no exact secret crew or cash values. */
@@ -44,6 +53,9 @@ export interface DeepIntelSnapshot {
   drugExposureBand: ExposureBand6;
   weaponReadinessBand: DeepWeaponBand;
   cartelPresence: string | null;
+  workforceStabilityBand: WorkforceStabilityBand;
+  workforceProtectionBand: WorkforceProtectionBand;
+  poachingOutlook: PoachingOutlook;
 }
 
 export interface CountEstimateRange {
@@ -121,6 +133,41 @@ export function buildDeepIntelSnapshot(
     scoutedAt.getTime() + ATTACK_RULES.scoutReportExpiryHours * 60 * 60 * 1000,
   );
 
+  const happiness = calculateProstituteHappiness({
+    prostitutes: target.prostitutes,
+    thugs: target.thugs,
+    hash: target.hash,
+    condoms: target.condoms,
+    prostitutePayoutPercent: target.prostitutePayoutPercent,
+  });
+
+  const thugsForProtection =
+    target.thugs + Math.max(0, target.cartelSupportThugs ?? 0);
+  let protectionBand = workforceProtectionBand(thugsForProtection, target.prostitutes);
+  if (target.cartelId && ATTACK_RULES.cartelDefenceActive && protectionBand !== 'Strong') {
+    const order: WorkforceProtectionBand[] = [
+      'Very Weak',
+      'Weak',
+      'Moderate',
+      'Good',
+      'Strong',
+    ];
+    const idx = order.indexOf(protectionBand);
+    if (idx >= 0 && idx < order.length - 1) {
+      protectionBand = order[idx + 1]!;
+    }
+  }
+
+  const stabilityBand = workforceStabilityBand(happiness.score);
+  const cartelPresence = cartelPresenceLabel(target.cartelId);
+
+  const poachingOutlook = computePoachingOutlook({
+    workforceStabilityBand: stabilityBand,
+    workforceProtectionBand: protectionBand,
+    weaponReadinessBand: deepWeaponReadinessBand(target.thugs, alloc),
+    cartelPresence,
+  });
+
   return {
     targetPlayerId: target.id,
     targetAlias: target.alias,
@@ -135,7 +182,10 @@ export function buildDeepIntelSnapshot(
     cashExposureBand: nwRelativeExposureBand(cashRatio),
     drugExposureBand: nwRelativeExposureBand(drugRatio),
     weaponReadinessBand: deepWeaponReadinessBand(target.thugs, alloc),
-    cartelPresence: cartelPresenceLabel(target.cartelId),
+    cartelPresence,
+    workforceStabilityBand: stabilityBand,
+    workforceProtectionBand: protectionBand,
+    poachingOutlook,
   };
 }
 

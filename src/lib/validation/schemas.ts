@@ -82,7 +82,7 @@ export const sellThugsSchema = hireThugsSchema;
 
 export const attackLaunchSchema = z.object({
   scoutReportId: z.string().min(1),
-  attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS']),
+  attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS', 'POACH_WORKERS']),
   attackingThugs: z.coerce
     .number()
     .int('Enter a valid number of thugs.')
@@ -93,7 +93,7 @@ export const attackLaunchSchema = z.object({
 
 export const directAttackLaunchSchema = z.object({
   targetAliasNormalized: z.string().min(2).max(32),
-  attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS']),
+  attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS', 'POACH_WORKERS']),
   attackingThugs: z.coerce
     .number()
     .int('Enter a valid number of thugs.')

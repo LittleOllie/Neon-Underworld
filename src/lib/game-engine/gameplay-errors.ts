@@ -32,7 +32,8 @@ export type GameplayErrorCode =
   | 'CARTEL_INVITE_INVALID'
   | 'CARTEL_NOT_LEADER'
   | 'ATTACK_CAP_REACHED'
-  | 'OFFLINE_PROTECTION_ACTIVE';
+  | 'OFFLINE_PROTECTION_ACTIVE'
+  | 'POACH_TARGET_TOO_SMALL';
 
 export const GAMEPLAY_ERROR_MESSAGES: Record<GameplayErrorCode, string> = {
   INSUFFICIENT_CASH: "You don't have enough cash.",
@@ -65,6 +66,7 @@ export const GAMEPLAY_ERROR_MESSAGES: Record<GameplayErrorCode, string> = {
   CARTEL_NOT_LEADER: 'Only the cartel leader can do that.',
   ATTACK_CAP_REACHED: "You've reached your 24-hour attack limit against this player.",
   OFFLINE_PROTECTION_ACTIVE: 'This player is under offline protection after repeated attacks.',
+  POACH_TARGET_TOO_SMALL: 'This player does not have enough Workers to poach.',
 };
 
 /** Context-specific overrides — pass as GameplayError second argument. */

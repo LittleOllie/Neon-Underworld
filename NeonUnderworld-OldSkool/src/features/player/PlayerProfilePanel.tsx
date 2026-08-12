@@ -43,6 +43,9 @@ export interface PlayerDeepIntelDisplay {
   cashExposureBand: string;
   drugExposureBand: string;
   cartelPresence: string | null;
+  workforceStabilityBand: string;
+  workforceProtectionBand: string;
+  poachingOutlook: string;
   gatheredAt: string;
 }
 
@@ -113,6 +116,9 @@ function DeepIntelReportStats({ deepIntel }: { deepIntel: PlayerDeepIntelDisplay
         value={formatCountEstimateRange(deepIntel.estimatedWorkerMin, deepIntel.estimatedWorkerMax)}
       />
       <StatRow label="Weapon Readiness" value={deepIntel.weaponReadinessBand} />
+      <StatRow label="Workforce Stability" value={deepIntel.workforceStabilityBand} />
+      <StatRow label="Protection" value={deepIntel.workforceProtectionBand} />
+      <StatRow label="Poaching Outlook" value={deepIntel.poachingOutlook} />
       <StatRow label="Cash Exposure" value={deepIntel.cashExposureBand} />
       <StatRow label="Drug Exposure" value={deepIntel.drugExposureBand} />
       {deepIntel.cartelPresence && (
@@ -229,6 +235,9 @@ export function PlayerProfilePanel({
       cashExposureBand: response.data.deepIntel.cashExposureBand,
       drugExposureBand: response.data.deepIntel.drugExposureBand,
       cartelPresence: response.data.deepIntel.cartelPresence,
+      workforceStabilityBand: response.data.deepIntel.workforceStabilityBand,
+      workforceProtectionBand: response.data.deepIntel.workforceProtectionBand,
+      poachingOutlook: response.data.deepIntel.poachingOutlook,
       gatheredAt: response.data.deepIntel.scoutedAt,
     });
     setShowDeep(true);
