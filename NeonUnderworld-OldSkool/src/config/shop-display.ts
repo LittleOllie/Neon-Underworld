@@ -4,7 +4,7 @@ import type { ShopCategory, ShopItemKey } from '@core/config/game/shop-rules';
 import type { StreetDrugType } from '@core/config/game/drug-street-prices';
 import type { GameIconName } from '@local/config/game-icons';
 
-export type OldSkoolShopTab = 'weapons' | 'vehicles' | 'supplies' | 'drugs';
+export type OldSkoolShopTab = 'weapons' | 'vehicles' | 'supplies' | 'drugs' | 'crew';
 
 export const OLDSKOOL_SHOP_TABS: {
   id: OldSkoolShopTab;
@@ -12,6 +12,7 @@ export const OLDSKOOL_SHOP_TABS: {
   icon: GameIconName;
   categories: ShopCategory[];
 }[] = [
+  { id: 'crew', label: 'Crew', icon: 'thugs', categories: [] },
   { id: 'weapons', label: 'Weapons', icon: 'weapons', categories: ['weapons'] },
   { id: 'vehicles', label: 'Vehicles', icon: 'vehicles', categories: ['vehicles'] },
   { id: 'supplies', label: 'Supplies', icon: 'supplies', categories: ['worker_supplies', 'thug_supplies'] },

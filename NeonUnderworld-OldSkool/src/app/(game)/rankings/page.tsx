@@ -17,7 +17,10 @@ function districtFilter(slug: string): RankingsFilter | null {
   return DISTRICT_FILTERS.has(slug as RankingsFilter) ? (slug as RankingsFilter) : null;
 }
 
-function defaultFilterForPlayer(_districtSlug: string): RankingsFilter {
+function defaultFilterForPlayer(districtSlug: string): RankingsFilter {
+  if (DISTRICT_FILTERS.has(districtSlug as RankingsFilter)) {
+    return districtSlug as RankingsFilter;
+  }
   return 'overall';
 }
 
@@ -39,6 +42,10 @@ function filterHref(key: RankingsFilter, homeDistrict: RankingsFilter): string {
   return `/rankings?filter=${key}`;
 }
 
+function activeFilterLabel(filter: RankingsFilter): string {
+  return FILTERS.find((f) => f.key === filter)?.label ?? 'Rankings';
+}
+
 interface Props {
   searchParams: Promise<{ filter?: string }>;
 }
@@ -53,7 +60,7 @@ export default async function RankingsPage({ searchParams }: Props) {
   const params = await searchParams;
   const { ctx } = await requireGameSession();
   const playerId = ctx.id;
-  const homeDistrict = defaultFilterForPlayer(ctx.district.slug);
+  const homeDistrict = districtFilter(ctx.district.slug) ?? 'overall';
   const filter = resolveFilter(params.filter, ctx.district.slug);
   const filters = orderedFilters(homeDistrict);
 
@@ -64,6 +71,12 @@ export default async function RankingsPage({ searchParams }: Props) {
   return (
     <>
       <PageTitle icon="rankings">Rankings</PageTitle>
+      {filter !== 'overall' && (
+        <p className="g-note">
+          Showing {activeFilterLabel(filter)} — your current city. Switch tabs for other districts or
+          overall.
+        </p>
+      )}
 
       <div className="g-filter-row">
         {filters.map((f) => (

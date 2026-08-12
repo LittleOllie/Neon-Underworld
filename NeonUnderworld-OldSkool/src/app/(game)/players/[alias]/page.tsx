@@ -22,12 +22,30 @@ export default async function PlayerProfilePage({ params }: Props) {
   const intelReport = isSelf
     ? null
     : await ReportService.getIntelReportForTarget(ctx.id, profile.aliasNormalized);
+  const deepIntelReport = isSelf
+    ? null
+    : await ReportService.getDeepIntelReportForTargetAlias(ctx.id, profile.aliasNormalized);
 
   const existingIntel = intelReport
     ? {
         reportId: intelReport.reportId,
         bands: intelReport.bands,
         expiresAt: intelReport.intel.expiresAt,
+      }
+    : null;
+
+  const existingDeepIntel = deepIntelReport
+    ? {
+        reportId: deepIntelReport.reportId,
+        estimatedThugMin: deepIntelReport.deepIntel.estimatedThugMin,
+        estimatedThugMax: deepIntelReport.deepIntel.estimatedThugMax,
+        estimatedWorkerMin: deepIntelReport.deepIntel.estimatedWorkerMin,
+        estimatedWorkerMax: deepIntelReport.deepIntel.estimatedWorkerMax,
+        weaponReadinessBand: deepIntelReport.deepIntel.weaponReadinessBand,
+        cashExposureBand: deepIntelReport.deepIntel.cashExposureBand,
+        drugExposureBand: deepIntelReport.deepIntel.drugExposureBand,
+        cartelPresence: deepIntelReport.deepIntel.cartelPresence,
+        gatheredAt: deepIntelReport.deepIntel.scoutedAt,
       }
     : null;
 
@@ -57,6 +75,7 @@ export default async function PlayerProfilePage({ params }: Props) {
           targetAliasNormalized={profile.aliasNormalized}
           initialTurns={ctx.turns}
           existingIntel={existingIntel}
+          existingDeepIntel={existingDeepIntel}
           sameCity={profile.districtId === ctx.district.id}
           viewerCity={ctx.district.name}
           targetCity={profile.city}

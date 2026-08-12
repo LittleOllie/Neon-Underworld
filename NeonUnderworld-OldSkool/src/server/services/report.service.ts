@@ -3,6 +3,8 @@ import { cache } from 'react';
 import { prisma } from '@core/lib/db/prisma';
 import type { ScoutResultData } from '@core/server/actions/scout.actions';
 import type { PlayerIntelSnapshot } from '@core/lib/game-engine/combat/eligibility';
+import type { DeepIntelSnapshot } from '@core/lib/game-engine/combat/deep-intel';
+import { formatCountEstimateRange } from '@core/lib/game-engine/combat/deep-intel';
 import type { AttackType } from '@core/config/game/attack-rules';
 import { ATTACK_TYPE_LABELS } from '@core/config/game/attack-rules';
 import {
@@ -20,6 +22,7 @@ export function isPlayerInboxReport(metadata: unknown, category: string): boolea
   if (m?.type === 'DISTRICT_SCOUT') return false;
   if (category === 'COMBAT') return true;
   if (category === 'SCOUT' && m?.type === 'PLAYER_INTEL') return true;
+  if (category === 'SCOUT' && m?.type === 'DEEP_INTEL') return true;
   if (category === 'SYSTEM') return true;
   return false;
 }
@@ -36,6 +39,12 @@ export interface PlayerIntelReportSnapshot {
     cartel: string;
     confidence: number;
   };
+  scoutedAt: string;
+  expiresAt: string;
+}
+
+export interface DeepIntelReportSnapshot {
+  deepIntel: DeepIntelSnapshot;
   scoutedAt: string;
   expiresAt: string;
 }
@@ -194,7 +203,48 @@ export const ReportService = {
       `${bands.thugs} thugs · ${bands.weapons} · ${bands.confidence}% confidence`,
       {
         body: `Intelligence on ${intel.targetAlias} in ${intel.targetCity}. Report valid until ${new Date(intel.expiresAt).toLocaleString()}.`,
-        metadata: { snapshot, type: 'PLAYER_INTEL', intel, idempotencyKey: idempotencyKey ?? null },
+        metadata: {
+          snapshot,
+          type: 'PLAYER_INTEL',
+          intelLevel: 'basic',
+          intel,
+          idempotencyKey: idempotencyKey ?? null,
+        },
+      },
+    );
+  },
+
+  async createDeepIntelReport(
+    playerId: string,
+    deepIntel: DeepIntelSnapshot,
+    idempotencyKey?: string,
+  ): Promise<string> {
+    const snapshot: DeepIntelReportSnapshot = {
+      deepIntel,
+      scoutedAt: deepIntel.scoutedAt,
+      expiresAt: deepIntel.expiresAt,
+    };
+
+    const thugRange = formatCountEstimateRange(deepIntel.estimatedThugMin, deepIntel.estimatedThugMax);
+    const workerRange = formatCountEstimateRange(
+      deepIntel.estimatedWorkerMin,
+      deepIntel.estimatedWorkerMax,
+    );
+
+    return this.create(
+      playerId,
+      'SCOUT',
+      `Deep Intel — ${deepIntel.targetAlias}`,
+      `${thugRange} thugs · ${workerRange} workers · ${deepIntel.weaponReadinessBand}`,
+      {
+        body: `Deep intelligence snapshot on ${deepIntel.targetAlias} in ${deepIntel.targetCity}.`,
+        metadata: {
+          snapshot,
+          type: 'DEEP_INTEL',
+          intelLevel: 'deep',
+          deepIntel,
+          idempotencyKey: idempotencyKey ?? null,
+        },
       },
     );
   },
@@ -272,6 +322,57 @@ export const ReportService = {
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
+  },
+
+  async listValidDeepIntelReports(playerId: string): Promise<
+    Array<{
+      reportId: string;
+      deepIntel: DeepIntelSnapshot;
+      createdAt: Date;
+      expired: boolean;
+    }>
+  > {
+    const rows = await prisma.report.findMany({
+      where: { playerId, category: 'SCOUT' },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    const now = Date.now();
+    return rows
+      .map((r) => {
+        const meta = r.metadata as { type?: string; deepIntel?: DeepIntelSnapshot } | null;
+        if (meta?.type !== 'DEEP_INTEL' || !meta.deepIntel) return null;
+        const expired = new Date(meta.deepIntel.expiresAt).getTime() <= now;
+        return {
+          reportId: r.id,
+          deepIntel: meta.deepIntel,
+          createdAt: r.createdAt,
+          expired,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  },
+
+  async getDeepIntelReportForTarget(playerId: string, targetPlayerId: string) {
+    const reports = await this.listValidDeepIntelReports(playerId);
+    return (
+      reports.find((r) => r.deepIntel.targetPlayerId === targetPlayerId && !r.expired) ??
+      reports.find((r) => r.deepIntel.targetPlayerId === targetPlayerId) ??
+      null
+    );
+  },
+
+  async getDeepIntelReportForTargetAlias(playerId: string, targetAliasNormalized: string) {
+    const reports = await this.listValidDeepIntelReports(playerId);
+    const normalized = targetAliasNormalized.toLowerCase();
+    return (
+      reports.find(
+        (r) => r.deepIntel.targetAlias.toLowerCase() === normalized && !r.expired,
+      ) ??
+      reports.find((r) => r.deepIntel.targetAlias.toLowerCase() === normalized) ??
+      null
+    );
   },
 
   async getRecent(playerId: string, limit = 10): Promise<ReportListItem[]> {

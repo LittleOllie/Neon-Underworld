@@ -64,6 +64,22 @@ export const scoutTargetSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
+export const deepIntelTargetSchema = z.object({
+  targetAlias: z.string().min(2).max(32),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const hireThugsSchema = z.object({
+  quantity: z.coerce
+    .number()
+    .int('Enter a valid number of Thugs.')
+    .min(1, 'Enter a valid number of Thugs.')
+    .max(SHOP_MAX_QUANTITY_PER_REQUEST),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const sellThugsSchema = hireThugsSchema;
+
 export const attackLaunchSchema = z.object({
   scoutReportId: z.string().min(1),
   attackType: z.enum(['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS']),

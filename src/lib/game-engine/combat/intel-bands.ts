@@ -1,12 +1,17 @@
 export type Band4 = 'Low' | 'Moderate' | 'High' | 'Massive';
+export type ThugPresenceBand = 'Very Low' | 'Low' | 'Moderate' | 'High' | 'Very High' | 'Massive';
+export type ExposureBand6 = 'Very Low' | 'Low' | 'Moderate' | 'High' | 'Very High' | 'Extreme';
+export type DeepWeaponBand = 'Poorly Armed' | 'Light' | 'Moderate' | 'Well Armed' | 'Heavily Armed';
 export type WeaponBand = 'Weak' | 'Armed' | 'Heavily Armed';
 export type ProtectionBand = 'None' | 'Light' | 'Strong';
 
-export function thugBand(count: number): Band4 {
-  if (count >= 500) return 'Massive';
+export function thugBand(count: number): ThugPresenceBand {
+  if (count >= 2000) return 'Massive';
+  if (count >= 500) return 'Very High';
   if (count >= 150) return 'High';
   if (count >= 40) return 'Moderate';
-  return 'Low';
+  if (count >= 10) return 'Low';
+  return 'Very Low';
 }
 
 export function weaponStrengthBand(strength: number, thugs: number): WeaponBand {
@@ -22,6 +27,32 @@ export function exposureBand(value: number): Band4 {
   if (value >= 75_000) return 'High';
   if (value >= 20_000) return 'Moderate';
   return 'Low';
+}
+
+/** Cash or drug exposure relative to target canonical net worth (0–1 ratio). */
+export function nwRelativeExposureBand(ratio: number): ExposureBand6 {
+  if (!Number.isFinite(ratio) || ratio <= 0) return 'Very Low';
+  if (ratio < 0.05) return 'Very Low';
+  if (ratio < 0.15) return 'Low';
+  if (ratio < 0.3) return 'Moderate';
+  if (ratio < 0.5) return 'High';
+  if (ratio < 0.7) return 'Very High';
+  return 'Extreme';
+}
+
+/** Weapon readiness from usable allocation vs current thugs — ignores idle stockpile. */
+export function deepWeaponReadinessBand(
+  thugs: number,
+  allocation: { armedThugs: number; totalStrength: number },
+): DeepWeaponBand {
+  if (thugs <= 0) return 'Poorly Armed';
+  const armedRatio = allocation.armedThugs / thugs;
+  const strengthPerThug = allocation.totalStrength / thugs;
+  if (armedRatio < 0.15 && strengthPerThug < 2) return 'Poorly Armed';
+  if (armedRatio < 0.35 || strengthPerThug < 5) return 'Light';
+  if (armedRatio < 0.6 || strengthPerThug < 12) return 'Moderate';
+  if (armedRatio < 0.85 || strengthPerThug < 18) return 'Well Armed';
+  return 'Heavily Armed';
 }
 
 export function cartelProtectionBand(cartelId: string | null, active: boolean): ProtectionBand {

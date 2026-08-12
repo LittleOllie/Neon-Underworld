@@ -6,6 +6,8 @@ import { ReportService, type CombatReportSnapshot } from '@local/server/services
 import { ReportReadSync } from '@local/features/reports/ReportReadSync';
 import { prisma } from '@core/lib/db/prisma';
 import { GAMEPLAY_CONTEXT_MESSAGES } from '@core/lib/game-engine/gameplay-errors';
+import { formatCountEstimateRange } from '@core/lib/game-engine/combat/deep-intel';
+import type { DeepIntelSnapshot } from '@core/lib/game-engine/combat/deep-intel';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -27,13 +29,15 @@ export default async function ReportDetailPage({ params }: Props) {
   const meta = report.metadata as {
     type?: string;
     intel?: { targetAlias?: string; targetCity?: string; targetPlayerId?: string; expiresAt?: string };
+    deepIntel?: DeepIntelSnapshot;
     snapshot?: CombatReportSnapshot & { bands?: Record<string, string | number> };
   } | null;
 
   let canAttackFromHere = false;
-  if (meta?.type === 'PLAYER_INTEL' && meta.intel?.targetPlayerId) {
+  const intelTargetId = meta?.intel?.targetPlayerId ?? meta?.deepIntel?.targetPlayerId;
+  if ((meta?.type === 'PLAYER_INTEL' || meta?.type === 'DEEP_INTEL') && intelTargetId) {
     const target = await prisma.player.findUnique({
-      where: { id: meta.intel.targetPlayerId },
+      where: { id: intelTargetId },
       select: { districtId: true },
     });
     canAttackFromHere = target?.districtId === ctx.district.id;
@@ -41,6 +45,15 @@ export default async function ReportDetailPage({ params }: Props) {
 
   const combat = meta?.type === 'ATTACK' || meta?.type === 'DEFENCE' ? meta.snapshot : null;
   const intelBands = meta?.type === 'PLAYER_INTEL' ? meta.snapshot?.bands : null;
+  const deepIntel = meta?.type === 'DEEP_INTEL' ? meta.deepIntel : null;
+  const basicIntelReportId =
+    meta?.type === 'DEEP_INTEL' && deepIntel
+      ? (
+          await ReportService.getIntelReportForTarget(playerId, deepIntel.targetAlias)
+        )?.reportId
+      : meta?.type === 'PLAYER_INTEL'
+        ? id
+        : null;
 
   return (
     <>
@@ -68,14 +81,14 @@ export default async function ReportDetailPage({ params }: Props) {
           {intelBands && (
             <>
               <StatRow label="Intel quality" value={`${intelBands.confidence ?? '—'}%`} />
-              <StatRow label="Thugs" value={String(intelBands.thugs ?? '—')} />
+              <StatRow label="Thug presence" value={String(intelBands.thugs ?? '—')} />
               <StatRow label="Weapons" value={String(intelBands.weapons ?? '—')} />
-              <StatRow label="Cash" value={String(intelBands.cash ?? '—')} />
-              <StatRow label="Drugs" value={String(intelBands.drugs ?? '—')} />
+              <StatRow label="Cash exposure" value={String(intelBands.cash ?? '—')} />
+              <StatRow label="Drug exposure" value={String(intelBands.drugs ?? '—')} />
             </>
           )}
-          {canAttackFromHere ? (
-            <ActionButton href={`/attack?reportId=${id}`} icon="attack" className="g-btn-full">
+          {canAttackFromHere && basicIntelReportId ? (
+            <ActionButton href={`/attack?reportId=${basicIntelReportId}`} icon="attack" className="g-btn-full">
               Attack Player
             </ActionButton>
           ) : (
@@ -84,7 +97,37 @@ export default async function ReportDetailPage({ params }: Props) {
         </>
       )}
 
-      {!combat && meta?.type !== 'PLAYER_INTEL' && (
+      {deepIntel && (
+        <>
+          <SectionLabel>DEEP INTEL</SectionLabel>
+          <StatRow label="Target" value={deepIntel.targetAlias} />
+          <StatRow label="City" value={deepIntel.targetCity} />
+          <StatRow
+            label="Estimated Thugs"
+            value={formatCountEstimateRange(deepIntel.estimatedThugMin, deepIntel.estimatedThugMax)}
+          />
+          <StatRow
+            label="Estimated Workers"
+            value={formatCountEstimateRange(deepIntel.estimatedWorkerMin, deepIntel.estimatedWorkerMax)}
+          />
+          <StatRow label="Weapon Readiness" value={deepIntel.weaponReadinessBand} />
+          <StatRow label="Cash Exposure" value={deepIntel.cashExposureBand} />
+          <StatRow label="Drug Exposure" value={deepIntel.drugExposureBand} />
+          {deepIntel.cartelPresence && (
+            <StatRow label="Cartel" value={deepIntel.cartelPresence} />
+          )}
+          <StatRow label="Intel gathered" value={formatRelativeTime(new Date(deepIntel.scoutedAt))} />
+          {canAttackFromHere && basicIntelReportId ? (
+            <ActionButton href={`/attack?reportId=${basicIntelReportId}`} icon="attack" className="g-btn-full">
+              Attack Player
+            </ActionButton>
+          ) : (
+            <p className="g-note">{GAMEPLAY_CONTEXT_MESSAGES.targetNoLongerInCity}</p>
+          )}
+        </>
+      )}
+
+      {!combat && meta?.type !== 'PLAYER_INTEL' && meta?.type !== 'DEEP_INTEL' && (
         <>
           <Divider />
           <p>{report.summary}</p>

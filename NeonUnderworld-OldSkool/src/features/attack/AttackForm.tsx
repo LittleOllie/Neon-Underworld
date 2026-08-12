@@ -30,13 +30,16 @@ import {
   type OldSkoolAttackLaunchResult,
 } from '@local/server/actions/attack.actions';
 import { scoutTargetAction } from '@local/server/actions/scout-target.actions';
+import { deepIntelTargetAction } from '@local/server/actions/deep-intel-target.actions';
+import { formatCountEstimateRange } from '@core/lib/game-engine/combat/deep-intel';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { ActionResult } from '@local/components/game/ActionResult';
 import { StatRow } from '@local/components/game/StatRow';
 import { Divider } from '@local/components/game/Divider';
+import { SectionLabel } from '@local/components/game/SectionLabel';
 import { formatRank } from '@local/lib/format-rank';
-import type { AttackTargetCandidate } from './AttackForm.types';
+import type { AttackTargetCandidate, DeepIntelDisplay } from './AttackForm.types';
 
 interface AttackFormProps {
   thugs: number;
@@ -51,16 +54,85 @@ interface AttackFormProps {
   staleIntelNotice?: string | null;
   attackRangeMinNetWorth?: number;
   intelTurnCost: number;
+  deepIntelTurnCost: number;
   viewerCity: string;
 }
 
+function formatIntelAge(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.floor(mins / 60)}h ago`;
+}
+
 const ATTACK_TYPES: AttackType[] = ['DRIVE_BY', 'HOME_INVASION', 'RAID_DRUG_LABS'];
+
+function thugForceMultiplier(label: string): number {
+  if (label === 'Massive') return 800;
+  if (label === 'Very High') return 400;
+  if (label === 'High') return 150;
+  if (label === 'Moderate') return 60;
+  if (label === 'Low') return 20;
+  if (label === 'Very Low') return 8;
+  return 20;
+}
 
 function riskFromForce(estimate: string): string {
   if (estimate === 'Unknown') return 'Unknown';
   if (estimate === 'Overwhelming Advantage' || estimate === 'Advantage') return 'Moderate';
   if (estimate === 'Even Match') return 'High';
   return 'Severe';
+}
+
+function AttackCrewSummary({
+  thugs,
+  rides,
+  glocks,
+  uzis,
+  aks,
+  force,
+  weaponAlloc,
+}: {
+  thugs: number;
+  rides: number;
+  glocks: number;
+  uzis: number;
+  aks: number;
+  force: number;
+  weaponAlloc: ReturnType<typeof allocateWeaponsForThugs>;
+}) {
+  return (
+    <>
+      <SectionLabel>YOUR CREW</SectionLabel>
+      <StatRow label="Thugs available" value={thugs.toLocaleString()} />
+      <StatRow label="Rides" value={rides.toLocaleString()} />
+      <StatRow
+        label="Weapons owned"
+        value={`${aks.toLocaleString()} AK · ${uzis.toLocaleString()} Uzi · ${glocks.toLocaleString()} Glock`}
+      />
+      {force > 0 && (
+        <>
+          <p className="g-note">
+            Sending {force.toLocaleString()} thugs — strongest weapons assigned first (AK → Uzi →
+            Glock).
+          </p>
+          {weaponAlloc.aks > 0 && (
+            <StatRow label="AK-47 armed" value={weaponAlloc.aks.toLocaleString()} />
+          )}
+          {weaponAlloc.uzis > 0 && (
+            <StatRow label="Uzi armed" value={weaponAlloc.uzis.toLocaleString()} />
+          )}
+          {weaponAlloc.glocks > 0 && (
+            <StatRow label="Glock armed" value={weaponAlloc.glocks.toLocaleString()} />
+          )}
+          {weaponAlloc.unarmedThugs > 0 && (
+            <StatRow label="Unarmed" value={weaponAlloc.unarmedThugs.toLocaleString()} />
+          )}
+        </>
+      )}
+      <Divider />
+    </>
+  );
 }
 
 function bandsFromIntel(intel: {
@@ -135,7 +207,9 @@ export function AttackForm(props: AttackFormProps) {
     resolveInitialTarget(props.targets, props.initialTargetAlias, props.initialReportId),
   );
   const [intelLoading, setIntelLoading] = useState(false);
+  const [deepIntelLoading, setDeepIntelLoading] = useState(false);
   const [showIntel, setShowIntel] = useState(false);
+  const [showDeepIntel, setShowDeepIntel] = useState(false);
 
   const forceMax = Math.min(props.thugs, ATTACK_RULES.maxAttackingThugs);
   const defaultForce = Math.min(50, forceMax);
@@ -191,14 +265,7 @@ export function AttackForm(props: AttackFormProps) {
         : selected.bands.weapons === 'Armed'
           ? 150
           : 40;
-    const thugMult =
-      selected.bands.thugs === 'Massive'
-        ? 400
-        : selected.bands.thugs === 'High'
-          ? 150
-          : selected.bands.thugs === 'Moderate'
-            ? 60
-            : 20;
+    const thugMult = thugForceMultiplier(selected.bands.thugs);
     return forceEstimate(weaponAlloc.totalStrength, defenderStrength + thugMult);
   }, [selected, weaponAlloc.totalStrength]);
 
@@ -241,6 +308,44 @@ export function AttackForm(props: AttackFormProps) {
     );
     setShowIntel(true);
     reconcile(response.data.shell);
+  }
+
+  async function handleGatherDeepIntel(refresh = false) {
+    if (!selected) return;
+    setDeepIntelLoading(true);
+    setError('');
+    const response = await deepIntelTargetAction(selected.alias, uuidv4());
+    setDeepIntelLoading(false);
+    if (!response.success) {
+      setError(response.error);
+      return;
+    }
+    setTurns(response.data.newTurns);
+    const deepIntel: DeepIntelDisplay = {
+      reportId: response.data.reportId,
+      estimatedThugMin: response.data.deepIntel.estimatedThugMin,
+      estimatedThugMax: response.data.deepIntel.estimatedThugMax,
+      estimatedWorkerMin: response.data.deepIntel.estimatedWorkerMin,
+      estimatedWorkerMax: response.data.deepIntel.estimatedWorkerMax,
+      weaponReadinessBand: response.data.deepIntel.weaponReadinessBand,
+      cashExposureBand: response.data.deepIntel.cashExposureBand,
+      drugExposureBand: response.data.deepIntel.drugExposureBand,
+      cartelPresence: response.data.deepIntel.cartelPresence,
+      gatheredAt: response.data.deepIntel.scoutedAt,
+    };
+    const updated: AttackTargetCandidate = {
+      ...selected,
+      hasDeepIntel: true,
+      deepIntelReportId: response.data.reportId,
+      deepIntel,
+    };
+    setSelected(updated);
+    setTargets((prev) =>
+      prev.map((t) => (t.playerId === updated.playerId ? updated : t)),
+    );
+    setShowDeepIntel(true);
+    reconcile(response.data.shell);
+    if (refresh) setShowIntel(false);
   }
 
   async function handleLaunch() {
@@ -313,6 +418,19 @@ export function AttackForm(props: AttackFormProps) {
   if (!selected) {
     return (
       <>
+        <AttackCrewSummary
+          thugs={props.thugs}
+          rides={props.rides}
+          glocks={props.glocks}
+          uzis={props.uzis}
+          aks={props.aks}
+          force={0}
+          weaponAlloc={allocateWeaponsForThugs(0, {
+            glocks: props.glocks,
+            uzis: props.uzis,
+            aks: props.aks,
+          })}
+        />
         {props.staleIntelNotice && <p className="g-error">{props.staleIntelNotice}</p>}
         <p className="g-note">
           Players in <strong>{props.viewerCity}</strong> you can attack right now. Gather intel
@@ -378,29 +496,106 @@ export function AttackForm(props: AttackFormProps) {
 
       {selected.hasIntel && selected.bands ? (
         <>
-          {showIntel ? (
+          {showDeepIntel && selected.deepIntel ? (
+            <>
+              <p className="g-section-label">DEEP INTEL</p>
+              <StatRow label="Target" value={selected.alias} />
+              <StatRow label="City" value={props.viewerCity} />
+              <StatRow
+                label="Estimated Thugs"
+                value={formatCountEstimateRange(
+                  selected.deepIntel.estimatedThugMin,
+                  selected.deepIntel.estimatedThugMax,
+                )}
+              />
+              <StatRow
+                label="Estimated Workers"
+                value={formatCountEstimateRange(
+                  selected.deepIntel.estimatedWorkerMin,
+                  selected.deepIntel.estimatedWorkerMax,
+                )}
+              />
+              <StatRow label="Weapon Readiness" value={selected.deepIntel.weaponReadinessBand} />
+              <StatRow label="Cash Exposure" value={selected.deepIntel.cashExposureBand} />
+              <StatRow label="Drug Exposure" value={selected.deepIntel.drugExposureBand} />
+              {selected.deepIntel.cartelPresence && (
+                <StatRow label="Cartel" value={selected.deepIntel.cartelPresence} />
+              )}
+              <StatRow label="Intel age" value={formatIntelAge(selected.deepIntel.gatheredAt)} />
+              {selected.deepIntelReportId && (
+                <p className="g-note">
+                  <Link href={`/reports/${selected.deepIntelReportId}`}>View in Reports</Link>
+                </p>
+              )}
+              <PrimaryButton
+                className="g-btn-full g-btn-secondary"
+                variant="secondary"
+                icon="intel"
+                disabled={deepIntelLoading || turns < props.deepIntelTurnCost}
+                onClick={() => handleGatherDeepIntel(true)}
+              >
+                {deepIntelLoading
+                  ? 'Gathering…'
+                  : `Refresh Deep Intel — ${props.deepIntelTurnCost} Turns`}
+              </PrimaryButton>
+            </>
+          ) : showIntel ? (
             <>
               <p className="g-section-label">INTEL REPORT</p>
               <StatRow label="Intel quality" value={`${selected.bands.confidence}%`} />
-              <StatRow label="Thugs" value={selected.bands.thugs} />
+              <StatRow label="Thug presence" value={selected.bands.thugs} />
               <StatRow label="Weapon coverage" value={selected.bands.weapons} />
-              <StatRow label="Cash" value={selected.bands.cash} />
-              <StatRow label="Drug stock" value={selected.bands.drugs} />
+              <StatRow label="Cash exposure" value={selected.bands.cash} />
+              <StatRow label="Drug exposure" value={selected.bands.drugs} />
               {selected.reportId && (
                 <p className="g-note">
                   <Link href={`/reports/${selected.reportId}`}>View in Reports</Link>
                 </p>
               )}
+              {selected.hasDeepIntel && selected.deepIntel && (
+                <PrimaryButton
+                  className="g-btn-full g-btn-secondary"
+                  variant="secondary"
+                  icon="intel"
+                  onClick={() => setShowDeepIntel(true)}
+                >
+                  View Deep Intel
+                </PrimaryButton>
+              )}
+              {!selected.hasDeepIntel && (
+                <PrimaryButton
+                  className="g-btn-full"
+                  icon="intel"
+                  disabled={deepIntelLoading || turns < props.deepIntelTurnCost}
+                  onClick={() => handleGatherDeepIntel()}
+                >
+                  {deepIntelLoading
+                    ? 'Gathering…'
+                    : `Gather Deep Intel — ${props.deepIntelTurnCost} Turns`}
+                </PrimaryButton>
+              )}
             </>
           ) : (
-            <PrimaryButton
-              className="g-btn-full g-btn-secondary"
-              variant="secondary"
-              icon="intel"
-              onClick={() => setShowIntel(true)}
-            >
-              View Intel
-            </PrimaryButton>
+            <>
+              <PrimaryButton
+                className="g-btn-full g-btn-secondary"
+                variant="secondary"
+                icon="intel"
+                onClick={() => setShowIntel(true)}
+              >
+                View Intel
+              </PrimaryButton>
+              {selected.hasDeepIntel && selected.deepIntel && (
+                <PrimaryButton
+                  className="g-btn-full g-btn-secondary"
+                  variant="secondary"
+                  icon="intel"
+                  onClick={() => setShowDeepIntel(true)}
+                >
+                  View Deep Intel
+                </PrimaryButton>
+              )}
+            </>
           )}
         </>
       ) : (
@@ -421,6 +616,15 @@ export function AttackForm(props: AttackFormProps) {
 
       {selected.hasIntel && selected.reportId && (
         <>
+          <AttackCrewSummary
+            thugs={props.thugs}
+            rides={props.rides}
+            glocks={props.glocks}
+            uzis={props.uzis}
+            aks={props.aks}
+            force={force}
+            weaponAlloc={weaponAlloc}
+          />
           <Divider />
           <label htmlFor="attackType" className="g-section-label">
             Attack type

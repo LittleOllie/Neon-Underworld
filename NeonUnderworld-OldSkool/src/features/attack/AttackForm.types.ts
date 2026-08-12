@@ -7,6 +7,19 @@ export interface AttackTargetBands {
   confidence: number;
 }
 
+export interface DeepIntelDisplay {
+  reportId: string;
+  estimatedThugMin: number;
+  estimatedThugMax: number;
+  estimatedWorkerMin: number;
+  estimatedWorkerMax: number;
+  weaponReadinessBand: string;
+  cashExposureBand: string;
+  drugExposureBand: string;
+  cartelPresence: string | null;
+  gatheredAt: string;
+}
+
 /** Same-city player eligible for attack discovery. */
 export interface AttackTargetCandidate {
   playerId: string;
@@ -19,6 +32,9 @@ export interface AttackTargetCandidate {
   hasIntel: boolean;
   reportId: string | null;
   bands: AttackTargetBands | null;
+  hasDeepIntel: boolean;
+  deepIntelReportId: string | null;
+  deepIntel: DeepIntelDisplay | null;
   eligible: boolean;
   eligibilityNote: string;
   attacksOnTarget: number;

@@ -468,7 +468,7 @@ export async function getAttackPageData(
   const attackerNw = ctx.netWorth;
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [seasonRankings, candidates, intelReports] = await Promise.all([
+  const [seasonRankings, candidates, intelReports, deepIntelReports] = await Promise.all([
     RankingsService.getSeasonRankings(ctx.seasonId, 'overall'),
     prisma.player.findMany({
       where: {
@@ -484,6 +484,7 @@ export async function getAttackPageData(
       },
     }),
     ReportService.listValidPlayerIntelReports(ctx.id),
+    ReportService.listValidDeepIntelReports(ctx.id),
   ]);
 
   const rankById = new Map(seasonRankings.map((row) => [row.id, row.rank]));
@@ -491,6 +492,9 @@ export async function getAttackPageData(
     intelReports
       .filter((report) => !report.expired)
       .map((report) => [report.intel.targetPlayerId, report]),
+  );
+  const activeDeepIntelByTarget = new Map(
+    deepIntelReports.map((report) => [report.deepIntel.targetPlayerId, report]),
   );
 
   const candidateIds = candidates.map((player) => player.id);
@@ -552,6 +556,7 @@ export async function getAttackPageData(
     if (preview.code === 'TARGET_OUT_OF_RANGE') continue;
 
     const intel = activeIntelByTarget.get(player.id);
+    const deepIntelReport = activeDeepIntelByTarget.get(player.id);
     const lastSeen = PlayerStatusService.resolveLastSeen(
       player.user.lastLoginAt,
       player.statusExt?.lastSeenAt,
@@ -570,6 +575,22 @@ export async function getAttackPageData(
       hasIntel: !!intel,
       reportId: intel?.reportId ?? null,
       bands: intel?.bands ?? null,
+      hasDeepIntel: !!deepIntelReport,
+      deepIntelReportId: deepIntelReport?.reportId ?? null,
+      deepIntel: deepIntelReport
+        ? {
+            reportId: deepIntelReport.reportId,
+            estimatedThugMin: deepIntelReport.deepIntel.estimatedThugMin,
+            estimatedThugMax: deepIntelReport.deepIntel.estimatedThugMax,
+            estimatedWorkerMin: deepIntelReport.deepIntel.estimatedWorkerMin,
+            estimatedWorkerMax: deepIntelReport.deepIntel.estimatedWorkerMax,
+            weaponReadinessBand: deepIntelReport.deepIntel.weaponReadinessBand,
+            cashExposureBand: deepIntelReport.deepIntel.cashExposureBand,
+            drugExposureBand: deepIntelReport.deepIntel.drugExposureBand,
+            cartelPresence: deepIntelReport.deepIntel.cartelPresence,
+            gatheredAt: deepIntelReport.deepIntel.scoutedAt,
+          }
+        : null,
       eligible: preview.eligible,
       eligibilityNote: eligibilityDisplayNote(preview.code, preview.message),
       attacksOnTarget,
@@ -610,6 +631,7 @@ export async function getAttackPageData(
     staleIntelNotice,
     attackRangeMinNetWorth: minAttackTargetNetWorth(attackerNw),
     intelTurnCost: ATTACK_RULES.intelGatherTurnCost,
+    deepIntelTurnCost: ATTACK_RULES.deepIntelTurnCost,
     viewerCity: ctx.district.name,
   };
 }

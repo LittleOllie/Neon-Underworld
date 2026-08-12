@@ -34,6 +34,7 @@ export default async function AttackPage({ searchParams }: Props) {
         staleIntelNotice={data.staleIntelNotice}
         attackRangeMinNetWorth={data.attackRangeMinNetWorth}
         intelTurnCost={data.intelTurnCost}
+        deepIntelTurnCost={data.deepIntelTurnCost}
         viewerCity={data.viewerCity}
       />
     </>

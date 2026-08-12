@@ -15,10 +15,12 @@ export function TravelPendingOverlay({
   return (
     <div className="g-travel-overlay" role="status" aria-live="polite" aria-busy="true">
       <div className="g-travel-overlay__panel">
+        <div className="g-travel-overlay__logo">
+          <BrandedLoader size="md" />
+        </div>
         <p className="g-travel-overlay__label">EN ROUTE TO</p>
         <p className="g-travel-overlay__dest">{destination.toUpperCase()}</p>
         <p className="g-travel-overlay__sub">Moving the crew…</p>
-        <BrandedLoader size="sm" />
       </div>
     </div>
   );

@@ -22,9 +22,12 @@ export const ATTACK_RULES = {
     RAID_DRUG_LABS: 3,
   } as const,
 
-  /** Turns to gather player intel before attacking (optional — direct attacks skip this) */
+  /** Turns to gather basic player intel before attacking (optional — direct attacks skip this) */
   scoutIntelTurnCost: 5,
   intelGatherTurnCost: 5,
+
+  /** Turns to gather deep intel after basic intel exists on a same-city target */
+  deepIntelTurnCost: 20,
 
   /** Player intel report validity */
   scoutReportExpiryHours: 48,

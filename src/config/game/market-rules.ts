@@ -71,4 +71,19 @@ export function minimumNextBid(currentBid: number | null, startingPrice: number)
   return Math.ceil(currentBid * MARKET_RULES.minBidIncrementRatio);
 }
 
+/** Reference unit value for market pricing guidance (Distrikt floor / NW anchor). */
+export function marketReferenceUnitPrice(itemKey: string): number {
+  const shop = getCityShopItem(itemKey);
+  if (shop) return shop.baseValue;
+  const personnel = getPersonnelItem(itemKey);
+  if (personnel) return personnel.netWorthValue;
+  return MARKET_RULES.minStartingPrice;
+}
+
+/** Suggested opening bid for a full lot — reference value × quantity. */
+export function suggestedMarketOpeningBid(itemKey: string, quantity: number): number {
+  const unit = marketReferenceUnitPrice(itemKey);
+  return Math.max(MARKET_RULES.minStartingPrice, unit * Math.max(1, quantity));
+}
+
 export type { ItemCatalogKey };

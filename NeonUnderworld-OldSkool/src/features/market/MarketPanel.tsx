@@ -10,7 +10,11 @@ import {
   type MarketPageData,
 } from '@local/server/actions/market.actions';
 import type { MarketDurationMinutes } from '@core/config/game/market-rules';
-import { marketFilterCategory } from '@core/config/game/market-rules';
+import {
+  marketFilterCategory,
+  marketReferenceUnitPrice,
+  suggestedMarketOpeningBid,
+} from '@core/config/game/market-rules';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { NumericInput } from '@local/components/game/NumericInput';
@@ -54,6 +58,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   const [sellItem, setSellItem] = useState<string>(initial.tradableInventory[0]?.key ?? '');
   const [sellQty, setSellQty] = useState('1');
   const [startPrice, setStartPrice] = useState(String(initial.minStartingPrice));
+  const [priceTouched, setPriceTouched] = useState(false);
   const [duration, setDuration] = useState<MarketDurationMinutes>(60);
 
   useEffect(() => {
@@ -68,6 +73,23 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   }, [initial]);
 
   const selectedInventory = data.tradableInventory.find((item) => item.key === sellItem);
+  const sellQtyNum = parseInt(sellQty, 10) || 0;
+  const unitReference = sellItem ? marketReferenceUnitPrice(sellItem) : 0;
+  const suggestedBid =
+    sellItem && sellQtyNum > 0 ? suggestedMarketOpeningBid(sellItem, sellQtyNum) : 0;
+  const startPriceNum = parseInt(startPrice, 10);
+  const priceWellBelowGuide =
+    suggestedBid > 0 && startPriceNum > 0 && startPriceNum < suggestedBid * 0.5;
+
+  useEffect(() => {
+    setPriceTouched(false);
+  }, [sellItem]);
+
+  useEffect(() => {
+    if (priceTouched || !sellItem) return;
+    const qty = parseInt(sellQty, 10) || 1;
+    setStartPrice(String(suggestedMarketOpeningBid(sellItem, qty)));
+  }, [sellItem, sellQty, priceTouched]);
 
   const filteredListings = useMemo(() => {
     if (filter === 'all') return data.listings;
@@ -136,7 +158,10 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
 
   return (
     <>
-      <p className="g-note">Player auctions. Bid on equipment and supplies listed by other players.</p>
+      <p className="g-note">
+        Player auctions only — list items for a set time; other players bid and the highest bid when
+        the clock runs out wins. There are no instant-buy listings.
+      </p>
       <StatRow label="Cash on hand" value={`$${data.cash.toLocaleString()}`} />
 
       <div className="g-filter-row">
@@ -205,7 +230,12 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
             <p className="g-note">You have no tradable items to list.</p>
           ) : (
             <>
+              <p className="g-note">
+                Create a timed auction. Set an opening bid — buyers must bid at least that amount to
+                start, then each new bid must beat the last by 20%.
+              </p>
               <SectionLabel>ITEM</SectionLabel>
+              <p className="g-note">What you are putting up for auction from your inventory.</p>
               <select
                 className="g-input"
                 value={sellItem}
@@ -226,13 +256,36 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 value={sellQty}
                 onChange={(raw) => setSellQty(raw)}
               />
+              <p className="g-note">
+                How many units of this item to include in the lot. You must own at least this many.
+              </p>
               <NumericInput
                 id="market-price"
-                label="Starting price"
+                label="Opening bid (total for lot)"
                 value={startPrice}
-                onChange={(raw) => setStartPrice(raw)}
+                onChange={(raw) => {
+                  setPriceTouched(true);
+                  setStartPrice(raw);
+                }}
               />
+              {sellItem && sellQtyNum > 0 && (
+                <p className="g-note">
+                  Suggested opening bid: ${suggestedBid.toLocaleString()} (${unitReference.toLocaleString()}{' '}
+                  reference × {sellQtyNum.toLocaleString()}). Low opening bids invite snipes — only
+                  the opening bid is locked in; undervalued lots can sell far below market.
+                </p>
+              )}
+              {priceWellBelowGuide && (
+                <p className="g-note g-note-warn">
+                  This opening bid is well below the reference value. You may lose significant value
+                  if nobody bids higher.
+                </p>
+              )}
               <SectionLabel>DURATION</SectionLabel>
+              <p className="g-note">
+                How long the auction stays open. When time expires, the highest bidder wins (or you
+                keep the items if there were no bids).
+              </p>
               <select
                 className="g-input"
                 value={duration}

@@ -5,6 +5,8 @@ import {
   marketFilterCategory,
   marketItemDisplayName,
   minimumNextBid,
+  suggestedMarketOpeningBid,
+  marketReferenceUnitPrice,
 } from '@/config/game/market-rules';
 
 describe('market rules', () => {
@@ -39,6 +41,12 @@ describe('market rules', () => {
   it('allows standard auction durations', () => {
     expect(MARKET_RULES.allowedDurationMinutes).toEqual([30, 60, 180, 360, 720, 1440]);
     expect(MARKET_RULES.minDurationMinutes).toBe(30);
+  });
+
+  it('suggests opening bid from reference unit value', () => {
+    expect(suggestedMarketOpeningBid('whore', 318)).toBe(1750 * 318);
+    expect(suggestedMarketOpeningBid('ak', 5)).toBe(3240 * 5);
+    expect(marketReferenceUnitPrice('whore')).toBe(1750);
   });
 
   it('market is global', () => {
