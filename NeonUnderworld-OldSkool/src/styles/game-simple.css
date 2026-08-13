@@ -1539,6 +1539,61 @@
   text-decoration: underline;
 }
 
+/* Businesses — acquire cards + owned business panels */
+.g-business-panel {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  background: rgba(201, 169, 98, 0.1);
+  border: 1px solid rgba(201, 169, 98, 0.28);
+  border-radius: 4px;
+}
+
+.g-business-panel-head {
+  margin-bottom: 12px;
+}
+
+.g-business-panel-title {
+  display: block;
+  margin: 0 0 6px;
+  font-size: var(--game-fs-value);
+  font-weight: 700;
+  color: var(--game-text-primary);
+  letter-spacing: 0.02em;
+}
+
+.g-business-panel-blurb {
+  display: block;
+  margin: 0;
+  font-size: var(--game-fs-secondary);
+  line-height: 1.45;
+  color: var(--game-text-secondary);
+}
+
+.g-business-panel .g-row:first-of-type {
+  padding-top: 0;
+}
+
+.g-business-panel-actions {
+  margin-top: 12px;
+}
+
+.g-business-panel-toggle {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.g-business-panel-toggle:focus-visible {
+  outline: 2px solid var(--game-gold);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .g-page-transition {
     animation: none;

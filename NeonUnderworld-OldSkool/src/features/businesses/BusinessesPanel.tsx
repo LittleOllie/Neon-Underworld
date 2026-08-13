@@ -155,15 +155,17 @@ export function BusinessesPanel({ initialData }: Props) {
       {data.businesses.map((biz) => {
         const expanded = expandedId === biz.id;
         return (
-          <div key={biz.id} className="g-card g-stack-sm" style={{ marginBottom: '1rem' }}>
+          <div key={biz.id} className="g-business-panel">
             <button
               type="button"
-              className="g-card-header-btn"
+              className="g-business-panel-toggle"
               onClick={() => setExpandedId(expanded ? null : biz.id)}
             >
-              <strong>{biz.name}</strong>
-              <span className="g-muted">
-                {biz.displayName} · {biz.districtName}
+              <span className="g-business-panel-head">
+                <span className="g-business-panel-title">{biz.name}</span>
+                <span className="g-business-panel-blurb">
+                  {biz.displayName} · {biz.districtName}
+                </span>
               </span>
             </button>
 
@@ -180,9 +182,11 @@ export function BusinessesPanel({ initialData }: Props) {
             />
 
             {!expanded ? (
-              <PrimaryButton type="button" variant="secondary" onClick={() => setExpandedId(biz.id)}>
-                Manage
-              </PrimaryButton>
+              <div className="g-business-panel-actions">
+                <PrimaryButton type="button" variant="secondary" onClick={() => setExpandedId(biz.id)}>
+                  Manage
+                </PrimaryButton>
+              </div>
             ) : (
               <>
                 <Divider />
@@ -280,21 +284,25 @@ export function BusinessesPanel({ initialData }: Props) {
       <SectionLabel>ACQUIRE BUSINESS</SectionLabel>
       <StatRow label="Your cash" value={fmtCash(data.cash)} />
       {data.catalog.map((entry) => (
-        <div key={entry.type} className="g-card g-stack-sm" style={{ marginBottom: '0.75rem' }}>
-          <strong>{entry.displayName}</strong>
-          <span className="g-muted">{entry.blurb}</span>
+        <div key={entry.type} className="g-business-panel">
+          <div className="g-business-panel-head">
+            <h3 className="g-business-panel-title">{entry.displayName}</h3>
+            <p className="g-business-panel-blurb">{entry.blurb}</p>
+          </div>
           <StatRow label="Price" value={fmtCash(entry.purchasePrice)} />
           <StatRow label="Street NW" value={fmtCash(entry.streetNwContribution)} />
           <StatRow label="Safe cap" value={fmtCash(entry.safeCapacity)} />
           <StatRow label="Drug storage" value={`${entry.drugStorageCapacity.toLocaleString()} units`} />
-          <PrimaryButton
-            type="button"
-            pending={loading === `buy-${entry.type}`}
-            disabled={!data.canPurchase || data.cash < entry.purchasePrice}
-            onClick={() => runPurchase(entry.type)}
-          >
-            Acquire {entry.displayName}
-          </PrimaryButton>
+          <div className="g-business-panel-actions">
+            <PrimaryButton
+              type="button"
+              pending={loading === `buy-${entry.type}`}
+              disabled={!data.canPurchase || data.cash < entry.purchasePrice}
+              onClick={() => runPurchase(entry.type)}
+            >
+              Acquire {entry.displayName}
+            </PrimaryButton>
+          </div>
         </div>
       ))}
 
