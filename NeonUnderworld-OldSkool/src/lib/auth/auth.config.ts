@@ -23,6 +23,7 @@ export const authConfig = {
         path.startsWith('/scout') ||
         path.startsWith('/produce') ||
         path.startsWith('/shop') ||
+        path.startsWith('/businesses') ||
         path.startsWith('/attack') ||
         path.startsWith('/reports') ||
         path.startsWith('/rankings') ||

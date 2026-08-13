@@ -33,6 +33,14 @@ export async function getBusinessesPageDataFromContext(
   return coreGetBusinessesPageData(ctx.id);
 }
 
+export async function refreshBusinessesPageDataAction(): Promise<ActionResult<BusinessesPageData>> {
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const data = await coreGetBusinessesPageData(playerId);
+  return { success: true, data };
+}
+
 async function wrapMutation<T extends { canonicalNetWorth: number; newCash: number }>(
   playerId: string,
   result: ActionResult<T>,
@@ -41,23 +49,40 @@ async function wrapMutation<T extends { canonicalNetWorth: number; newCash: numb
 ): Promise<ActionResult<WithPlayerShell<T>>> {
   if (!result.success) return result;
 
-  await EmpireService.syncInventory(playerId);
-  const updated = await prisma.player.findUniqueOrThrow({
-    where: { id: playerId },
-    include: { district: true, turnState: true },
-  });
+  try {
+    await EmpireService.syncInventory(playerId);
+    const updated = await prisma.player.findUniqueOrThrow({
+      where: { id: playerId },
+      include: { district: true, turnState: true },
+    });
 
-  const shell = await finalizeLocalMutationShell(playerId, updated, paths, {
-    cash: result.data.newCash,
-    netWorth: result.data.canonicalNetWorth,
-  });
+    const shell = await finalizeLocalMutationShell(playerId, updated, paths, {
+      cash: result.data.newCash,
+      netWorth: result.data.canonicalNetWorth,
+    });
 
-  await ActivityService.record(playerId, ACTIVITY_TYPES.BUSINESS, activityMessage);
+    await ActivityService.record(playerId, ACTIVITY_TYPES.BUSINESS, activityMessage);
 
-  return {
-    success: true,
-    data: { ...result.data, shell },
-  };
+    return {
+      success: true,
+      data: { ...result.data, shell },
+    };
+  } catch (error) {
+    console.error('Business mutation shell error:', error);
+    return {
+      success: true,
+      data: {
+        ...result.data,
+        shell: {
+          cash: result.data.newCash,
+          netWorth: result.data.canonicalNetWorth,
+          turns: 0,
+          turnCap: 0,
+          rank: 0,
+        },
+      },
+    };
+  }
 }
 
 export async function purchaseBusinessAction(

@@ -1539,7 +1539,49 @@
   text-decoration: underline;
 }
 
-/* Businesses — acquire cards + owned business panels */
+/* Businesses — tab nav + panels */
+.g-business-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.g-business-tab {
+  min-height: 40px;
+  padding: 8px 14px;
+  font-size: var(--game-fs-secondary);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(201, 169, 98, 0.08);
+  border: 1px solid rgba(201, 169, 98, 0.22);
+  border-radius: 4px;
+  color: var(--os-text-dim);
+  cursor: pointer;
+}
+
+.g-business-tab-active {
+  background: rgba(201, 169, 98, 0.2);
+  border-color: var(--game-gold);
+  color: var(--game-gold);
+  box-shadow: 0 0 0 1px rgba(201, 169, 98, 0.35);
+}
+
+.g-business-tab-acquire {
+  border-style: dashed;
+}
+
+.g-business-limits {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  font-size: var(--game-fs-secondary);
+  line-height: 1.5;
+  color: var(--game-text-secondary);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
 .g-business-panel {
   margin-bottom: 12px;
   padding: 14px 16px;

@@ -18,6 +18,8 @@ export const config = {
     '/attack/:path*',
     '/travel/:path*',
     '/market/:path*',
+    '/businesses',
+    '/businesses/:path*',
     '/cartels/:path*',
     '/reports/:path*',
     '/rankings/:path*',
