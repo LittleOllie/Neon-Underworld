@@ -1726,7 +1726,103 @@
   outline-offset: 2px;
 }
 
+.g-business-overview {
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(201, 169, 98, 0.15);
+}
+
+.g-business-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.g-business-section {
+  border: 1px solid rgba(201, 169, 98, 0.22);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.g-business-section--catalog {
+  margin-bottom: 8px;
+}
+
+.g-business-section-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--game-fs-secondary);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--game-gold);
+}
+
+.g-business-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.g-business-section-chevron {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--game-gold);
+  border-bottom: 2px solid var(--game-gold);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  margin-top: -2px;
+}
+
+.g-business-section[open] > .g-business-section-summary .g-business-section-chevron {
+  transform: rotate(45deg);
+  margin-top: 2px;
+}
+
+.g-business-section-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.g-business-section-badge {
+  flex-shrink: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--game-text-secondary);
+}
+
+.g-business-section-body {
+  padding: 0 12px 12px;
+  border-top: 1px solid rgba(201, 169, 98, 0.12);
+}
+
+.g-business-section-body .g-business-limits {
+  margin-top: 10px;
+}
+
+.g-business-limits--compact {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  font-size: 0.9em;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .g-business-section-chevron {
+    transition: none;
+  }
+
   .g-page-transition {
     animation: none;
   }
