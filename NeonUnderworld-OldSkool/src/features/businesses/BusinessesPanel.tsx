@@ -71,6 +71,25 @@ function heatDescriptor(baseHeat: number): string {
   return 'Low';
 }
 
+function formatUpgradeRemaining(completesAt: string, nowMs: number): string {
+  const remaining = new Date(completesAt).getTime() - nowMs;
+  if (remaining <= 0) return 'Completing…';
+  const totalMin = Math.ceil(remaining / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function formatCompletesAt(completesAt: string): string {
+  return new Date(completesAt).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 function defaultView(data: BusinessesPageData): ViewId {
   return data.businesses[0]?.id ?? ACQUIRE_VIEW;
 }
@@ -169,13 +188,12 @@ type BusinessSectionProps = {
   title: string;
   badge?: string;
   hint?: string;
-  defaultOpen?: boolean;
   children: ReactNode;
 };
 
-function BusinessSection({ title, badge, hint, defaultOpen = false, children }: BusinessSectionProps) {
+function BusinessSection({ title, badge, hint, children }: BusinessSectionProps) {
   return (
-    <details className="g-business-section" {...(defaultOpen ? { open: true } : {})}>
+    <details className="g-business-section">
       <summary className="g-business-section-summary">
         <span className="g-business-section-chevron" aria-hidden />
         <span className="g-business-section-title">{title}</span>
@@ -200,10 +218,19 @@ export function BusinessesPanel({ initialData }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const hasUpgrading = data.businesses.some((b) => b.isUpgrading);
 
   useEffect(() => {
     setData(initialData);
   }, [initialData]);
+
+  useEffect(() => {
+    if (!hasUpgrading) return;
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [hasUpgrading]);
 
   useEffect(() => {
     if (activeView === ACQUIRE_VIEW) return;
@@ -246,6 +273,17 @@ export function BusinessesPanel({ initialData }: Props) {
     setActiveView(preferredView ?? defaultView(response.data));
     return true;
   }
+
+  useEffect(() => {
+    const due = data.businesses.some(
+      (b) =>
+        b.isUpgrading &&
+        b.upgradeCompletesAt &&
+        new Date(b.upgradeCompletesAt).getTime() <= nowMs,
+    );
+    if (!due) return;
+    void reloadPageData(activeView === ACQUIRE_VIEW ? undefined : activeView);
+  }, [nowMs, hasUpgrading, data.businesses, activeView]);
 
   async function runPurchase(type: BusinessType) {
     setLoading(`buy-${type}`);
@@ -354,7 +392,9 @@ export function BusinessesPanel({ initialData }: Props) {
     }
     applyShell(response.data);
     await reloadPageData(businessId);
-    setMessage(`Upgraded to Level ${response.data.level}.`);
+    setMessage(
+      `Upgrade to Level ${response.data.upgradeTargetLevel} started — completes in ${response.data.upgradeCompletesAt ? formatUpgradeRemaining(response.data.upgradeCompletesAt, Date.now()) : 'soon'}.`,
+    );
   }
 
   async function runDrug(businessId: string, mode: 'store' | 'withdraw') {
@@ -385,7 +425,52 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   function renderUpgradeSection(biz: BusinessesPageData['businesses'][number]) {
-    if (!biz.nextUpgradeLevel || biz.nextUpgradeCost == null) return null;
+    if (biz.isUpgrading && biz.upgradeTargetLevel && biz.upgradeCompletesAt) {
+      const current = getBusinessLevelStats(biz.businessType, biz.level);
+      const next = getBusinessLevelStats(biz.businessType, biz.upgradeTargetLevel);
+      return (
+        <BusinessSection
+          title="Upgrade"
+          badge={`LV.${biz.level} → LV.${biz.upgradeTargetLevel}`}
+        >
+          <p className="g-business-upgrade-active-label">Upgrade in progress</p>
+          <StatRow
+            label="Progress"
+            value={`Level ${biz.level} → Level ${biz.upgradeTargetLevel}`}
+          />
+          <StatRow
+            label="Time remaining"
+            value={formatUpgradeRemaining(biz.upgradeCompletesAt, nowMs)}
+          />
+          <StatRow label="Completes" value={formatCompletesAt(biz.upgradeCompletesAt)} />
+          <p className="g-business-limits g-business-limits--compact">
+            Level {biz.level} benefits remain active until completion.
+          </p>
+          <StatRow
+            label="Workers (after)"
+            value={`${current.workerCapacity.toLocaleString()} → ${next.workerCapacity.toLocaleString()}`}
+          />
+          <StatRow
+            label="Safe (after)"
+            value={`${fmtCash(current.safeCapacity)} → ${fmtCash(next.safeCapacity)}`}
+          />
+        </BusinessSection>
+      );
+    }
+
+    if (!biz.nextUpgradeLevel || biz.nextUpgradeCost == null) {
+      if (biz.level >= 5) {
+        return (
+          <BusinessSection title="Upgrade" badge="MAX LEVEL">
+            <p className="g-business-limits g-business-limits--compact">
+              This business is fully upgraded.
+            </p>
+          </BusinessSection>
+        );
+      }
+      return null;
+    }
+
     const current = getBusinessLevelStats(biz.businessType, biz.level);
     const next = getBusinessLevelStats(biz.businessType, biz.nextUpgradeLevel);
     const canAfford = data.cash >= biz.nextUpgradeCost;
@@ -394,9 +479,11 @@ export function BusinessesPanel({ initialData }: Props) {
       <BusinessSection
         title="Upgrade"
         badge={`Level ${biz.nextUpgradeLevel} · ${fmtCash(biz.nextUpgradeCost)}`}
-        defaultOpen={canAfford}
       >
         <StatRow label="Cost" value={fmtCash(biz.nextUpgradeCost)} />
+        {biz.nextUpgradeDurationLabel ? (
+          <StatRow label="Build time" value={biz.nextUpgradeDurationLabel} />
+        ) : null}
         <p className="g-business-limits g-business-limits--compact">Unlocks / improves:</p>
         <StatRow
           label="Workers"
@@ -420,7 +507,7 @@ export function BusinessesPanel({ initialData }: Props) {
           disabled={!canAfford}
           onClick={() => runUpgrade(biz.id)}
         >
-          Upgrade to Level {biz.nextUpgradeLevel}
+          Start Upgrade to Level {biz.nextUpgradeLevel}
         </PrimaryButton>
       </BusinessSection>
     );
@@ -445,6 +532,12 @@ export function BusinessesPanel({ initialData }: Props) {
         </div>
 
         <div className="g-business-overview">
+          {biz.isUpgrading && biz.upgradeTargetLevel && biz.upgradeCompletesAt ? (
+            <p className="g-business-upgrade-banner">
+              UPGRADING → LV.{biz.upgradeTargetLevel} ·{' '}
+              {formatUpgradeRemaining(biz.upgradeCompletesAt, nowMs)} remaining
+            </p>
+          ) : null}
           <StatRow label="Workers" value={workerCapLabel} />
           <StatRow label="Security" value={securityCapLabel} />
           <StatRow
@@ -462,7 +555,7 @@ export function BusinessesPanel({ initialData }: Props) {
           />
         </div>
 
-        <div className="g-business-sections">
+        <div className="g-business-sections" key={activeView}>
           <BusinessSection
             title="Workers"
             badge={
@@ -471,7 +564,6 @@ export function BusinessesPanel({ initialData }: Props) {
                 : `${biz.assignedWorkers.toLocaleString()} / ${biz.workerCapacity.toLocaleString()}`
             }
             hint="Assigned Workers earn passive income but are unavailable for Street work."
-            defaultOpen={biz.workerOverCapacity}
           >
             <StatRow label="Street available" value={data.streetWorkers.toLocaleString()} />
             <NumericInput
@@ -537,7 +629,6 @@ export function BusinessesPanel({ initialData }: Props) {
             title="Safe"
             badge={biz.safeFull ? 'FULL' : fmtCash(biz.safeCash)}
             hint="Business income stays outside Street Net Worth until collected."
-            defaultOpen={biz.safeCash > 0}
           >
             <PrimaryButton
               type="button"
@@ -612,7 +703,6 @@ export function BusinessesPanel({ initialData }: Props) {
         <BusinessSection
           title="Portfolio"
           badge={`${data.summary.ownedCount} / ${MAX_BUSINESSES_PER_PLAYER}`}
-          defaultOpen
         >
           <StatRow label="Your cash" value={fmtCash(data.cash)} />
           <StatRow
@@ -661,7 +751,6 @@ export function BusinessesPanel({ initialData }: Props) {
       <BusinessSection
         title="Summary"
         badge={`${data.summary.ownedCount} owned · ${data.summary.overallHeatBand} heat`}
-        defaultOpen
       >
         <StatRow
           label="Workers"

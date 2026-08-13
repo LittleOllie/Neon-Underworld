@@ -256,8 +256,8 @@ describe('business street net worth', () => {
 
   it('aggregate business context sums assigned workers, security, and assets', () => {
     const ctx = aggregateBusinessNwContext([
-      { businessType: 'WAREHOUSE', level: 1, assignedWorkers: 200, assignedThugs: 5 },
-      { businessType: 'WAREHOUSE', level: 2, assignedWorkers: 300, assignedThugs: 10 },
+      { businessType: 'WAREHOUSE', level: 1, upgradeTargetLevel: null, assignedWorkers: 200, assignedThugs: 5 },
+      { businessType: 'WAREHOUSE', level: 2, upgradeTargetLevel: null, assignedWorkers: 300, assignedThugs: 10 },
     ]);
     expect(ctx.assignedWorkers).toBe(500);
     expect(ctx.assignedSecurityThugs).toBe(15);

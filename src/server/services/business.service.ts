@@ -4,11 +4,14 @@ import {
   businessHourlyIncome,
   businessPurchasePrice,
   defaultBusinessName,
-  getBusinessInvestedValue,
+  getBusinessInvestedValueForState,
   getBusinessLevelStats,
-  getBusinessStreetNwAsset,
+  getBusinessStreetNwAssetForState,
   getBusinessTypeRule,
   getBusinessUpgradeCost,
+  getBusinessUpgradeDurationMs,
+  getBusinessUpgradeDurationLabel,
+  isBusinessUpgrading,
   isSecurityOverCapacity,
   isWorkerOverCapacity,
   MAX_BUSINESSES_PER_PLAYER,
@@ -32,6 +35,7 @@ export type BusinessRecord = Business;
 export const BUSINESS_NW_SELECT = {
   businessType: true,
   level: true,
+  upgradeTargetLevel: true,
   assignedWorkers: true,
   assignedThugs: true,
 } as const;
@@ -74,6 +78,12 @@ export interface BusinessViewModel {
   heatScore: number;
   heatBand: string;
   heatLabel: string;
+  isUpgrading: boolean;
+  upgradeTargetLevel?: number | null;
+  upgradeStartedAt?: string;
+  upgradeCompletesAt?: string;
+  upgradeRemainingMs?: number;
+  nextUpgradeDurationLabel?: string;
   nextUpgradeLevel?: number;
   nextUpgradeCost?: number;
   createdAt: string;
@@ -116,7 +126,13 @@ export function aggregateBusinessNwContext(businesses: BusinessNwSelect[]) {
   const assignedWorkers = businesses.reduce((sum, b) => sum + b.assignedWorkers, 0);
   const assignedSecurityThugs = businesses.reduce((sum, b) => sum + b.assignedThugs, 0);
   const businessStreetAssets = businesses.reduce(
-    (sum, b) => sum + getBusinessStreetNwAsset(b.businessType, b.level),
+    (sum, b) =>
+      sum +
+      getBusinessStreetNwAssetForState({
+        businessType: b.businessType,
+        level: b.level,
+        upgradeTargetLevel: b.upgradeTargetLevel,
+      }),
     0,
   );
   return { assignedWorkers, assignedSecurityThugs, businessStreetAssets };
@@ -273,11 +289,90 @@ async function recordPoliceRaidReport(
   });
 }
 
+async function recordUpgradeCompleteReport(
+  tx: PrismaTransactionClient,
+  row: Business,
+  fromLevel: number,
+  toLevel: number,
+): Promise<void> {
+  const before = getBusinessLevelStats(row.businessType, fromLevel);
+  const after = getBusinessLevelStats(row.businessType, toLevel);
+  const body = [
+    `${row.name} is now Level ${toLevel}.`,
+    '',
+    `Worker capacity: ${before.workerCapacity.toLocaleString()} → ${after.workerCapacity.toLocaleString()}`,
+    `Safe: $${before.safeCapacity.toLocaleString()} → $${after.safeCapacity.toLocaleString()}`,
+    `Storage: ${before.drugStorageCapacity.toLocaleString()} → ${after.drugStorageCapacity.toLocaleString()}`,
+    `Security: ${before.securityCapacity} → ${after.securityCapacity}`,
+  ].join('\n');
+
+  await tx.report.create({
+    data: {
+      playerId: row.playerId,
+      category: 'SYSTEM',
+      title: 'Business Upgrade Complete',
+      summary: `${row.name} reached Level ${toLevel}.`,
+      body,
+      metadata: {
+        type: 'BUSINESS_UPGRADE_COMPLETE',
+        businessId: row.id,
+        businessName: row.name,
+        fromLevel,
+        toLevel,
+      } as object,
+    },
+  });
+
+  await tx.playerStatusExt.upsert({
+    where: { playerId: row.playerId },
+    create: { playerId: row.playerId, unreadReports: 1 },
+    update: { unreadReports: { increment: 1 } },
+  });
+}
+
+/** Lazy, idempotent upgrade finalization — call before settlement on every Business touch. */
+export async function maybeCompleteBusinessUpgradeInTransaction(
+  tx: PrismaTransactionClient,
+  businessId: string,
+  now: Date = new Date(),
+): Promise<Business | null> {
+  const row = await tx.business.findUnique({ where: { id: businessId } });
+  if (!row || !isBusinessUpgrading(row)) return row;
+  if (!row.upgradeCompletesAt || row.upgradeCompletesAt > now) return row;
+
+  const targetLevel = row.upgradeTargetLevel!;
+  const fromLevel = row.level;
+
+  const updated = await tx.business.updateMany({
+    where: {
+      id: businessId,
+      level: fromLevel,
+      upgradeTargetLevel: targetLevel,
+      upgradeCompletesAt: { lte: now },
+    },
+    data: {
+      level: targetLevel,
+      upgradeTargetLevel: null,
+      upgradeStartedAt: null,
+      upgradeCompletesAt: null,
+    },
+  });
+
+  if (updated.count === 1) {
+    const completed = await tx.business.findUniqueOrThrow({ where: { id: businessId } });
+    await recordUpgradeCompleteReport(tx, completed, fromLevel, targetLevel);
+    return completed;
+  }
+
+  return tx.business.findUnique({ where: { id: businessId } });
+}
+
 export async function settleBusinessInTransaction(
   tx: PrismaTransactionClient,
   businessId: string,
   now: Date = new Date(),
 ): Promise<{ row: Business; settlement: SettledBusinessState }> {
+  await maybeCompleteBusinessUpgradeInTransaction(tx, businessId, now);
   const row = await tx.business.findUniqueOrThrow({ where: { id: businessId } });
   const settlement = settleBusinessState(row, now);
 
@@ -302,21 +397,33 @@ export async function settleBusinessInTransaction(
 export function toBusinessViewModel(
   row: Business,
   districtName: string,
+  now: Date = new Date(),
 ): BusinessViewModel {
   const rule = getBusinessTypeRule(row.businessType);
-  const levelStats = getBusinessLevelStats(row.businessType, row.level);
+  const upgrading = isBusinessUpgrading(row);
+  const functionalLevel = row.level;
+  const levelStats = getBusinessLevelStats(row.businessType, functionalLevel);
   const stored = businessStoredDrugs(row);
   const coverage = securityCoverage(row.assignedThugs, levelStats.securityCapacity);
   const heat = evaluateBusinessHeat({
     businessType: row.businessType,
-    level: row.level,
+    level: functionalLevel,
     assignedWorkers: row.assignedWorkers,
     assignedThugs: row.assignedThugs,
     safeCash: row.safeCash,
     stored,
   });
   const storedDrugUnits = businessStoredTotal(row);
-  const investedValue = getBusinessInvestedValue(row.businessType, row.level);
+  const investmentState = {
+    businessType: row.businessType,
+    level: row.level,
+    upgradeTargetLevel: row.upgradeTargetLevel,
+  };
+  const investedValue = getBusinessInvestedValueForState(investmentState);
+  const upgradeRemainingMs =
+    upgrading && row.upgradeCompletesAt
+      ? Math.max(0, row.upgradeCompletesAt.getTime() - now.getTime())
+      : undefined;
 
   const view: BusinessViewModel = {
     id: row.id,
@@ -325,10 +432,10 @@ export function toBusinessViewModel(
     name: row.name,
     districtId: row.districtId,
     districtName,
-    level: row.level,
+    level: functionalLevel,
     purchasePrice: row.purchasePrice,
     investedValue,
-    streetNwContribution: getBusinessStreetNwAsset(row.businessType, row.level),
+    streetNwContribution: getBusinessStreetNwAssetForState(investmentState),
     assignedWorkers: row.assignedWorkers,
     workerCapacity: levelStats.workerCapacity,
     workerOverCapacity: isWorkerOverCapacity(row.assignedWorkers, levelStats.workerCapacity),
@@ -340,19 +447,30 @@ export function toBusinessViewModel(
     safeCash: row.safeCash,
     safeCapacity: levelStats.safeCapacity,
     safeFull: row.safeCash >= levelStats.safeCapacity,
-    hourlyIncome: businessHourlyIncome(row.businessType, row.assignedWorkers, row.level),
+    hourlyIncome: businessHourlyIncome(row.businessType, row.assignedWorkers, functionalLevel),
     storedDrugs: stored,
     storedDrugUnits,
     drugStorageCapacity: levelStats.drugStorageCapacity,
     heatScore: heat.score,
     heatBand: heat.band,
     heatLabel: heat.label,
+    isUpgrading: upgrading,
+    upgradeTargetLevel: row.upgradeTargetLevel,
     createdAt: row.createdAt.toISOString(),
   };
 
-  if (row.level < MAX_BUSINESS_LEVEL) {
-    view.nextUpgradeLevel = row.level + 1;
-    view.nextUpgradeCost = getBusinessUpgradeCost(row.businessType, row.level + 1);
+  if (upgrading && row.upgradeTargetLevel != null) {
+    view.upgradeTargetLevel = row.upgradeTargetLevel;
+    view.upgradeStartedAt = row.upgradeStartedAt?.toISOString();
+    view.upgradeCompletesAt = row.upgradeCompletesAt?.toISOString();
+    view.upgradeRemainingMs = upgradeRemainingMs;
+  }
+
+  if (!upgrading && functionalLevel < MAX_BUSINESS_LEVEL) {
+    const targetLevel = functionalLevel + 1;
+    view.nextUpgradeLevel = targetLevel;
+    view.nextUpgradeCost = getBusinessUpgradeCost(row.businessType, targetLevel);
+    view.nextUpgradeDurationLabel = getBusinessUpgradeDurationLabel(targetLevel);
   }
 
   return view;
@@ -367,6 +485,7 @@ export function buildPortfolioSummary(
     businesses.map((b) => ({
       businessType: b.businessType,
       level: b.level,
+      upgradeTargetLevel: b.upgradeTargetLevel ?? null,
       assignedWorkers: b.assignedWorkers,
       assignedThugs: b.assignedThugs,
     })),
@@ -483,11 +602,26 @@ export function validateRemoveSecurity(assigned: number, quantity: number): stri
   return null;
 }
 
-export function validateUpgrade(level: number, cash: number, type: BusinessType): string | null {
+export function validateStartUpgrade(
+  level: number,
+  upgradeTargetLevel: number | null | undefined,
+  cash: number,
+  type: BusinessType,
+): string | null {
+  if (upgradeTargetLevel != null) return 'An upgrade is already in progress.';
   if (level >= MAX_BUSINESS_LEVEL) return 'Business is already at maximum level.';
   const cost = getBusinessUpgradeCost(type, level + 1);
   if (cash < cost) return 'Insufficient cash for upgrade.';
   return null;
+}
+
+/** @deprecated Use validateStartUpgrade */
+export function validateUpgrade(
+  level: number,
+  cash: number,
+  type: BusinessType,
+): string | null {
+  return validateStartUpgrade(level, null, cash, type);
 }
 
 export function validateDrugTransfer(

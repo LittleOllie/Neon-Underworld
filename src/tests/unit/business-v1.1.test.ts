@@ -24,7 +24,7 @@ import { settleBusinessIncome } from '@/lib/game-engine/business/settlement';
 import {
   validateAssignWorkers,
   validateAssignSecurity,
-  validateUpgrade,
+  validateStartUpgrade,
 } from '@/server/services/business.service';
 import { resolveProduction } from '@/lib/game-engine/production';
 
@@ -53,12 +53,16 @@ describe('V1.1 upgrade costs', () => {
     expect(getBusinessStreetNwAsset('NIGHTCLUB', 3)).toBe(6_500_000);
   });
 
+  it('blocks when upgrade already underway', () => {
+    expect(validateStartUpgrade(2, 3, 10_000_000, 'NIGHTCLUB')).toMatch(/already in progress/i);
+  });
+
   it('cannot upgrade beyond L5', () => {
-    expect(validateUpgrade(5, 100_000_000, 'NIGHTCLUB')).toMatch(/maximum level/i);
+    expect(validateStartUpgrade(5, null, 100_000_000, 'NIGHTCLUB')).toMatch(/maximum level/i);
   });
 
   it('requires sufficient cash', () => {
-    expect(validateUpgrade(1, 1_000_000, 'NIGHTCLUB')).toMatch(/insufficient/i);
+    expect(validateStartUpgrade(1, null, 1_000_000, 'NIGHTCLUB')).toMatch(/insufficient/i);
   });
 });
 

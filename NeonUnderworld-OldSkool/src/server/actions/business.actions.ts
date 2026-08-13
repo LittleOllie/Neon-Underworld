@@ -216,7 +216,7 @@ export async function upgradeBusinessAction(
   return wrapMutation(
     playerId,
     result,
-    `Upgraded business to Level ${result.data.level}.`,
+    `Upgraded business to Level ${result.data.upgradeTargetLevel} (construction started).`,
     ['/businesses', '/empire', '/command'],
   );
 }

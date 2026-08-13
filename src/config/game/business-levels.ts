@@ -242,6 +242,36 @@ export const BUSINESS_LEVEL_TABLES: Record<BusinessType, BusinessLevelStats[]> =
 
 export const MAX_BUSINESS_LEVEL = 5;
 
+/** Upgrade build time by target level (ms). Purchase to L1 remains instant. */
+export const BUSINESS_UPGRADE_DURATION_MS: Record<BusinessUpgradeLevel, number> = {
+  2: 2 * 60 * 60 * 1000,
+  3: 6 * 60 * 60 * 1000,
+  4: 12 * 60 * 60 * 1000,
+  5: 24 * 60 * 60 * 1000,
+};
+
+const BUSINESS_UPGRADE_DURATION_HOURS: Record<BusinessUpgradeLevel, number> = {
+  2: 2,
+  3: 6,
+  4: 12,
+  5: 24,
+};
+
+export function getBusinessUpgradeDurationMs(targetLevel: number): number {
+  const level = clampBusinessLevel(targetLevel);
+  if (level < 2 || level > MAX_BUSINESS_LEVEL) {
+    throw new Error(`Invalid upgrade target level for duration: ${targetLevel}`);
+  }
+  return BUSINESS_UPGRADE_DURATION_MS[level as BusinessUpgradeLevel];
+}
+
+export function getBusinessUpgradeDurationLabel(targetLevel: number): string {
+  const level = clampBusinessLevel(targetLevel);
+  if (level < 2 || level > MAX_BUSINESS_LEVEL) return '';
+  const hours = BUSINESS_UPGRADE_DURATION_HOURS[level as BusinessUpgradeLevel];
+  return hours === 1 ? '1 hour' : `${hours} hours`;
+}
+
 export function clampBusinessLevel(level: number): number {
   return Math.max(1, Math.min(MAX_BUSINESS_LEVEL, Math.floor(level)));
 }

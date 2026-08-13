@@ -144,6 +144,44 @@ export function getBusinessStreetNwAsset(type: BusinessType, level: number): num
   return Math.floor(getBusinessInvestedValue(type, level) * BUSINESS_STREET_NW_MULTIPLIER);
 }
 
+export interface BusinessInvestmentState {
+  businessType: BusinessType;
+  /** Completed functional level — caps/income use this until upgrade finishes. */
+  level: number;
+  upgradeTargetLevel?: number | null;
+}
+
+/** Paid investment level — includes in-progress upgrade target once payment is made. */
+export function getBusinessPaidInvestmentLevel(state: BusinessInvestmentState): number {
+  if (
+    state.upgradeTargetLevel != null &&
+    state.upgradeTargetLevel > state.level
+  ) {
+    return state.upgradeTargetLevel;
+  }
+  return state.level;
+}
+
+export function getBusinessInvestedValueForState(state: BusinessInvestmentState): number {
+  return getBusinessInvestedValue(
+    state.businessType,
+    getBusinessPaidInvestmentLevel(state),
+  );
+}
+
+export function getBusinessStreetNwAssetForState(state: BusinessInvestmentState): number {
+  return Math.floor(
+    getBusinessInvestedValueForState(state) * BUSINESS_STREET_NW_MULTIPLIER,
+  );
+}
+
+export function isBusinessUpgrading(row: {
+  upgradeTargetLevel?: number | null;
+  upgradeCompletesAt?: Date | null;
+}): boolean {
+  return row.upgradeTargetLevel != null && row.upgradeCompletesAt != null;
+}
+
 /** @deprecated Use getBusinessStreetNwAsset(type, level) for canonical NW. */
 export function businessStreetNwContribution(purchasePrice: number): number {
   return Math.floor(purchasePrice * BUSINESS_STREET_NW_MULTIPLIER);
@@ -212,6 +250,9 @@ export { BUSINESS_LEVEL_TABLES, getBusinessLevelStats, clampBusinessLevel } from
 export {
   getBusinessDrugProductionBonus,
   MAX_DRUG_LAB_PRODUCE_BONUS,
+  getBusinessUpgradeDurationMs,
+  getBusinessUpgradeDurationLabel,
+  BUSINESS_UPGRADE_DURATION_MS,
 } from './business-levels';
 
 /** Future Total Empire Value helper — not used for live rankings in V1.1. */

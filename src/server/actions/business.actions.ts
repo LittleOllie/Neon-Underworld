@@ -15,11 +15,12 @@ import {
   BUSINESS_TYPES,
   MAX_BUSINESSES_PER_PLAYER,
   businessPurchasePrice,
-  getBusinessInvestedValue,
+  getBusinessInvestedValueForState,
   getBusinessLevelStats,
   getBusinessStreetNwAsset,
   getBusinessTypeRule,
   getBusinessUpgradeCost,
+  getBusinessUpgradeDurationMs,
 } from '@/config/game/business-rules';
 import { calculatePlayerCanonicalNetWorthSync } from '@/lib/game-engine/business/net-worth';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
@@ -42,7 +43,7 @@ import {
   validatePurchase,
   validateRemoveSecurity,
   validateRemoveWorkers,
-  validateUpgrade,
+  validateStartUpgrade,
 } from '@/server/services/business.service';
 import type { ActionResult } from './auth.actions';
 
@@ -104,8 +105,12 @@ export interface BusinessDrugResult extends BusinessMutationResult {
 
 export interface BusinessUpgradeResult extends BusinessMutationResult {
   level: number;
+  upgradeTargetLevel: number;
+  upgradeStartedAt: string;
+  upgradeCompletesAt: string;
   upgradeCost: number;
   investedValue: number;
+  isUpgrading: true;
 }
 
 export interface BusinessSecurityResult extends BusinessMutationResult {
@@ -661,15 +666,28 @@ export async function upgradeBusinessAction(
 
       await settleBusinessInTransaction(tx, business.id);
       const fresh = await tx.business.findUniqueOrThrow({ where: { id: business.id } });
-      const err = validateUpgrade(fresh.level, player.cash, fresh.businessType);
+      const err = validateStartUpgrade(
+        fresh.level,
+        fresh.upgradeTargetLevel,
+        player.cash,
+        fresh.businessType,
+      );
       if (err) throw new GameplayError('INVALID_QUANTITY', err);
 
-      const upgradeCost = getBusinessUpgradeCost(fresh.businessType, fresh.level + 1);
-      const newLevel = fresh.level + 1;
+      const targetLevel = fresh.level + 1;
+      const upgradeCost = getBusinessUpgradeCost(fresh.businessType, targetLevel);
+      const startedAt = new Date();
+      const completesAt = new Date(
+        startedAt.getTime() + getBusinessUpgradeDurationMs(targetLevel),
+      );
 
       const updatedBusiness = await tx.business.update({
         where: { id: business.id },
-        data: { level: newLevel },
+        data: {
+          upgradeTargetLevel: targetLevel,
+          upgradeStartedAt: startedAt,
+          upgradeCompletesAt: completesAt,
+        },
       });
 
       const updatedPlayer = await tx.player.update({
@@ -682,13 +700,21 @@ export async function upgradeBusinessAction(
         select: BUSINESS_NW_SELECT,
       });
       const canonicalNetWorth = calculatePlayerCanonicalNetWorthSync(updatedPlayer, allBusinesses);
-      const investedValue = getBusinessInvestedValue(fresh.businessType, newLevel);
+      const investedValue = getBusinessInvestedValueForState({
+        businessType: fresh.businessType,
+        level: fresh.level,
+        upgradeTargetLevel: targetLevel,
+      });
 
       const resultData: BusinessUpgradeResult = {
         businessId: business.id,
         level: updatedBusiness.level,
+        upgradeTargetLevel: targetLevel,
+        upgradeStartedAt: startedAt.toISOString(),
+        upgradeCompletesAt: completesAt.toISOString(),
         upgradeCost,
         investedValue,
+        isUpgrading: true,
         newCash: updatedPlayer.cash,
         streetWorkers: updatedPlayer.prostitutes,
         canonicalNetWorth,
@@ -698,7 +724,7 @@ export async function upgradeBusinessAction(
         data: {
           playerId,
           seasonId: player.seasonId,
-          actionType: 'BUSINESS_UPGRADE',
+          actionType: 'BUSINESS_UPGRADE_START',
           idempotencyKey,
           requestPayload: { businessId } as object,
           resultPayload: resultData as object,
@@ -709,7 +735,7 @@ export async function upgradeBusinessAction(
         data: {
           playerId,
           userId: session.user.id,
-          eventType: 'BUSINESS_UPGRADE',
+          eventType: 'BUSINESS_UPGRADE_START',
           source: 'business',
           beforeState: snapshotPlayerState(player) as object,
           delta: { cash: -upgradeCost },
@@ -717,8 +743,9 @@ export async function upgradeBusinessAction(
           metadata: {
             businessId: business.id,
             fromLevel: fresh.level,
-            toLevel: newLevel,
+            targetLevel,
             upgradeCost,
+            upgradeCompletesAt: completesAt.toISOString(),
           },
         },
       });

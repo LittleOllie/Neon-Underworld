@@ -508,7 +508,10 @@ model Business {
   districtId      String
   name            String
   purchasePrice   Int
-  level           Int          @default(1)
+  level               Int          @default(1)
+  upgradeTargetLevel  Int?
+  upgradeStartedAt    DateTime?
+  upgradeCompletesAt  DateTime?
   assignedWorkers Int          @default(0)
   assignedThugs   Int          @default(0)
   safeCash        Int          @default(0)
