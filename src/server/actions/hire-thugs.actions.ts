@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db/prisma';
 import { requirePlayer } from '@/lib/auth/session';
 import { hireThugsSchema } from '@/lib/validation/schemas';
 import {
-  HIRE_THUGS_MAX_QUANTITY,
   THUG_HIRE_PRICE,
   hireThugsTotalCost,
 } from '@/config/game/hire-thugs-rules';
@@ -59,7 +58,7 @@ export async function hireThugsAction(
       assertPlayerCanPerformAction(player);
 
       const qty = parsed.data.quantity;
-      if (!Number.isInteger(qty) || qty < 1 || qty > HIRE_THUGS_MAX_QUANTITY) {
+      if (!Number.isInteger(qty) || qty < 1) {
         throw new GameplayError('INVALID_QUANTITY');
       }
 

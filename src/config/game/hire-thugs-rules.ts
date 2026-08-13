@@ -1,13 +1,10 @@
-import { SHOP_MAX_QUANTITY_PER_REQUEST, CITY_SHOP_SELL_BACK_RATIO } from './shop-rules';
+import { CITY_SHOP_SELL_BACK_RATIO } from './shop-rules';
 
 /** Canonical cash price per Thug hired through the Shop crew service. */
 export const THUG_HIRE_PRICE = 7500;
 
 /** Cash per Thug released through Shop crew — 70% of hire price (same as other shop sell-backs). */
 export const THUG_SELL_PRICE = Math.max(1, Math.floor(THUG_HIRE_PRICE * CITY_SHOP_SELL_BACK_RATIO));
-
-/** Abuse protection — normal gameplay should not hit this cap. */
-export const HIRE_THUGS_MAX_QUANTITY = SHOP_MAX_QUANTITY_PER_REQUEST;
 
 export function hireThugsTotalCost(quantity: number): number {
   return quantity * THUG_HIRE_PRICE;

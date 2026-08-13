@@ -1,7 +1,5 @@
 /** Shared integer parsing/validation for turn spend and shop quantity inputs. */
 
-import { SHOP_MAX_QUANTITY_PER_REQUEST } from '@core/config/game/shop-rules';
-
 export function parsePositiveInteger(raw: string): number | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -21,9 +19,6 @@ export function validateTurnAmount(amount: number | null, available: number): st
 
 export function validateQuantity(amount: number | null): string | null {
   if (amount === null) return 'Enter a valid quantity.';
-  if (amount > SHOP_MAX_QUANTITY_PER_REQUEST) {
-    return `Maximum ${SHOP_MAX_QUANTITY_PER_REQUEST.toLocaleString()} units per transaction.`;
-  }
   return null;
 }
 

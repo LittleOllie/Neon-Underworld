@@ -1,8 +1,5 @@
 import { REDLITE_MARKET_STARTING_PRICES, REDLITE_NET_WORTH } from './redlite-rules';
 
-/** Max units per single shop purchase or sell request (matches turn cap). */
-export const SHOP_MAX_QUANTITY_PER_REQUEST = 5000;
-
 /** Worker support hash — above $5 NW/drug unit; convenience premium for guaranteed supply */
 export const SHOP_HASH_UNIT_PRICE = 8;
 

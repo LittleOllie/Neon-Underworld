@@ -9,7 +9,6 @@ import {
   getCityShopSellPrice,
   isCityShopItem,
   isPersonnelItem,
-  SHOP_MAX_QUANTITY_PER_REQUEST,
   SHOP_CATEGORY_LABELS,
   SHOP_CATEGORY_ORDER,
   type ShopCategory,
@@ -106,9 +105,6 @@ function validateShopPurchaseContext(
   }
   if (!Number.isInteger(quantity) || quantity < 1) {
     return 'Quantity must be a positive whole number.';
-  }
-  if (quantity > SHOP_MAX_QUANTITY_PER_REQUEST) {
-    return `Maximum ${SHOP_MAX_QUANTITY_PER_REQUEST.toLocaleString()} units per purchase.`;
   }
   if (player.lifeStatus !== 'ACTIVE') {
     return 'Purchases unavailable in your current status.';
@@ -261,9 +257,6 @@ function validateShopSellContext(
   }
   if (!Number.isInteger(quantity) || quantity < 1) {
     return 'Quantity must be a positive whole number.';
-  }
-  if (quantity > SHOP_MAX_QUANTITY_PER_REQUEST) {
-    return `Maximum ${SHOP_MAX_QUANTITY_PER_REQUEST.toLocaleString()} units per sale.`;
   }
   if (player.lifeStatus !== 'ACTIVE') {
     return 'Sales unavailable in your current status.';

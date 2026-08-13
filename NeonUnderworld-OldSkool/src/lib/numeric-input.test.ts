@@ -43,9 +43,10 @@ describe('validateQuantity', () => {
     expect(validateQuantity(10)).toBeNull();
   });
 
-  it('rejects quantities above shop max', () => {
-    expect(validateQuantity(5001)).toMatch(/Maximum 5,000/);
+  it('accepts any positive quantity', () => {
     expect(validateQuantity(5000)).toBeNull();
+    expect(validateQuantity(50_000)).toBeNull();
+    expect(validateQuantity(1_000_000)).toBeNull();
   });
 });
 
