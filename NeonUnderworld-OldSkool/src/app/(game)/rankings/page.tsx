@@ -11,34 +11,15 @@ const FILTERS: { key: RankingsFilter; label: string }[] = [
   { key: 'old-quarter', label: 'Old Quarter' },
 ];
 
-const DISTRICT_FILTERS = new Set<RankingsFilter>(['neon-strip', 'docklands', 'old-quarter']);
-
-function districtFilter(slug: string): RankingsFilter | null {
-  return DISTRICT_FILTERS.has(slug as RankingsFilter) ? (slug as RankingsFilter) : null;
-}
-
-function defaultFilterForPlayer(districtSlug: string): RankingsFilter {
-  if (DISTRICT_FILTERS.has(districtSlug as RankingsFilter)) {
-    return districtSlug as RankingsFilter;
+function resolveFilter(param: string | undefined): RankingsFilter {
+  if (param && FILTERS.some((f) => f.key === param)) {
+    return param as RankingsFilter;
   }
   return 'overall';
 }
 
-function resolveFilter(param: string | undefined, districtSlug: string): RankingsFilter {
-  if (param && FILTERS.some((f) => f.key === param)) {
-    return param as RankingsFilter;
-  }
-  return defaultFilterForPlayer(districtSlug);
-}
-
-function orderedFilters(homeDistrict: RankingsFilter): typeof FILTERS {
-  const home = FILTERS.find((f) => f.key === homeDistrict);
-  if (!home || homeDistrict === 'overall') return FILTERS;
-  return [home, ...FILTERS.filter((f) => f.key !== homeDistrict)];
-}
-
-function filterHref(key: RankingsFilter, homeDistrict: RankingsFilter): string {
-  if (key === homeDistrict) return '/rankings';
+function filterHref(key: RankingsFilter): string {
+  if (key === 'overall') return '/rankings';
   return `/rankings?filter=${key}`;
 }
 
@@ -60,9 +41,7 @@ export default async function RankingsPage({ searchParams }: Props) {
   const params = await searchParams;
   const { ctx } = await requireGameSession();
   const playerId = ctx.id;
-  const homeDistrict = districtFilter(ctx.district.slug) ?? 'overall';
-  const filter = resolveFilter(params.filter, ctx.district.slug);
-  const filters = orderedFilters(homeDistrict);
+  const filter = resolveFilter(params.filter);
 
   const rows = await devPerf('/rankings data', () =>
     RankingsService.getSeasonRankings(ctx.seasonId, filter),
@@ -73,16 +52,16 @@ export default async function RankingsPage({ searchParams }: Props) {
       <PageTitle icon="rankings">Rankings</PageTitle>
       {filter !== 'overall' && (
         <p className="g-note">
-          Showing {activeFilterLabel(filter)} — your current city. Switch tabs for other districts or
-          overall.
+          Showing {activeFilterLabel(filter)} only — ranks below are for this city. Switch to Overall
+          for season-wide ranking (matches your header rank).
         </p>
       )}
 
       <div className="g-filter-row">
-        {filters.map((f) => (
+        {FILTERS.map((f) => (
           <Link
             key={f.key}
-            href={filterHref(f.key, homeDistrict)}
+            href={filterHref(f.key)}
             className={`g-filter${filter === f.key ? ' g-filter-active' : ''}`}
           >
             {f.label}
