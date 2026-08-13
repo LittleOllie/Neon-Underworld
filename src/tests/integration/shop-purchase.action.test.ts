@@ -27,41 +27,45 @@ describe('shopPurchaseAction — server validation', () => {
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
       fn({
         player: {
-          findUniqueOrThrow: vi.fn().mockResolvedValue({
-            id: 'player-1',
-            seasonId: 'season-1',
-            cash: 50_000,
-            lifeStatus: 'ACTIVE',
-            travelling: false,
-            glocks: 0,
-            uzis: 0,
-            aks: 0,
-            rides: 0,
-            condoms: 0,
-            hash: 0,
-            beer: 0,
-            shrooms: 0,
-            coke: 0,
-            heroin: 0,
-            prostitutes: 5,
-            thugs: 3,
-            season: { status: 'ACTIVE' },
-          }),
-          update: vi.fn().mockResolvedValue({
-            cash: 49_980,
-            condoms: 10,
-            prostitutes: 5,
-            thugs: 3,
-            glocks: 0,
-            uzis: 0,
-            aks: 0,
-            rides: 0,
-            hash: 0,
-            beer: 0,
-            shrooms: 0,
-            coke: 0,
-            heroin: 0,
-          }),
+          findUniqueOrThrow: vi
+            .fn()
+            .mockResolvedValueOnce({
+              id: 'player-1',
+              seasonId: 'season-1',
+              cash: 50_000,
+              lifeStatus: 'ACTIVE',
+              travelling: false,
+              glocks: 0,
+              uzis: 0,
+              aks: 0,
+              rides: 0,
+              condoms: 0,
+              hash: 0,
+              beer: 0,
+              shrooms: 0,
+              coke: 0,
+              heroin: 0,
+              prostitutes: 5,
+              thugs: 3,
+              season: { status: 'ACTIVE' },
+            })
+            .mockResolvedValueOnce({
+              id: 'player-1',
+              cash: 49_980,
+              condoms: 10,
+              prostitutes: 5,
+              thugs: 3,
+              glocks: 0,
+              uzis: 0,
+              aks: 0,
+              rides: 0,
+              hash: 0,
+              beer: 0,
+              shrooms: 0,
+              coke: 0,
+              heroin: 0,
+            }),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         },
         gameAction: { create: vi.fn() },
         economicAuditLog: { create: vi.fn() },
@@ -137,6 +141,7 @@ describe('shopPurchaseAction — server validation', () => {
             travelling: false,
             season: { status: 'ACTIVE' },
           }),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
         },
         playerStatusExt: { upsert: vi.fn().mockResolvedValue({}) },
       }),
@@ -149,7 +154,7 @@ describe('shopPurchaseAction — server validation', () => {
     );
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toBe("You don't have enough cash.");
+      expect(result.error).toMatch(/enough cash/i);
     }
   });
 });

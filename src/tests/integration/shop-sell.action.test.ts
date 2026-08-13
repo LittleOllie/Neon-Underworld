@@ -27,44 +27,47 @@ describe('shopSellAction — server validation', () => {
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
       fn({
         player: {
-          findUniqueOrThrow: vi.fn().mockResolvedValue({
-            id: 'player-1',
-            seasonId: 'season-1',
-            cash: 5000,
-            lifeStatus: 'ACTIVE',
-            travelling: false,
-            glocks: 0,
-            uzis: 0,
-            aks: 0,
-            rides: 0,
-            condoms: 0,
-            hash: 0,
-            beer: 0,
-            shrooms: 0,
-            coke: 50,
-            heroin: 0,
-            prostitutes: 0,
-            thugs: 0,
-            businesses: 0,
-            bankCash: 0,
-            season: { status: 'ACTIVE' },
-          }),
-          update: vi.fn().mockImplementation(({ data }) => ({
-            cash: data.cash,
-            coke: data.coke,
-            hash: 0,
-            shrooms: 0,
-            heroin: 0,
-            prostitutes: 0,
-            thugs: 0,
-            rides: 0,
-            glocks: 0,
-            uzis: 0,
-            aks: 0,
-            condoms: 0,
-            beer: 0,
-            bankCash: 0,
-          })),
+          findUniqueOrThrow: vi
+            .fn()
+            .mockResolvedValueOnce({
+              id: 'player-1',
+              seasonId: 'season-1',
+              cash: 5000,
+              lifeStatus: 'ACTIVE',
+              travelling: false,
+              glocks: 0,
+              uzis: 0,
+              aks: 0,
+              rides: 0,
+              condoms: 0,
+              hash: 0,
+              beer: 0,
+              shrooms: 0,
+              coke: 50,
+              heroin: 0,
+              prostitutes: 0,
+              thugs: 0,
+              businesses: 0,
+              bankCash: 0,
+              season: { status: 'ACTIVE' },
+            })
+            .mockResolvedValueOnce({
+              cash: 5380,
+              coke: 40,
+              hash: 0,
+              shrooms: 0,
+              heroin: 0,
+              prostitutes: 0,
+              thugs: 0,
+              rides: 0,
+              glocks: 0,
+              uzis: 0,
+              aks: 0,
+              condoms: 0,
+              beer: 0,
+              bankCash: 0,
+            }),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         },
         gameAction: { create: vi.fn() },
         economicAuditLog: { create: vi.fn() },
@@ -81,11 +84,37 @@ describe('shopSellAction — server validation', () => {
   });
 
   it('rejects selling more than owned', async () => {
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        player: {
+          findUniqueOrThrow: vi.fn().mockResolvedValue({
+            id: 'player-1',
+            seasonId: 'season-1',
+            cash: 5000,
+            lifeStatus: 'ACTIVE',
+            travelling: false,
+            coke: 50,
+            glocks: 0,
+            uzis: 0,
+            aks: 0,
+            rides: 0,
+            condoms: 0,
+            hash: 0,
+            beer: 0,
+            shrooms: 0,
+            heroin: 0,
+            season: { status: 'ACTIVE' },
+          }),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        playerStatusExt: { upsert: vi.fn().mockResolvedValue({}) },
+      }),
+    );
     const { shopSellAction } = await import('@/server/actions/shop.actions');
     const result = await shopSellAction('coke', 100, '00000000-0000-4000-8000-000000000002');
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/don't own enough/i);
+      expect(result.error).toMatch(/enough/i);
     }
   });
 

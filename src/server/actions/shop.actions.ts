@@ -20,6 +20,8 @@ import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state'
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { throwIfValidationMessage, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
+import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
+import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import type { ActionResult } from './auth.actions';
 
@@ -150,7 +152,7 @@ export async function shopPurchaseAction(
       return { success: true, data: existing.resultPayload as unknown as ShopPurchaseResult };
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runSerializableTransaction(async (tx) => {
       const player = await tx.player.findUniqueOrThrow({
         where: { id: playerId },
         include: { season: true },
@@ -168,17 +170,22 @@ export async function shopPurchaseAction(
       const rule = getCityShopItem(parsed.data.item)!;
       const unitPrice = rule.shopPrice;
       const totalCost = unitPrice * parsed.data.quantity;
-
-      const newCash = player.cash - totalCost;
       const field = rule.field;
-      const currentQty = player[field] as number;
-      const newQty = currentQty + parsed.data.quantity;
 
-      const updatedPlayer = await tx.player.update({
-        where: { id: playerId },
-        data: { cash: newCash, [field]: newQty },
+      const updatedCount = await tx.player.updateMany({
+        where: { id: playerId, cash: { gte: totalCost } },
+        data: {
+          cash: { decrement: totalCost },
+          [field]: { increment: parsed.data.quantity },
+        },
       });
+      if (updatedCount.count === 0) {
+        throw new GameplayError('INSUFFICIENT_CASH', 'Insufficient cash.');
+      }
 
+      const updatedPlayer = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
+      const newCash = updatedPlayer.cash;
+      const newQty = updatedPlayer[field] as number;
       const newNetWorth = calculateNetWorth(playerToResources(updatedPlayer));
 
       const resultData: ShopPurchaseResult = {
@@ -217,7 +224,7 @@ export async function shopPurchaseAction(
       });
 
       return resultData;
-    }, { isolationLevel: 'Serializable' });
+    });
 
     return { success: true, data: result };
   } catch (error) {
@@ -313,7 +320,7 @@ export async function shopSellAction(
       return { success: true, data: existing.resultPayload as unknown as ShopSellResult };
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runSerializableTransaction(async (tx) => {
       const player = await tx.player.findUniqueOrThrow({
         where: { id: playerId },
         include: { season: true },
@@ -331,14 +338,22 @@ export async function shopSellAction(
       const rule = getCityShopItem(parsed.data.item)!;
       const unitPrice = getCityShopSellPrice(parsed.data.item);
       const totalPayout = unitPrice * parsed.data.quantity;
-      const owned = player[rule.field] as number;
-      const newQty = owned - parsed.data.quantity;
-      const newCash = player.cash + totalPayout;
+      const field = rule.field;
 
-      const updatedPlayer = await tx.player.update({
-        where: { id: playerId },
-        data: { cash: newCash, [rule.field]: newQty },
+      const updatedCount = await tx.player.updateMany({
+        where: { id: playerId, [field]: { gte: parsed.data.quantity } },
+        data: {
+          cash: { increment: totalPayout },
+          [field]: { decrement: parsed.data.quantity },
+        },
       });
+      if (updatedCount.count === 0) {
+        throw new GameplayError('INVALID_QUANTITY', 'You do not have enough of this item to sell.');
+      }
+
+      const updatedPlayer = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
+      const newQty = updatedPlayer[field] as number;
+      const newCash = updatedPlayer.cash;
 
       const newNetWorth = calculateNetWorth(playerToResources(updatedPlayer));
       const canonicalNetWorth = calculateCanonicalNetWorthFromPlayer(updatedPlayer);
@@ -380,7 +395,7 @@ export async function shopSellAction(
       });
 
       return resultData;
-    }, { isolationLevel: 'Serializable' });
+    });
 
     return { success: true, data: result };
   } catch (error) {

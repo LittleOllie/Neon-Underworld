@@ -1,31 +1,50 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef } from 'react';
+import { usePlayerShell } from './PlayerShellProvider';
 
-const FOCUS_REFRESH_MS = 30_000;
+/** Targeted shell poll while tab is visible — no full page RSC refresh. */
+const SHELL_POLL_MS = 45_000;
 
-/** Refresh shell stats when returning to the app or on a modest interval while active. */
 export function PlayerShellRefresh() {
-  const router = useRouter();
-  const lastRefresh = useRef(0);
+  const { applyShellUpdate } = usePlayerShell();
+  const lastPoll = useRef(0);
+  const polling = useRef(false);
+
+  const pollShell = useCallback(
+    async (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastPoll.current < SHELL_POLL_MS) return;
+      if (polling.current) return;
+
+      polling.current = true;
+      try {
+        const { pollPlayerShellAction } = await import(
+          '@local/server/actions/shell-poll.actions'
+        );
+        const snapshot = await pollPlayerShellAction();
+        if (snapshot) {
+          applyShellUpdate(snapshot);
+          lastPoll.current = Date.now();
+        }
+      } catch {
+        // Ignore transient poll failures — next focus/interval will retry.
+      } finally {
+        polling.current = false;
+      }
+    },
+    [applyShellUpdate],
+  );
 
   useEffect(() => {
-    function maybeRefresh(force = false) {
-      const now = Date.now();
-      if (!force && now - lastRefresh.current < FOCUS_REFRESH_MS) return;
-      lastRefresh.current = now;
-      router.refresh();
-    }
-
     function onVisibility() {
       if (document.visibilityState === 'visible') {
-        maybeRefresh(true);
+        void pollShell(true);
       }
     }
 
     function onFocus() {
-      maybeRefresh(true);
+      void pollShell(true);
     }
 
     document.addEventListener('visibilitychange', onVisibility);
@@ -33,16 +52,16 @@ export function PlayerShellRefresh() {
 
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
-        maybeRefresh(false);
+        void pollShell(false);
       }
-    }, FOCUS_REFRESH_MS);
+    }, SHELL_POLL_MS);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', onFocus);
       window.clearInterval(interval);
     };
-  }, [router]);
+  }, [pollShell]);
 
   return null;
 }

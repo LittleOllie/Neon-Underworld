@@ -12,6 +12,8 @@ import {
 type PlayerRow = PlayerNetWorthRecord & {
   id: string;
   seasonId: string;
+  prostitutes?: number;
+  thugs?: number;
   district?: { name: string } | null;
   turnState?: {
     currentTurns: number;
@@ -71,6 +73,8 @@ export async function buildShellSnapshotFromPlayer(
     rank: overrides.rank ?? rank,
     district: overrides.district ?? player.district?.name,
     unreadReports: overrides.unreadReports ?? unreadReports,
+    workers: overrides.workers ?? player.prostitutes,
+    thugs: overrides.thugs ?? player.thugs,
   };
 }
 

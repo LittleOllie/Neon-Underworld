@@ -49,6 +49,11 @@ const RANK_NET_WORTH_SELECT = {
   businesses: true,
 } as const;
 
+/** Header rank may lag the leaderboard by up to this many seconds after mutations. */
+export const PLAYER_RANK_CACHE_SECONDS = 45;
+/** Rankings page snapshot TTL — full leaderboard recomputed at most this often. */
+export const SEASON_RANKINGS_CACHE_SECONDS = 30;
+
 function compareRankings(
   a: { netWorth: number; createdAt: Date; id: string },
   b: { netWorth: number; createdAt: Date; id: string },
@@ -58,34 +63,6 @@ function compareRankings(
   if (created !== 0) return created;
   return a.id.localeCompare(b.id);
 }
-
-async function computePlayerRank(playerId: string, seasonId: string): Promise<number> {
-  const players = await prisma.player.findMany({
-    where: { seasonId, isSystemPlayer: false },
-    select: RANK_NET_WORTH_SELECT,
-    orderBy: { createdAt: 'asc' },
-  });
-
-  const netWorthMap = await NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
-  const ranked = players
-    .map((p) => ({
-      id: p.id,
-      netWorth: netWorthMap.get(p.id) ?? 0,
-      createdAt: p.createdAt,
-    }))
-    .sort(compareRankings);
-
-  const index = ranked.findIndex((row) => row.id === playerId);
-  return index >= 0 ? index + 1 : 0;
-}
-
-const getCachedPlayerRank = cache((playerId: string, seasonId: string) =>
-  unstable_cache(
-    () => computePlayerRank(playerId, seasonId),
-    ['player-rank', playerId, seasonId],
-    { revalidate: 45, tags: [playerRankCacheTag(playerId)] },
-  )(),
-);
 
 async function computeSeasonRankings(
   seasonId: string,
@@ -140,7 +117,24 @@ const getCachedSeasonRankings = cache((seasonId: string, filter: RankingsFilter)
   unstable_cache(
     () => computeSeasonRankings(seasonId, filter),
     ['season-rankings', seasonId, filter],
-    { revalidate: 30, tags: [seasonRankingsCacheTag(seasonId)] },
+    { revalidate: SEASON_RANKINGS_CACHE_SECONDS, tags: [seasonRankingsCacheTag(seasonId)] },
+  )(),
+);
+
+/**
+ * Single-player rank is derived from the cached overall season leaderboard —
+ * no independent full-season scan.
+ */
+async function lookupPlayerRank(playerId: string, seasonId: string): Promise<number> {
+  const rows = await getCachedSeasonRankings(seasonId, 'overall');
+  return rows.find((row) => row.id === playerId)?.rank ?? 0;
+}
+
+const getCachedPlayerRank = cache((playerId: string, seasonId: string) =>
+  unstable_cache(
+    () => lookupPlayerRank(playerId, seasonId),
+    ['player-rank', playerId, seasonId],
+    { revalidate: PLAYER_RANK_CACHE_SECONDS, tags: [playerRankCacheTag(playerId)] },
   )(),
 );
 
@@ -153,3 +147,5 @@ export const RankingsService = {
     return getCachedPlayerRank(playerId, seasonId);
   },
 };
+
+export { RANK_NET_WORTH_SELECT, compareRankings };

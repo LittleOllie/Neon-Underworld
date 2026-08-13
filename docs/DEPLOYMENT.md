@@ -72,6 +72,31 @@ Direct (non-pooled) URLs add latency on every serverless cold start and can exha
 
 If a deploy fails with **Prisma P1002**, migrations are no longer run automatically on build — redeploy after this fix or run migrations locally.
 
+### Migration workflow (Pass 4)
+
+1. **Develop locally** — `npm run db:migrate` creates migration files.
+2. **Before promoting code** — apply migrations to production using the **direct** Neon URL:
+   ```bash
+   DATABASE_URL="direct-url" npx tsx scripts/check-migration-status.ts
+   DATABASE_URL="direct-url" npx prisma migrate deploy
+   ```
+3. **Deploy application** — Vercel build does not migrate by default.
+4. **Verify** — re-run `check-migration-status.ts` against production if unsure.
+
+Optional one-off deploy with migrations: set `RUN_DB_MIGRATE=true` in Vercel, deploy once, then remove.
+
+**Never** run migrations through the pooled `-pooler` URL.
+
+### Legacy bankCash cleanup
+
+If players have hidden `bankCash` balances from pre–Pass 4 data:
+
+```bash
+DATABASE_URL="direct-url" npx tsx scripts/normalize-bank-cash.ts
+```
+
+Run once after deploy; safe to re-run (idempotent).
+
 ### 2. Playtest NPC seed (optional)
 
 ```bash

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
 import type { Prisma } from '@prisma/client';
 import {
   MARKET_RULES,
@@ -57,25 +58,32 @@ export interface MarketSettlementResult {
 
 export async function settleExpiredMarketListings(
   now = new Date(),
+  maxBatches = 10,
 ): Promise<MarketSettlementResult> {
-  const expired = await prisma.marketListing.findMany({
-    where: { status: 'ACTIVE', endsAt: { lte: now } },
-    take: 50,
-  });
-
   let settledCount = 0;
   const affectedPlayerIds = new Set<string>();
 
-  for (const listing of expired) {
-    await prisma.$transaction(async (tx) => {
-      const did = await settleListingTx(tx, listing.id, now);
-      if (did) {
-        settledCount++;
-        affectedPlayerIds.add(listing.sellerId);
-        if (listing.highestBidderId) affectedPlayerIds.add(listing.highestBidderId);
-      }
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const expired = await prisma.marketListing.findMany({
+      where: { status: 'ACTIVE', endsAt: { lte: now } },
+      take: 50,
     });
+    if (expired.length === 0) break;
+
+    for (const listing of expired) {
+      await prisma.$transaction(async (tx) => {
+        const did = await settleListingTx(tx, listing.id, now);
+        if (did) {
+          settledCount++;
+          affectedPlayerIds.add(listing.sellerId);
+          if (listing.highestBidderId) affectedPlayerIds.add(listing.highestBidderId);
+        }
+      });
+    }
+
+    if (expired.length < 50) break;
   }
+
   return { settledCount, affectedPlayerIds: [...affectedPlayerIds] };
 }
 
@@ -190,7 +198,7 @@ export const MarketService = {
 
     const endsAt = new Date(Date.now() + durationMinutes * 60 * 1000);
 
-    const listing = await prisma.$transaction(async (tx) => {
+    const listing = await runSerializableTransaction(async (tx) => {
       const player = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
       assertPlayerCanPerformAction(player);
 
@@ -226,7 +234,7 @@ export const MarketService = {
       });
 
       return created;
-    }, { isolationLevel: 'Serializable' });
+    });
 
     return { listingId: listing.id };
   },
@@ -240,8 +248,7 @@ export const MarketService = {
     if (existingBid) return { bidId: existingBid.id, amount: existingBid.amount };
 
     const now = new Date();
-    return prisma.$transaction(
-      async (tx) => {
+    return runSerializableTransaction(async (tx) => {
         const listing = await tx.marketListing.findUnique({ where: { id: listingId } });
         if (!listing || listing.status !== 'ACTIVE') throw new GameplayError('MARKET_LISTING_ENDED');
         if (listing.endsAt <= now) {
@@ -292,8 +299,6 @@ export const MarketService = {
         }
 
         return { bidId: bid.id, amount };
-      },
-      { isolationLevel: 'Serializable' },
-    );
+    });
   },
 };

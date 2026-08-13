@@ -7,6 +7,10 @@ export interface PlayerShellSnapshot {
   rank: number;
   district?: string;
   unreadReports?: number;
+  /** Workers — updated when poached or scouted. */
+  workers?: number;
+  /** Street thugs — updated after combat. */
+  thugs?: number;
 }
 
 export type WithPlayerShell<T> = T & { shell: PlayerShellSnapshot };

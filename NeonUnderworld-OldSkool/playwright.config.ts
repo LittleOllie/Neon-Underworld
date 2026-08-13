@@ -11,7 +11,7 @@ export default defineConfig({
     baseURL,
   },
   webServer: {
-    command: `rm -rf .next && npm run dev -- -p ${TEST_PORT}`,
+    command: `rm -rf .next 2>/dev/null; npm run dev -- -p ${TEST_PORT}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     cwd: __dirname,

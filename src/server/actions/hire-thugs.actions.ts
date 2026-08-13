@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db/prisma';
+import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
 import { requirePlayer } from '@/lib/auth/session';
 import { hireThugsSchema } from '@/lib/validation/schemas';
 import {
@@ -48,7 +49,7 @@ export async function hireThugsAction(
       return { success: true, data: existing.resultPayload as unknown as HireThugsResultData };
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runSerializableTransaction(async (tx) => {
       const player = await tx.player.findUniqueOrThrow({
         where: { id: playerId },
         include: { season: true },
@@ -67,20 +68,23 @@ export async function hireThugsAction(
         throw new GameplayError('INVALID_QUANTITY');
       }
 
-      if (player.cash < totalCost) {
+      const updatedCount = await tx.player.updateMany({
+        where: { id: playerId, cash: { gte: totalCost } },
+        data: {
+          cash: { decrement: totalCost },
+          thugs: { increment: qty },
+        },
+      });
+      if (updatedCount.count === 0) {
         throw new GameplayError(
           'INSUFFICIENT_CASH',
           `You need ${formatCash(totalCost)} to hire ${qty.toLocaleString()} Thugs.`,
         );
       }
 
-      const newCash = player.cash - totalCost;
-      const newThugs = player.thugs + qty;
-
-      const updated = await tx.player.update({
-        where: { id: playerId },
-        data: { cash: newCash, thugs: newThugs },
-      });
+      const updated = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
+      const newCash = updated.cash;
+      const newThugs = updated.thugs;
 
       const canonicalNetWorth = calculateCanonicalNetWorthFromPlayer(updated);
 
@@ -120,7 +124,7 @@ export async function hireThugsAction(
       });
 
       return resultData;
-    }, { isolationLevel: 'Serializable' });
+    });
 
     return { success: true, data: result };
   } catch (error) {
