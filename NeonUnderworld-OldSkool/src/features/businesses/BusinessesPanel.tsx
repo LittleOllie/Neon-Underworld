@@ -22,6 +22,7 @@ import {
   withdrawBusinessDrugsAction,
   type BusinessesPageData,
 } from '@local/server/actions/business.actions';
+import { StatusBadge, heatBadgeTone } from '@local/components/game/StatusBadge';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { StatRow } from '@local/components/game/StatRow';
@@ -47,13 +48,6 @@ const DRUG_LABELS: Record<DrugKey, string> = {
 };
 
 const ACQUIRE_VIEW = 'acquire';
-
-function heatClass(band: string): string {
-  if (band === 'CRITICAL') return 'g-status-critical';
-  if (band === 'HIGH') return 'g-status-warn';
-  if (band === 'MODERATE') return 'g-status-caution';
-  return 'g-status-ok';
-}
 
 function securityLabel(band: string): string {
   return band.charAt(0) + band.slice(1).toLowerCase();
@@ -551,7 +545,7 @@ export function BusinessesPanel({ initialData }: Props) {
           <StatRow label="Income" value={`${fmtCash(biz.hourlyIncome)}/hr`} />
           <StatRow
             label="Heat"
-            value={<span className={heatClass(biz.heatBand)}>{biz.heatLabel}</span>}
+            value={<StatusBadge tone={heatBadgeTone(biz.heatBand)}>{biz.heatLabel}</StatusBadge>}
           />
         </div>
 

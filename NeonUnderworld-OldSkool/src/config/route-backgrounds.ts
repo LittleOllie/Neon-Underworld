@@ -14,6 +14,7 @@ const ROUTE_BACKGROUNDS: Array<[string, GameBackgroundKey]> = [
   ['/reports', 'reports'],
   ['/guides', 'guides'],
   ['/how-to-play', 'guides'],
+  ['/businesses', 'empire'],
   ['/players', 'intel'],
 ];
 

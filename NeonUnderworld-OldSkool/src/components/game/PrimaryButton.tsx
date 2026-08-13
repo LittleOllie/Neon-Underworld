@@ -39,7 +39,7 @@ export function PrimaryButton({
     <button
       type={type}
       className={classes}
-      disabled={disabled}
+      disabled={disabled || pending}
       aria-busy={pending || undefined}
       {...rest}
     >

@@ -13,7 +13,7 @@ export default defineConfig({
   webServer: {
     command: `rm -rf .next && npm run dev -- -p ${TEST_PORT}`,
     url: baseURL,
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     cwd: __dirname,
     timeout: 120_000,
   },

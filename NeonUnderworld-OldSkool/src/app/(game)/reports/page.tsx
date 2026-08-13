@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PageTitle } from '@local/components/game';
+import { EmptyState } from '@local/components/game/EmptyState';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
 import { ReportService, getUnreadReportCount } from '@local/server/services/report.service';
 import { MarkAllReadButton } from '@local/features/reports/MarkAllReadButton';
@@ -52,7 +53,16 @@ export default async function ReportsPage({ searchParams }: Props) {
       )}
 
       {reports.length === 0 ? (
-        <p className="g-note">No reports match this filter.</p>
+        <EmptyState
+          title="No reports"
+          body={
+            filter === 'unread'
+              ? 'You have read everything in your inbox.'
+              : 'Scout, attack, and run your empire — reports appear here.'
+          }
+          actionHref="/scout"
+          actionLabel="Go scouting"
+        />
       ) : (
         reports.map((r) => (
           <Link

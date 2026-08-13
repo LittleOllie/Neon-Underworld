@@ -21,6 +21,11 @@ import { NumericInput } from '@local/components/game/NumericInput';
 import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { Divider } from '@local/components/game/Divider';
+import { SimpleTabs } from '@local/components/game/SimpleTabs';
+import { FilterPills } from '@local/components/game/FilterPills';
+import { SelectableCard } from '@local/components/game/SelectableCard';
+import { FeedbackNote } from '@local/components/game/FeedbackNote';
+import { EmptyState } from '@local/components/game/EmptyState';
 
 const FILTERS: { key: MarketFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -31,8 +36,12 @@ const FILTERS: { key: MarketFilter; label: string }[] = [
   { key: 'personnel', label: 'Crew' },
 ];
 
-const TABS = ['browse', 'sell', 'mine'] as const;
-type Tab = (typeof TABS)[number];
+const TABS = [
+  { id: 'browse' as const, label: 'Browse' },
+  { id: 'sell' as const, label: 'Sell Item' },
+  { id: 'mine' as const, label: 'My Auctions' },
+];
+type Tab = (typeof TABS)[number]['id'];
 
 function formatTimeLeft(endsAt: string): string {
   const ms = new Date(endsAt).getTime() - Date.now();
@@ -164,62 +173,55 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       </p>
       <StatRow label="Cash on hand" value={`$${data.cash.toLocaleString()}`} />
 
-      <div className="g-filter-row">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={`g-filter${tab === t ? ' g-filter-active' : ''}`}
-            onClick={() => setTab(t)}
-          >
-            {t === 'browse' ? 'Browse' : t === 'sell' ? 'Sell Item' : 'My Auctions'}
-          </button>
-        ))}
-      </div>
+      <SimpleTabs tabs={TABS} active={tab} onChange={setTab} />
 
-      {error && <p className="g-note g-note-error">{error}</p>}
-      {success && <p className="g-note g-note-success">{success}</p>}
+      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
+      {success && <FeedbackNote tone="success">{success}</FeedbackNote>}
 
       {tab === 'browse' && (
         <>
-          <div className="g-filter-row">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`g-filter${filter === f.key ? ' g-filter-active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          {filteredListings.length === 0 && <p className="g-note">No active listings.</p>}
+          <FilterPills
+            ariaLabel="Market category"
+            options={FILTERS.map((f) => ({ id: f.key, label: f.label }))}
+            value={filter}
+            onChange={setFilter}
+          />
+          {filteredListings.length === 0 ? (
+            <EmptyState
+              title="No active listings"
+              body="Check back later or list something from your inventory."
+            />
+          ) : null}
           {filteredListings.map((l) => (
-            <div key={l.id} className="g-area-row">
-              <div className="g-area-name">
-                {l.itemName} × {l.quantity}
-              </div>
-              <div className="g-area-meta">
-                {l.currentBid != null ? (
-                  <>Current bid: ${l.currentBid.toLocaleString()}</>
-                ) : (
-                  <>Starting: ${l.startingPrice.toLocaleString()}</>
-                )}
-                {' · '}
-                Ends in {formatTimeLeft(l.endsAt)}
-                {' · '}
-                Seller: {l.sellerAlias}
-              </div>
-              <div className="g-area-meta">Min bid: ${l.minNextBid.toLocaleString()}</div>
+            <SelectableCard
+              key={l.id}
+              as="div"
+              title={`${l.itemName} × ${l.quantity.toLocaleString()}`}
+              meta={
+                <>
+                  {l.currentBid != null ? (
+                    <>Current bid: ${l.currentBid.toLocaleString()}</>
+                  ) : (
+                    <>Starting: ${l.startingPrice.toLocaleString()}</>
+                  )}
+                  {' · '}
+                  Ends in {formatTimeLeft(l.endsAt)}
+                  {' · '}
+                  Seller: {l.sellerAlias}
+                  {' · '}
+                  Min bid: ${l.minNextBid.toLocaleString()}
+                </>
+              }
+            >
               <PrimaryButton
                 icon="market"
                 disabled={loading !== null || data.cash < l.minNextBid}
+                pending={loading === l.id}
                 onClick={() => handleBid(l.id, l.minNextBid)}
               >
-                {loading === l.id ? ACTION_PENDING.marketBid : 'Bid'}
+                {loading === l.id ? ACTION_PENDING.marketBid : 'Place bid'}
               </PrimaryButton>
-            </div>
+            </SelectableCard>
           ))}
         </>
       )}
@@ -227,7 +229,12 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       {tab === 'sell' && (
         <>
           {data.tradableInventory.length === 0 ? (
-            <p className="g-note">You have no tradable items to list.</p>
+            <EmptyState
+              title="Nothing to sell"
+              body="Tradable items from your inventory can be listed here."
+              actionHref="/shop"
+              actionLabel="Visit shop"
+            />
           ) : (
             <>
               <p className="g-note">
@@ -276,10 +283,10 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 </p>
               )}
               {priceWellBelowGuide && (
-                <p className="g-note g-note-warn">
+                <FeedbackNote tone="warn">
                   This opening bid is well below the reference value. You may lose significant value
                   if nobody bids higher.
-                </p>
+                </FeedbackNote>
               )}
               <SectionLabel>DURATION</SectionLabel>
               <p className="g-note">
@@ -312,7 +319,9 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       {tab === 'mine' && (
         <>
           <SectionLabel>SELLING</SectionLabel>
-          {data.myAuctions.selling.length === 0 && <p className="g-note">No listings.</p>}
+          {data.myAuctions.selling.length === 0 ? (
+            <EmptyState title="No listings" body="Items you list for auction appear here." />
+          ) : null}
           {data.myAuctions.selling.map((l) => (
             <StatRow
               key={l.id}

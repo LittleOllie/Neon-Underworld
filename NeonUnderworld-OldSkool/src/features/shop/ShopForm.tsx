@@ -371,7 +371,7 @@ export function ShopForm({
       {error && <p className="g-error">{error}</p>}
 
       {isCrewTab && mode === 'buy' ? (
-        <div className="g-shop-row">
+        <div className="g-shop-crew-panel">
           <p className="g-section-label">HIRE THUGS</p>
           <p className="g-note">
             Need muscle fast? Hire additional Thugs directly into your empire.

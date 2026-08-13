@@ -37,6 +37,9 @@ import { workforceStabilityHint } from '@core/lib/game-engine/combat/intel-bands
 import { poachingOutlookHint } from '@core/lib/game-engine/combat/poach-outlook';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
+import { OptionGrid } from '@local/components/game/OptionGrid';
+import { SelectableCard } from '@local/components/game/SelectableCard';
+import { StatusBadge } from '@local/components/game/StatusBadge';
 import { ActionResult } from '@local/components/game/ActionResult';
 import { StatRow } from '@local/components/game/StatRow';
 import { Divider } from '@local/components/game/Divider';
@@ -188,23 +191,22 @@ function TargetCard({
   onSelect: () => void;
 }) {
   return (
-    <div className="g-attack-target-card">
-      <div className="g-attack-target-header">
-        <span className="g-attack-target-alias">{target.alias}</span>
-        {target.hasIntel && <span className="g-attack-target-tag">Intel available</span>}
-        {!target.eligible && (
-          <span className="g-attack-target-tag g-attack-target-tag-muted">
-            {target.eligibilityNote}
-          </span>
-        )}
-      </div>
+    <SelectableCard as="div" className="g-attack-target-card" title={target.alias}>
+      {target.hasIntel || !target.eligible ? (
+        <div className="g-filter-row">
+          {target.hasIntel ? <StatusBadge>Intel available</StatusBadge> : null}
+          {!target.eligible ? (
+            <StatusBadge tone="muted">{target.eligibilityNote}</StatusBadge>
+          ) : null}
+        </div>
+      ) : null}
       <StatRow label="Net Worth" value={`$${target.netWorth.toLocaleString()}`} />
       <StatRow label="Rank" value={formatRank(target.rank)} />
       <StatRow label="Status" value={target.statusLabel} />
       <PrimaryButton className="g-btn-full g-btn-secondary" variant="secondary" onClick={onSelect}>
         {target.hasIntel ? 'View Intel / Attack' : 'Select Target'}
       </PrimaryButton>
-    </div>
+    </SelectableCard>
   );
 }
 
@@ -652,24 +654,19 @@ export function AttackForm(props: AttackFormProps) {
             weaponAlloc={weaponAlloc}
           />
           <Divider />
-          <label htmlFor="attackType" className="g-section-label">
-            Attack type
-          </label>
-          <select
-            id="attackType"
-            className="g-select"
+          <SectionLabel>Attack type</SectionLabel>
+          <OptionGrid
+            ariaLabel="Attack type"
+            options={ATTACK_TYPES.map((type) => ({
+              id: type,
+              label: `${ATTACK_TYPE_LABELS[type]} (${ATTACK_RULES.turnCosts[type]}t)`,
+            }))}
             value={attackType}
-            onChange={(e) => {
-              setAttackType(e.target.value as AttackType);
+            onChange={(type) => {
+              setAttackType(type);
               setConfirming(false);
             }}
-          >
-            {ATTACK_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {ATTACK_TYPE_LABELS[type]} ({ATTACK_RULES.turnCosts[type]} turns)
-              </option>
-            ))}
-          </select>
+          />
           <p className="g-note">{ATTACK_TYPE_PURPOSE[attackType]}</p>
           {attackType === 'POACH_WORKERS' && selected.deepIntel && (
             <>

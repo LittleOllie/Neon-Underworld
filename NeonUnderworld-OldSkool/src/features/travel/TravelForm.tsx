@@ -13,6 +13,8 @@ import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { TravelPendingOverlay } from '@local/components/game/TravelPendingOverlay';
 import { ActionResult } from '@local/components/game/ActionResult';
+import { SelectableCard } from '@local/components/game/SelectableCard';
+import { FeedbackNote } from '@local/components/game/FeedbackNote';
 import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { Divider } from '@local/components/game/Divider';
@@ -81,10 +83,13 @@ export function TravelForm({ initialDestination, ...props }: Props) {
       )}
 
       <SectionLabel>CURRENT CITY</SectionLabel>
-      <div className="g-area-row g-area-row-selected">
-        <div className="g-area-name">{data.currentCity.toUpperCase()}</div>
-        <div className="g-area-meta">You are currently operating here.</div>
-      </div>
+      <SelectableCard
+        as="div"
+        title={data.currentCity.toUpperCase()}
+        meta="You are currently operating here."
+        selected
+        selectedLabel="Current"
+      />
 
       <Divider />
 
@@ -92,18 +97,18 @@ export function TravelForm({ initialDestination, ...props }: Props) {
       <StatRow label="Rides required" value={data.ridesRequired.toLocaleString()} />
       <StatRow label="Travel cost" value={`${data.turnCost} turns`} />
       {ridesShort > 0 && (
-        <p className="g-note g-note-warn">
+        <FeedbackNote tone="warn">
           You need {ridesShort} more rides to travel.{' '}
           <Link href="/shop?tab=vehicles&item=ride" className="g-link">
             Shop → Rides
           </Link>
-        </p>
+        </FeedbackNote>
       )}
 
       <Divider />
 
       <SectionLabel>DESTINATIONS</SectionLabel>
-      {error && <p className="g-note g-note-error">{error}</p>}
+      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
 
       {data.destinations.map((dest) => {
         const blocked = ridesShort > 0 || turnsShort;
@@ -111,15 +116,19 @@ export function TravelForm({ initialDestination, ...props }: Props) {
         const isHighlighted =
           initialDestination != null && dest.slug === initialDestination.trim().toLowerCase();
         return (
-          <div
+          <SelectableCard
             key={dest.slug}
-            className={`g-area-row${isHighlighted ? ' g-area-row-selected g-area-row-highlight' : ''}`}
+            as="div"
+            title={dest.name}
+            meta={
+              <>
+                {dest.description}
+                {isHighlighted ? ' · Selected destination' : ''}
+              </>
+            }
+            selected={isHighlighted}
+            highlighted={isHighlighted}
           >
-            <div className="g-area-name">{dest.name}</div>
-            <div className="g-area-meta">
-              {dest.description}
-              {isHighlighted ? ' · Selected destination' : ''}
-            </div>
             <PrimaryButton
               icon="travel"
               disabled={blocked || loading !== null}
@@ -128,7 +137,7 @@ export function TravelForm({ initialDestination, ...props }: Props) {
             >
               {isPending ? ACTION_PENDING.travel(dest.name) : 'Travel'}
             </PrimaryButton>
-          </div>
+          </SelectableCard>
         );
       })}
     </>

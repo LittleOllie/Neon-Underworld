@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, gotoGame } from './helpers';
 
 async function assertNoHorizontalOverflow(page: import('@playwright/test').Page) {
   const overflow = await page.evaluate(() => {
@@ -18,7 +18,7 @@ test.describe('Mobile responsive core loop', () => {
     await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
-    await page.goto('/scout');
+    await gotoGame(page, '/scout');
     await expect(page.getByRole('heading', { name: 'Scout' })).toBeVisible();
     await page.getByRole('option').first().click();
     await page.getByLabel('Turns to scout').fill('5');
@@ -26,18 +26,18 @@ test.describe('Mobile responsive core loop', () => {
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 15000 });
     await assertNoHorizontalOverflow(page);
 
-    await page.goto('/produce');
+    await gotoGame(page, '/produce');
     await page.getByLabel('Turns to produce').fill('5');
     await page.getByRole('button', { name: 'Produce', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Production Complete' })).toBeVisible({ timeout: 15000 });
     await assertNoHorizontalOverflow(page);
 
-    await page.goto('/shop');
+    await gotoGame(page, '/shop');
     await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
     await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({ timeout: 15000 });
     await assertNoHorizontalOverflow(page);
 
-    await page.goto('/empire');
+    await gotoGame(page, '/empire');
     await expect(page.getByText('Happiness').first()).toBeVisible();
     await expect(page.getByText('Armed').first()).toBeVisible();
     await assertNoHorizontalOverflow(page);

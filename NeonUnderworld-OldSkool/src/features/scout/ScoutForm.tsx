@@ -9,6 +9,7 @@ import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
 import type { RedliteScoutAreaSlug } from '@core/config/game/redlite-rules';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
+import { SelectableCard } from '@local/components/game/SelectableCard';
 import { ActionResult, type ActionResultLine } from '@local/components/game/ActionResult';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
@@ -131,22 +132,13 @@ export function ScoutForm({
     <>
       <div role="listbox" aria-label="Scout areas">
         {areaDisplays.map((area) => (
-          <button
+          <SelectableCard
             key={area.slug}
-            type="button"
-            role="option"
-            aria-selected={areaSlug === area.slug}
-            className={`g-area-row${areaSlug === area.slug ? ' g-area-row-selected' : ''}`}
+            title={area.name}
+            meta={`Workers: ${area.workers} · Thugs: ${area.thugs} · Risk: ${area.risk}`}
+            selected={areaSlug === area.slug}
             onClick={() => setAreaSlug(area.slug)}
-          >
-            <div className="g-area-name-row">
-              <div className="g-area-name">{area.name}</div>
-              {areaSlug === area.slug && <span className="g-area-selected-badge">Selected</span>}
-            </div>
-            <div className="g-area-meta">
-              Workers: {area.workers} · Thugs: {area.thugs} · Risk: {area.risk}
-            </div>
-          </button>
+          />
         ))}
       </div>
 

@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   color: var(--os-text);
+  overflow-x: clip;
 }
 
 .g-top {
@@ -704,6 +705,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+}
+
+.g-area-name-row .g-area-name {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.g-area-name-row .g-status-badge {
+  flex-shrink: 0;
 }
 
 .g-area-selected-badge {
@@ -716,8 +728,10 @@
 
 .g-attack-target-card {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 10px 10px 12px;
+  padding: 12px 10px;
   margin-bottom: 10px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
 }
 
 .g-attack-target-header {
@@ -1075,6 +1089,141 @@
   margin: 8px 0;
 }
 
+.g-note-error {
+  color: var(--os-red);
+}
+
+.g-note-warn {
+  color: var(--os-amber);
+}
+
+.g-note-success {
+  color: var(--os-green);
+}
+
+.g-link {
+  color: var(--os-gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.g-link:hover {
+  color: var(--game-gold);
+}
+
+.g-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.g-btn-row .g-btn {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.g-status-badge {
+  display: inline-block;
+  font-size: var(--game-fs-secondary);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.g-status-badge--default {
+  color: var(--os-gold);
+}
+
+.g-status-badge--muted {
+  color: var(--os-text-dim);
+}
+
+.g-status-badge--success {
+  color: var(--os-green);
+}
+
+.g-status-badge--warn {
+  color: var(--os-amber);
+}
+
+.g-status-badge--danger {
+  color: var(--os-red);
+}
+
+.g-status-badge--info {
+  color: var(--os-text);
+}
+
+.g-status-critical {
+  color: var(--os-red);
+  font-weight: 700;
+}
+
+.g-status-warn {
+  color: var(--os-amber);
+  font-weight: 700;
+}
+
+.g-status-caution {
+  color: var(--os-amber);
+}
+
+.g-status-ok {
+  color: var(--os-green);
+}
+
+.g-listing-card {
+  display: block;
+  width: 100%;
+  padding: 12px 10px;
+  margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.g-listing-card.g-area-row-selected {
+  background: rgba(201, 169, 98, 0.12);
+  border-color: var(--game-gold);
+  box-shadow: 0 0 0 1px rgba(201, 169, 98, 0.35), 0 0 12px rgba(201, 169, 98, 0.15);
+}
+
+.g-listing-card .g-btn {
+  margin-top: 10px;
+}
+
+.g-shop-crew-panel {
+  padding: 12px 10px;
+  margin-bottom: 12px;
+  background: rgba(201, 169, 98, 0.1);
+  border: 1px solid rgba(201, 169, 98, 0.28);
+  border-radius: 4px;
+}
+
+.g-empty-state {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.g-empty-state__title {
+  margin: 0 0 8px;
+  font-size: var(--game-fs-section);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--os-text);
+}
+
+.g-empty-state__body {
+  margin: 0 0 12px;
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim);
+  line-height: var(--game-lh-body);
+}
+
 .g-result {
   padding: 16px 0;
 }
@@ -1128,12 +1277,30 @@
 
 .g-rank-row {
   display: grid;
-  grid-template-columns: 48px 1fr auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  padding: 12px 0;
+  padding: 14px 0;
+  min-height: 44px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: var(--game-fs-body);
+}
+
+.g-rank-link {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 14px 0;
+  min-height: 44px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.g-rank-link:active,
+.g-rank-link:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .g-rank-you {
@@ -1199,6 +1366,41 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 430px) {
+  .g-drug-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .g-drug-btn {
+    min-height: 44px;
+    white-space: normal;
+    line-height: 1.25;
+    padding: 10px 8px;
+  }
+
+  .g-tab {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 10px 4px;
+    line-height: 1.2;
+  }
+
+  .g-filter {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .g-rank-row,
+  .g-rank-link {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .g-rank-meta {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1270,7 +1472,7 @@
   }
 
   .g-main {
-    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+    padding: 12px 12px calc(24px + env(safe-area-inset-bottom));
   }
 
   .g-title {

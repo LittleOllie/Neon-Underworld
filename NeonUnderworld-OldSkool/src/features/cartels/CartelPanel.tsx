@@ -20,6 +20,9 @@ import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { Divider } from '@local/components/game/Divider';
 import { NumericInput } from '@local/components/game/NumericInput';
+import { SelectableCard } from '@local/components/game/SelectableCard';
+import { FeedbackNote } from '@local/components/game/FeedbackNote';
+import { EmptyState } from '@local/components/game/EmptyState';
 import { parsePositiveInteger } from '@local/lib/numeric-input';
 
 type Props = CartelPageData;
@@ -246,7 +249,7 @@ function CartelHQView({
 
       <Divider />
 
-      {error && <p className="g-note g-note-error">{error}</p>}
+      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
       <PrimaryButton disabled={loading !== null} onClick={onLeave}>
         Leave Cartel
       </PrimaryButton>
@@ -361,25 +364,32 @@ export function CartelPanel(initial: Props) {
     return (
       <>
         <SectionLabel>CARTEL INVITES</SectionLabel>
-        {error && <p className="g-note g-note-error">{error}</p>}
+        {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
         {data.pendingInvites.map((inv) => (
-          <div key={inv.id} className="g-area-row">
-            <div className="g-area-name">
-              {inv.cartelName} [{inv.cartelTag}]
+          <SelectableCard
+            key={inv.id}
+            as="div"
+            title={`${inv.cartelName} [${inv.cartelTag}]`}
+            meta={`Invited by ${inv.inviterAlias}`}
+          >
+            <div className="g-btn-row">
+              <PrimaryButton
+                icon="cartel"
+                disabled={loading !== null}
+                pending={loading === 'accept'}
+                onClick={() => handleAccept(inv.id)}
+              >
+                {loading === 'accept' ? ACTION_PENDING.cartelJoin : 'Accept'}
+              </PrimaryButton>
+              <PrimaryButton
+                variant="secondary"
+                disabled={loading !== null}
+                onClick={() => handleDecline(inv.id)}
+              >
+                Decline
+              </PrimaryButton>
             </div>
-            <div className="g-area-meta">Invited by {inv.inviterAlias}</div>
-            <PrimaryButton
-              icon="cartel"
-              disabled={loading !== null}
-              pending={loading === 'accept'}
-              onClick={() => handleAccept(inv.id)}
-            >
-              {loading === 'accept' ? ACTION_PENDING.cartelJoin : 'Accept'}
-            </PrimaryButton>
-            <PrimaryButton disabled={loading !== null} onClick={() => handleDecline(inv.id)}>
-              Decline
-            </PrimaryButton>
-          </div>
+          </SelectableCard>
         ))}
       </>
     );
@@ -409,7 +419,7 @@ export function CartelPanel(initial: Props) {
     <>
       <p className="g-note">Build your crew. Share protection. Rise together.</p>
 
-      {error && <p className="g-note g-note-error">{error}</p>}
+      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
 
       {!showCreate ? (
         <>
@@ -418,16 +428,16 @@ export function CartelPanel(initial: Props) {
           </PrimaryButton>
           <Divider />
           <SectionLabel>AVAILABLE CARTELS</SectionLabel>
-          {data.browse.length === 0 && <p className="g-note">No cartels yet. Be the first.</p>}
+          {data.browse.length === 0 ? (
+            <EmptyState title="No cartels yet" body="Be the first to create one." />
+          ) : null}
           {data.browse.map((c) => (
-            <div key={c.id} className="g-area-row">
-              <div className="g-area-name">
-                {c.name} [{c.tag}]
-              </div>
-              <div className="g-area-meta">
-                {c.memberCount} / {c.maxMembers} members · Invite only
-              </div>
-            </div>
+            <SelectableCard
+              key={c.id}
+              as="div"
+              title={`${c.name} [${c.tag}]`}
+              meta={`${c.memberCount} / ${c.maxMembers} members · Invite only`}
+            />
           ))}
         </>
       ) : (

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
-import { login } from './helpers';
+import { login, gotoGame } from './helpers';
 
 test.describe('Attack v1 — empty state', () => {
   test.beforeAll(() => {
@@ -14,15 +14,14 @@ test.describe('Attack v1 — empty state', () => {
 
   test('attack page without intel shows rankings prompt', async ({ page }) => {
     await login(page);
-    await page.goto('/attack');
+    await gotoGame(page, '/attack');
     await expect(page.getByRole('heading', { name: 'Attack' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'View Rankings' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Rankings' })).toBeVisible();
   });
 
   test('rankings links from nav', async ({ page }) => {
     await login(page);
-    await page.goto('/command');
-    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Rankings' }).click();
+    await gotoGame(page, '/rankings');
     await expect(page).toHaveURL(/\/rankings/);
   });
 });
@@ -39,11 +38,18 @@ test.describe('Attack v1 — Home Invasion flow', () => {
   test('attack result returns to target; report persists in Reports', async ({ page }) => {
     await login(page);
 
-    await page.goto('/attack');
+    await gotoGame(page, '/attack');
     await expect(page.getByRole('heading', { name: 'Attack' })).toBeVisible();
-    await expect(page.getByLabel('Target')).toBeVisible({ timeout: 10000 });
+    const openTarget = page.getByRole('button', { name: /View Intel \/ Attack/i }).first();
+    if (await openTarget.isVisible().catch(() => false)) {
+      await openTarget.click();
+    }
+    await expect(page.getByRole('listbox', { name: 'Attack type' })).toBeVisible({ timeout: 10_000 });
 
-    await page.getByLabel('Attack type').selectOption('HOME_INVASION');
+    await page
+      .getByRole('listbox', { name: 'Attack type' })
+      .getByRole('option', { name: /Home Invasion/i })
+      .click();
     await page.getByLabel('Thugs to send').fill('10');
     await page.getByRole('button', { name: 'Attack', exact: true }).click();
     await page.getByRole('button', { name: 'Confirm Attack' }).click();
@@ -57,7 +63,7 @@ test.describe('Attack v1 — Home Invasion flow', () => {
     await page.getByRole('link', { name: 'Back to Target' }).click();
     await expect(page).toHaveURL(/\/players\//);
 
-    await page.goto('/reports?filter=COMBAT');
+    await gotoGame(page, '/reports?filter=COMBAT');
     await expect(page.getByText(/Attack Report/i).first()).toBeVisible({ timeout: 10000 });
   });
 });

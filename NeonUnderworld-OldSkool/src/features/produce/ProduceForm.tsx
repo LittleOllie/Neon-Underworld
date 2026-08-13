@@ -8,6 +8,7 @@ import { produceAction, type OldSkoolProduceResult } from '@local/server/actions
 import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
+import { OptionGrid } from '@local/components/game/OptionGrid';
 import { ActionResult, type ActionResultLine } from '@local/components/game/ActionResult';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
@@ -168,18 +169,12 @@ export function ProduceForm({
         </p>
       )}
 
-      <div className="g-drug-grid">
-        {DRUGS.map((d) => (
-          <button
-            key={d.key}
-            type="button"
-            className={`g-drug-btn${drugType === d.key ? ' g-drug-btn-active' : ''}`}
-            onClick={() => setDrugType(d.key)}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
+      <OptionGrid
+        ariaLabel="Drug type"
+        options={DRUGS.map((d) => ({ id: d.key, label: d.label }))}
+        value={drugType}
+        onChange={setDrugType}
+      />
 
       {(() => {
         const selected = DRUGS.find((d) => d.key === drugType);
