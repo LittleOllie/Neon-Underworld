@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { StatusBar } from '@local/components/game/StatusBar';
+import { BusinessHeatSummary } from '@local/components/game/BusinessHeatSummary';
 import { StatRow } from '@local/components/game/StatRow';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { SectionHeadingRow } from '@local/components/game/SectionHeadingRow';
@@ -71,6 +72,10 @@ export function EmpireSimpleView({ data }: Props) {
         valueTone="inherit"
       />
 
+      {data.businessOperations ? (
+        <BusinessHeatSummary operations={data.businessOperations} variant="empire" />
+      ) : null}
+
       <Divider />
 
       <SectionLabel>{OS_TERMS.drugs.toUpperCase()}</SectionLabel>
@@ -85,23 +90,6 @@ export function EmpireSimpleView({ data }: Props) {
         <StatRow key={w.key} label={w.name} value={w.quantity.toLocaleString()} />
       ))}
       <StatRow label="Rides" value={data.vehicles.totalVehicles.toLocaleString()} />
-
-      {data.businessOperations ? (
-        <>
-          <Divider />
-          <SectionLabel>BUSINESSES</SectionLabel>
-          <StatRow label="Owned" value={data.businessOperations.owned.toLocaleString()} />
-          <StatRow label="Workers Assigned" value={data.businessOperations.assignedWorkers.toLocaleString()} />
-          <StatRow
-            label="Safe Balance"
-            value={`$${data.businessOperations.safeBalance.toLocaleString()}`}
-          />
-          <StatRow label="Heat" value={data.businessOperations.overallHeat} />
-          <Link href="/businesses" className="g-empire-shop-link">
-            Manage Businesses
-          </Link>
-        </>
-      ) : null}
 
       <Divider />
 

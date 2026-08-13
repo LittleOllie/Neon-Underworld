@@ -3,18 +3,40 @@ import {
   BUSINESS_DRUG_KEYS,
   businessHourlyIncome,
   businessPurchasePrice,
-  businessStreetNwContribution,
   defaultBusinessName,
+  getBusinessInvestedValue,
+  getBusinessLevelStats,
+  getBusinessStreetNwAsset,
   getBusinessTypeRule,
+  getBusinessUpgradeCost,
+  isSecurityOverCapacity,
+  isWorkerOverCapacity,
   MAX_BUSINESSES_PER_PLAYER,
   type BusinessDrugKey,
 } from '@/config/game/business-rules';
+import { MAX_BUSINESS_LEVEL, type BusinessLevelStats } from '@/config/game/business-levels';
 import { evaluateBusinessHeat, overallHeatBand } from '@/lib/game-engine/business/heat';
 import { resolveBusinessRaidCheck } from '@/lib/game-engine/business/raids';
 import { settleBusinessIncome } from '@/lib/game-engine/business/settlement';
+import {
+  securityCoverage,
+  securityRaidChanceMultiplier,
+  securityRaidLossMultiplier,
+  securityStatusBand,
+  type SecurityStatusBand,
+} from '@/lib/game-engine/business/security';
 import type { PrismaTransactionClient } from '@/lib/db/serializable-transaction';
 
 export type BusinessRecord = Business;
+
+export const BUSINESS_NW_SELECT = {
+  businessType: true,
+  level: true,
+  assignedWorkers: true,
+  assignedThugs: true,
+} as const;
+
+export type BusinessNwSelect = Pick<Business, keyof typeof BUSINESS_NW_SELECT>;
 
 export interface BusinessDrugInventory {
   hash: number;
@@ -30,9 +52,18 @@ export interface BusinessViewModel {
   name: string;
   districtId: string;
   districtName: string;
+  level: number;
   purchasePrice: number;
+  investedValue: number;
   streetNwContribution: number;
   assignedWorkers: number;
+  workerCapacity: number;
+  workerOverCapacity: boolean;
+  assignedThugs: number;
+  securityCapacity: number;
+  securityOverCapacity: boolean;
+  securityCoverage: number;
+  securityBand: SecurityStatusBand;
   safeCash: number;
   safeCapacity: number;
   safeFull: boolean;
@@ -43,6 +74,8 @@ export interface BusinessViewModel {
   heatScore: number;
   heatBand: string;
   heatLabel: string;
+  nextUpgradeLevel?: number;
+  nextUpgradeCost?: number;
   createdAt: string;
 }
 
@@ -52,8 +85,17 @@ export interface BusinessPortfolioSummary {
   assignedWorkers: number;
   totalSafeCash: number;
   totalStoredDrugs: number;
+  totalInvested: number;
   overallHeatBand: string;
   businessStreetAssets: number;
+}
+
+export interface BusinessUpgradePreview {
+  fromLevel: number;
+  toLevel: number;
+  cost: number;
+  currentStats: BusinessLevelStats;
+  stats: BusinessLevelStats;
 }
 
 export function businessStoredDrugs(row: Pick<Business, BusinessDrugKey>): BusinessDrugInventory {
@@ -70,13 +112,14 @@ export function businessStoredTotal(row: Pick<Business, BusinessDrugKey>): numbe
   return d.hash + d.shrooms + d.coke + d.heroin;
 }
 
-export function aggregateBusinessNwContext(businesses: Pick<Business, 'purchasePrice' | 'assignedWorkers'>[]) {
+export function aggregateBusinessNwContext(businesses: BusinessNwSelect[]) {
   const assignedWorkers = businesses.reduce((sum, b) => sum + b.assignedWorkers, 0);
+  const assignedSecurityThugs = businesses.reduce((sum, b) => sum + b.assignedThugs, 0);
   const businessStreetAssets = businesses.reduce(
-    (sum, b) => sum + businessStreetNwContribution(b.purchasePrice),
+    (sum, b) => sum + getBusinessStreetNwAsset(b.businessType, b.level),
     0,
   );
-  return { assignedWorkers, businessStreetAssets };
+  return { assignedWorkers, assignedSecurityThugs, businessStreetAssets };
 }
 
 export interface SettledBusinessState {
@@ -94,6 +137,7 @@ export interface SettledBusinessState {
     drugsSeized: BusinessDrugInventory;
   };
   heatBand: string;
+  securityBand: SecurityStatusBand;
 }
 
 export function settleBusinessState(
@@ -101,8 +145,13 @@ export function settleBusinessState(
   now: Date = new Date(),
   raidRoll?: number,
 ): SettledBusinessState {
+  const levelStats = getBusinessLevelStats(row.businessType, row.level);
+  const coverage = securityCoverage(row.assignedThugs, levelStats.securityCapacity);
+  const securityBand = securityStatusBand(coverage);
+
   const income = settleBusinessIncome({
     businessType: row.businessType,
+    level: row.level,
     assignedWorkers: row.assignedWorkers,
     safeCash: row.safeCash,
     lastSettledAt: row.lastSettledAt,
@@ -119,7 +168,9 @@ export function settleBusinessState(
   const stored = { hash, shrooms, coke, heroin };
   const heat = evaluateBusinessHeat({
     businessType: row.businessType,
+    level: row.level,
     assignedWorkers: row.assignedWorkers,
+    assignedThugs: row.assignedThugs,
     safeCash,
     stored,
   });
@@ -132,6 +183,8 @@ export function settleBusinessState(
     lastRaidCheckAt: row.lastRaidCheckAt,
     now,
     roll: raidRoll,
+    raidChanceMultiplier: securityRaidChanceMultiplier(coverage, levelStats),
+    raidLossMultiplier: securityRaidLossMultiplier(coverage, levelStats),
   });
 
   let raided = false;
@@ -163,6 +216,7 @@ export function settleBusinessState(
     raided,
     raidLosses,
     heatBand: heat.label,
+    securityBand,
   };
 }
 
@@ -188,6 +242,7 @@ async function recordPoliceRaidReport(
     `Cash seized: $${losses.cashSeized.toLocaleString()}`,
     drugLines !== 'None' ? `Drugs seized:\n${drugLines}` : 'Drugs seized: None',
     `Heat at raid: ${settlement.heatBand}`,
+    `Security at raid: ${settlement.securityBand}`,
     '',
     'Business remains operational.',
   ].join('\n');
@@ -204,6 +259,7 @@ async function recordPoliceRaidReport(
         businessId: row.id,
         businessName: row.name,
         heatBand: settlement.heatBand,
+        securityBand: settlement.securityBand,
         cashSeized: losses.cashSeized,
         drugsSeized: { ...losses.drugsSeized },
       } as object,
@@ -248,37 +304,58 @@ export function toBusinessViewModel(
   districtName: string,
 ): BusinessViewModel {
   const rule = getBusinessTypeRule(row.businessType);
+  const levelStats = getBusinessLevelStats(row.businessType, row.level);
   const stored = businessStoredDrugs(row);
+  const coverage = securityCoverage(row.assignedThugs, levelStats.securityCapacity);
   const heat = evaluateBusinessHeat({
     businessType: row.businessType,
+    level: row.level,
     assignedWorkers: row.assignedWorkers,
+    assignedThugs: row.assignedThugs,
     safeCash: row.safeCash,
     stored,
   });
   const storedDrugUnits = businessStoredTotal(row);
+  const investedValue = getBusinessInvestedValue(row.businessType, row.level);
 
-  return {
+  const view: BusinessViewModel = {
     id: row.id,
     businessType: row.businessType,
     displayName: rule.displayName,
     name: row.name,
     districtId: row.districtId,
     districtName,
+    level: row.level,
     purchasePrice: row.purchasePrice,
-    streetNwContribution: businessStreetNwContribution(row.purchasePrice),
+    investedValue,
+    streetNwContribution: getBusinessStreetNwAsset(row.businessType, row.level),
     assignedWorkers: row.assignedWorkers,
+    workerCapacity: levelStats.workerCapacity,
+    workerOverCapacity: isWorkerOverCapacity(row.assignedWorkers, levelStats.workerCapacity),
+    assignedThugs: row.assignedThugs,
+    securityCapacity: levelStats.securityCapacity,
+    securityOverCapacity: isSecurityOverCapacity(row.assignedThugs, levelStats.securityCapacity),
+    securityCoverage: coverage,
+    securityBand: securityStatusBand(coverage),
     safeCash: row.safeCash,
-    safeCapacity: rule.safeCapacity,
-    safeFull: row.safeCash >= rule.safeCapacity,
-    hourlyIncome: businessHourlyIncome(row.businessType, row.assignedWorkers),
+    safeCapacity: levelStats.safeCapacity,
+    safeFull: row.safeCash >= levelStats.safeCapacity,
+    hourlyIncome: businessHourlyIncome(row.businessType, row.assignedWorkers, row.level),
     storedDrugs: stored,
     storedDrugUnits,
-    drugStorageCapacity: rule.drugStorageCapacity,
+    drugStorageCapacity: levelStats.drugStorageCapacity,
     heatScore: heat.score,
     heatBand: heat.band,
     heatLabel: heat.label,
     createdAt: row.createdAt.toISOString(),
   };
+
+  if (row.level < MAX_BUSINESS_LEVEL) {
+    view.nextUpgradeLevel = row.level + 1;
+    view.nextUpgradeCost = getBusinessUpgradeCost(row.businessType, row.level + 1);
+  }
+
+  return view;
 }
 
 export function buildPortfolioSummary(
@@ -288,8 +365,10 @@ export function buildPortfolioSummary(
   const heatScores = businesses.map((b) => b.heatScore);
   const nw = aggregateBusinessNwContext(
     businesses.map((b) => ({
-      purchasePrice: b.purchasePrice,
+      businessType: b.businessType,
+      level: b.level,
       assignedWorkers: b.assignedWorkers,
+      assignedThugs: b.assignedThugs,
     })),
   );
 
@@ -299,8 +378,24 @@ export function buildPortfolioSummary(
     assignedWorkers: nw.assignedWorkers,
     totalSafeCash: businesses.reduce((sum, b) => sum + b.safeCash, 0),
     totalStoredDrugs: businesses.reduce((sum, b) => sum + b.storedDrugUnits, 0),
+    totalInvested: businesses.reduce((sum, b) => sum + b.investedValue, 0),
     overallHeatBand: overallHeatBand(heatScores),
     businessStreetAssets: nw.businessStreetAssets,
+  };
+}
+
+export function buildUpgradePreview(
+  type: BusinessType,
+  fromLevel: number,
+): BusinessUpgradePreview | null {
+  if (fromLevel >= MAX_BUSINESS_LEVEL) return null;
+  const toLevel = fromLevel + 1;
+  return {
+    fromLevel,
+    toLevel,
+    cost: getBusinessUpgradeCost(type, toLevel),
+    currentStats: getBusinessLevelStats(type, fromLevel),
+    stats: getBusinessLevelStats(type, toLevel),
   };
 }
 
@@ -340,15 +435,58 @@ export function validatePurchase(
   return null;
 }
 
-export function validateAssignWorkers(streetWorkers: number, quantity: number): string | null {
+export function validateAssignWorkers(
+  streetWorkers: number,
+  quantity: number,
+  currentAssigned: number,
+  workerCapacity: number,
+): string | null {
   if (!Number.isInteger(quantity) || quantity < 1) return 'Enter a valid number of Workers.';
   if (quantity > streetWorkers) return `You only have ${streetWorkers.toLocaleString()} street Workers available.`;
+  if (currentAssigned >= workerCapacity) {
+    return `Worker capacity (${workerCapacity.toLocaleString()}) is full.`;
+  }
+  if (currentAssigned + quantity > workerCapacity) {
+    const room = workerCapacity - currentAssigned;
+    return `Only ${room.toLocaleString()} worker slots available (capacity ${workerCapacity.toLocaleString()}).`;
+  }
   return null;
 }
 
 export function validateRemoveWorkers(assigned: number, quantity: number): string | null {
   if (!Number.isInteger(quantity) || quantity < 1) return 'Enter a valid number of Workers.';
   if (quantity > assigned) return `Only ${assigned.toLocaleString()} Workers assigned here.`;
+  return null;
+}
+
+export function validateAssignSecurity(
+  streetThugs: number,
+  quantity: number,
+  currentAssigned: number,
+  securityCapacity: number,
+): string | null {
+  if (!Number.isInteger(quantity) || quantity < 1) return 'Enter a valid number of Thugs.';
+  if (quantity > streetThugs) return `You only have ${streetThugs.toLocaleString()} street Thugs available.`;
+  if (currentAssigned >= securityCapacity) {
+    return `Security capacity (${securityCapacity.toLocaleString()}) is full.`;
+  }
+  if (currentAssigned + quantity > securityCapacity) {
+    const room = securityCapacity - currentAssigned;
+    return `Only ${room.toLocaleString()} security slots available (capacity ${securityCapacity.toLocaleString()}).`;
+  }
+  return null;
+}
+
+export function validateRemoveSecurity(assigned: number, quantity: number): string | null {
+  if (!Number.isInteger(quantity) || quantity < 1) return 'Enter a valid number of Thugs.';
+  if (quantity > assigned) return `Only ${assigned.toLocaleString()} Thugs assigned here.`;
+  return null;
+}
+
+export function validateUpgrade(level: number, cash: number, type: BusinessType): string | null {
+  if (level >= MAX_BUSINESS_LEVEL) return 'Business is already at maximum level.';
+  const cost = getBusinessUpgradeCost(type, level + 1);
+  if (cash < cost) return 'Insufficient cash for upgrade.';
   return null;
 }
 

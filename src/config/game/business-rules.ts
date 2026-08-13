@@ -1,7 +1,14 @@
 import { REDLITE_PRODUCTION, REDLITE_TURNS } from './redlite-rules';
+import {
+  BUSINESS_LEVEL_TABLES,
+  BUSINESS_UPGRADE_COST_FRACTION,
+  clampBusinessLevel,
+  getBusinessLevelStats,
+  type BusinessUpgradeLevel,
+} from './business-levels';
 
 /** Max owned businesses per player (abuse guard). */
-export const MAX_BUSINESSES_PER_PLAYER = 10;
+export const MAX_BUSINESSES_PER_PLAYER = 8;
 
 /** Purchase price counts toward Street NW at this fraction. */
 export const BUSINESS_STREET_NW_MULTIPLIER = 0.5;
@@ -17,50 +24,58 @@ export interface BusinessTypeRule {
   displayName: string;
   purchasePrice: number;
   passiveIncomeMultiplier: number;
-  safeCapacity: number;
-  drugStorageCapacity: number;
-  /** Base heat score (0–100 scale contribution). */
   baseHeat: number;
   blurb: string;
+  /** L1 caps — use getBusinessLevelStats for level-specific values. */
+  safeCapacity: number;
+  drugStorageCapacity: number;
+  workerCapacity: number;
+  securityCapacity: number;
 }
 
 export const BUSINESS_TYPE_RULES: Record<BusinessType, BusinessTypeRule> = {
   WAREHOUSE: {
     type: 'WAREHOUSE',
     displayName: 'Warehouse',
-    purchasePrice: 1_000_000,
+    purchasePrice: 2_500_000,
     passiveIncomeMultiplier: 0.25,
-    safeCapacity: 250_000,
-    drugStorageCapacity: 25_000,
     baseHeat: 8,
-    blurb: 'Low heat · high storage · low income',
+    blurb: 'High-capacity storage with lower police attention.',
+    ...pickL1Caps('WAREHOUSE'),
   },
   NIGHTCLUB: {
     type: 'NIGHTCLUB',
     displayName: 'Nightclub',
-    purchasePrice: 2_000_000,
+    purchasePrice: 5_000_000,
     passiveIncomeMultiplier: 1.0,
-    safeCapacity: 750_000,
-    drugStorageCapacity: 5_000,
     baseHeat: 22,
-    blurb: 'High worker income · moderate storage · moderate heat',
+    blurb: 'Put Workers to work for strong passive income.',
+    ...pickL1Caps('NIGHTCLUB'),
   },
   DRUG_LAB: {
     type: 'DRUG_LAB',
     displayName: 'Drug Lab',
-    purchasePrice: 3_500_000,
+    purchasePrice: 7_500_000,
     passiveIncomeMultiplier: 0.5,
-    safeCapacity: 500_000,
-    drugStorageCapacity: 15_000,
     baseHeat: 38,
-    blurb: 'Drug-focused · high storage · high heat',
+    blurb: 'Boost drug production and store premium product.',
+    ...pickL1Caps('DRUG_LAB'),
   },
 };
+
+function pickL1Caps(type: BusinessType) {
+  const l1 = getBusinessLevelStats(type, 1);
+  return {
+    safeCapacity: l1.safeCapacity,
+    drugStorageCapacity: l1.drugStorageCapacity,
+    workerCapacity: l1.workerCapacity,
+    securityCapacity: l1.securityCapacity,
+  };
+}
 
 export const BUSINESS_DRUG_KEYS = ['hash', 'shrooms', 'coke', 'heroin'] as const;
 export type BusinessDrugKey = (typeof BUSINESS_DRUG_KEYS)[number];
 
-/** Heat weight per stored drug unit (relative to hash). */
 export const BUSINESS_DRUG_HEAT_WEIGHT: Record<BusinessDrugKey, number> = {
   hash: 1,
   shrooms: 1.5,
@@ -77,7 +92,6 @@ export const BUSINESS_HEAT_BANDS = {
 
 export type BusinessHeatBand = keyof typeof BUSINESS_HEAT_BANDS;
 
-/** Raid probability per 6-hour check block, by heat band (daily targets ÷ 4). */
 export const BUSINESS_RAID_CHANCE_PER_CHECK: Record<BusinessHeatBand, number> = {
   LOW: 0.005 / 4,
   MODERATE: 0.02 / 4,
@@ -85,7 +99,6 @@ export const BUSINESS_RAID_CHANCE_PER_CHECK: Record<BusinessHeatBand, number> = 
   CRITICAL: 0.12 / 4,
 };
 
-/** Asset loss fraction when raided, by heat band at check time. */
 export const BUSINESS_RAID_LOSS_FRACTION: Record<BusinessHeatBand, number> = {
   LOW: 0.1,
   MODERATE: 0.1,
@@ -93,16 +106,11 @@ export const BUSINESS_RAID_LOSS_FRACTION: Record<BusinessHeatBand, number> = {
   CRITICAL: 0.2,
 };
 
-/** Minimum ms between police raid eligibility checks. */
 export const BUSINESS_RAID_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-const MS_PER_HOUR = 60 * 60 * 1000;
-
-/** Gross $/worker/turn from Produce — passive uses 20% of this. */
 export const BUSINESS_ACTIVE_WORKER_CASH_PER_TURN =
   REDLITE_PRODUCTION.cashPerProstitutePerTurn;
 
-/** Turns regenerated per hour (~24). */
 export const BUSINESS_TURNS_PER_HOUR = REDLITE_TURNS.regenerationRatePerHour;
 
 export function getBusinessTypeRule(type: BusinessType): BusinessTypeRule {
@@ -113,25 +121,69 @@ export function businessPurchasePrice(type: BusinessType): number {
   return getBusinessTypeRule(type).purchasePrice;
 }
 
+export function getBusinessUpgradeCost(type: BusinessType, targetLevel: number): number {
+  const level = clampBusinessLevel(targetLevel);
+  if (level < 2 || level > 5) {
+    throw new Error(`Invalid upgrade target level: ${targetLevel}`);
+  }
+  const fraction = BUSINESS_UPGRADE_COST_FRACTION[level as BusinessUpgradeLevel];
+  return Math.floor(businessPurchasePrice(type) * fraction);
+}
+
+/** Total cash invested in purchase + completed upgrades for canonical valuation. */
+export function getBusinessInvestedValue(type: BusinessType, level: number): number {
+  const clamped = clampBusinessLevel(level);
+  let total = businessPurchasePrice(type);
+  for (let l = 2; l <= clamped; l++) {
+    total += getBusinessUpgradeCost(type, l);
+  }
+  return total;
+}
+
+export function getBusinessStreetNwAsset(type: BusinessType, level: number): number {
+  return Math.floor(getBusinessInvestedValue(type, level) * BUSINESS_STREET_NW_MULTIPLIER);
+}
+
+/** @deprecated Use getBusinessStreetNwAsset(type, level) for canonical NW. */
 export function businessStreetNwContribution(purchasePrice: number): number {
   return Math.floor(purchasePrice * BUSINESS_STREET_NW_MULTIPLIER);
 }
 
-/** Hourly passive cash per assigned worker for a business type (before safe cap). */
-export function businessHourlyIncomePerWorker(type: BusinessType): number {
-  const rule = getBusinessTypeRule(type);
+export function effectivePassiveWorkers(assignedWorkers: number, workerCapacity: number): number {
+  return Math.min(Math.max(0, assignedWorkers), Math.max(0, workerCapacity));
+}
+
+export function isWorkerOverCapacity(assignedWorkers: number, workerCapacity: number): boolean {
+  return assignedWorkers > workerCapacity;
+}
+
+export function isSecurityOverCapacity(assignedThugs: number, securityCapacity: number): boolean {
+  return assignedThugs > securityCapacity;
+}
+
+export function businessHourlyIncomePerWorker(
+  type: BusinessType,
+  level: number = 1,
+): number {
+  const stats = getBusinessLevelStats(type, level);
   const activePerWorkerPerHour =
     BUSINESS_ACTIVE_WORKER_CASH_PER_TURN * BUSINESS_TURNS_PER_HOUR;
   return (
     activePerWorkerPerHour *
     BUSINESS_PASSIVE_INCOME_FRACTION *
-    rule.passiveIncomeMultiplier
+    stats.passiveIncomeMultiplier
   );
 }
 
-export function businessHourlyIncome(type: BusinessType, assignedWorkers: number): number {
-  if (assignedWorkers <= 0) return 0;
-  return Math.floor(businessHourlyIncomePerWorker(type) * assignedWorkers);
+export function businessHourlyIncome(
+  type: BusinessType,
+  assignedWorkers: number,
+  level: number = 1,
+): number {
+  const stats = getBusinessLevelStats(type, level);
+  const workers = effectivePassiveWorkers(assignedWorkers, stats.workerCapacity);
+  if (workers <= 0) return 0;
+  return Math.floor(businessHourlyIncomePerWorker(type, level) * workers);
 }
 
 export function defaultBusinessName(type: BusinessType, sequence: number): string {
@@ -142,11 +194,35 @@ export function businessDrugStorageTotal(stored: Record<BusinessDrugKey, number>
   return stored.hash + stored.shrooms + stored.coke + stored.heroin;
 }
 
-export function businessWeightedDrugUnits(stored: Record<BusinessDrugKey, number>): number {
+export function businessWeightedDrugUnits(
+  stored: Record<BusinessDrugKey, number>,
+  premiumDrugHeatMultiplier = 1,
+): number {
+  const cokeWeight = BUSINESS_DRUG_HEAT_WEIGHT.coke * premiumDrugHeatMultiplier;
+  const heroinWeight = BUSINESS_DRUG_HEAT_WEIGHT.heroin * premiumDrugHeatMultiplier;
   return (
     stored.hash * BUSINESS_DRUG_HEAT_WEIGHT.hash +
     stored.shrooms * BUSINESS_DRUG_HEAT_WEIGHT.shrooms +
-    stored.coke * BUSINESS_DRUG_HEAT_WEIGHT.coke +
-    stored.heroin * BUSINESS_DRUG_HEAT_WEIGHT.heroin
+    stored.coke * cokeWeight +
+    stored.heroin * heroinWeight
+  );
+}
+
+export { BUSINESS_LEVEL_TABLES, getBusinessLevelStats, clampBusinessLevel } from './business-levels';
+export {
+  getBusinessDrugProductionBonus,
+  MAX_DRUG_LAB_PRODUCE_BONUS,
+} from './business-levels';
+
+/** Future Total Empire Value helper — not used for live rankings in V1.1. */
+export function calculateTotalEmpireValue(input: {
+  streetNetWorth: number;
+  businessSafeCash: number;
+  businessStoredDrugUnits: number;
+}): number {
+  return (
+    input.streetNetWorth +
+    input.businessSafeCash +
+    input.businessStoredDrugUnits * 5
   );
 }

@@ -14,6 +14,10 @@ export interface BusinessRaidInput {
   stored: Record<BusinessDrugKey, number>;
   lastRaidCheckAt: Date;
   now?: Date;
+  /** Relative multiplier on raid chance (from security + level). Default 1. */
+  raidChanceMultiplier?: number;
+  /** Relative multiplier on losses when raided (from security + level). Default 1. */
+  raidLossMultiplier?: number;
   /** 0–1 roll — inject for tests. */
   roll?: number;
 }
@@ -60,10 +64,11 @@ function applyRaidLosses(
   stored: Record<BusinessDrugKey, number>,
   band: BusinessHeatBand,
   roll: number,
+  lossMultiplier = 1,
 ): BusinessRaidLosses {
   const fraction = BUSINESS_RAID_LOSS_FRACTION[band];
   const variance = 0.85 + roll * 0.3;
-  const effective = Math.min(1, fraction * variance);
+  const effective = Math.min(1, fraction * variance * lossMultiplier);
 
   const cashSeized = Math.floor(safeCash * effective);
   const drugsSeeded: BusinessRaidLosses = {
@@ -105,7 +110,8 @@ export function resolveBusinessRaidCheck(input: BusinessRaidInput): BusinessRaid
     };
   }
 
-  const chance = BUSINESS_RAID_CHANCE_PER_CHECK[input.heat.band];
+  const chanceMultiplier = input.raidChanceMultiplier ?? 1;
+  const chance = BUSINESS_RAID_CHANCE_PER_CHECK[input.heat.band] * chanceMultiplier;
   const roll = input.roll ?? raidCheckRoll(input.businessId, blockIndex);
 
   if (roll >= chance) {
@@ -123,6 +129,7 @@ export function resolveBusinessRaidCheck(input: BusinessRaidInput): BusinessRaid
     input.stored,
     input.heat.band,
     lossRoll,
+    input.raidLossMultiplier ?? 1,
   );
 
   return {

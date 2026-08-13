@@ -6,6 +6,7 @@ import {
   businessHourlyIncome,
   businessHourlyIncomePerWorker,
   businessStreetNwContribution,
+  getBusinessStreetNwAsset,
   getBusinessTypeRule,
 } from '@/config/game/business-rules';
 import { evaluateBusinessHeat, overallHeatBand } from '@/lib/game-engine/business/heat';
@@ -47,10 +48,12 @@ describe('business passive income', () => {
     );
   });
 
-  it('example hourly rates for 100/500/1000 workers at nightclub', () => {
+  it('example hourly rates for 100/500 workers at nightclub L1', () => {
     expect(businessHourlyIncome('NIGHTCLUB', 100)).toBe(5760);
     expect(businessHourlyIncome('NIGHTCLUB', 500)).toBe(28_800);
-    expect(businessHourlyIncome('NIGHTCLUB', 1000)).toBe(57_600);
+    expect(businessHourlyIncome('NIGHTCLUB', 1000)).toBe(
+      Math.floor(businessHourlyIncomePerWorker('NIGHTCLUB', 1) * 600),
+    );
   });
 });
 
@@ -60,6 +63,7 @@ describe('business settlement', () => {
     const last = new Date('2026-08-13T06:00:00Z');
     const result = settleBusinessIncome({
       businessType: 'NIGHTCLUB',
+      level: 1,
       assignedWorkers: 100,
       safeCash: 0,
       lastSettledAt: last,
@@ -75,6 +79,7 @@ describe('business settlement', () => {
     const last = new Date('2026-08-13T00:00:00Z');
     const result = settleBusinessIncome({
       businessType: 'WAREHOUSE',
+      level: 1,
       assignedWorkers: 1000,
       safeCash: 0,
       lastSettledAt: last,
@@ -87,6 +92,7 @@ describe('business settlement', () => {
   it('empty workforce earns nothing', () => {
     const result = settleBusinessIncome({
       businessType: 'NIGHTCLUB',
+      level: 1,
       assignedWorkers: 0,
       safeCash: 0,
       lastSettledAt: new Date(),
@@ -100,6 +106,7 @@ describe('business heat', () => {
   it('empty warehouse stays low', () => {
     const heat = evaluateBusinessHeat({
       businessType: 'WAREHOUSE',
+      level: 1,
       assignedWorkers: 50,
       safeCash: 0,
       stored: { hash: 0, shrooms: 0, coke: 0, heroin: 0 },
@@ -110,12 +117,14 @@ describe('business heat', () => {
   it('drug lab with heroin storage is hotter', () => {
     const empty = evaluateBusinessHeat({
       businessType: 'DRUG_LAB',
+      level: 1,
       assignedWorkers: 100,
       safeCash: 0,
       stored: { hash: 0, shrooms: 0, coke: 0, heroin: 0 },
     });
     const loaded = evaluateBusinessHeat({
       businessType: 'DRUG_LAB',
+      level: 1,
       assignedWorkers: 100,
       safeCash: 400_000,
       stored: { hash: 0, shrooms: 0, coke: 2000, heroin: 3000 },
@@ -127,12 +136,14 @@ describe('business heat', () => {
   it('collecting cash lowers heat contribution', () => {
     const full = evaluateBusinessHeat({
       businessType: 'NIGHTCLUB',
+      level: 1,
       assignedWorkers: 200,
       safeCash: 700_000,
       stored: { hash: 1000, shrooms: 0, coke: 0, heroin: 0 },
     });
     const emptySafe = evaluateBusinessHeat({
       businessType: 'NIGHTCLUB',
+      level: 1,
       assignedWorkers: 200,
       safeCash: 0,
       stored: { hash: 1000, shrooms: 0, coke: 0, heroin: 0 },
@@ -158,6 +169,7 @@ describe('police raids', () => {
   it('empty assets never raid even on forced roll 0', () => {
     const heat = evaluateBusinessHeat({
       businessType: 'DRUG_LAB',
+      level: 1,
       assignedWorkers: 0,
       safeCash: 0,
       stored: { hash: 0, shrooms: 0, coke: 0, heroin: 0 },
@@ -177,6 +189,7 @@ describe('police raids', () => {
   it('applies loss fraction without going negative', () => {
     const heat = evaluateBusinessHeat({
       businessType: 'DRUG_LAB',
+      level: 1,
       assignedWorkers: 500,
       safeCash: 100_000,
       stored: { hash: 0, shrooms: 0, coke: 5000, heroin: 2000 },
@@ -241,13 +254,16 @@ describe('business street net worth', () => {
     expect(withDrugs - storedOffStreet).toBe(1500 * 5);
   });
 
-  it('aggregate business context sums assigned workers and assets', () => {
+  it('aggregate business context sums assigned workers, security, and assets', () => {
     const ctx = aggregateBusinessNwContext([
-      { purchasePrice: 1_000_000, assignedWorkers: 200 },
-      { purchasePrice: 2_000_000, assignedWorkers: 300 },
+      { businessType: 'WAREHOUSE', level: 1, assignedWorkers: 200, assignedThugs: 5 },
+      { businessType: 'WAREHOUSE', level: 2, assignedWorkers: 300, assignedThugs: 10 },
     ]);
     expect(ctx.assignedWorkers).toBe(500);
-    expect(ctx.businessStreetAssets).toBe(500_000 + 1_000_000);
+    expect(ctx.assignedSecurityThugs).toBe(15);
+    expect(ctx.businessStreetAssets).toBe(
+      getBusinessStreetNwAsset('WAREHOUSE', 1) + getBusinessStreetNwAsset('WAREHOUSE', 2),
+    );
   });
 });
 

@@ -60,7 +60,9 @@ export interface CanonicalNetWorthBusinessContext {
   streetWorkers: number;
   /** Sum of workers assigned to businesses. */
   assignedWorkers: number;
-  /** Sum of floor(purchasePrice * 0.5) for owned businesses. */
+  /** Sum of security thugs assigned to businesses. */
+  assignedSecurityThugs?: number;
+  /** Sum of canonical Business asset NW (50% of invested value). */
   businessStreetAssets: number;
 }
 
@@ -74,10 +76,11 @@ export function calculateCanonicalNetWorthFromPlayer(
 ): number {
   const streetWorkers = businessContext?.streetWorkers ?? player.prostitutes;
   const assignedWorkers = businessContext?.assignedWorkers ?? 0;
+  const securityThugs = businessContext?.assignedSecurityThugs ?? 0;
   return calculateCanonicalNetWorth({
     cash: player.cash,
     bankCash: player.bankCash,
-    thugs: player.thugs,
+    thugs: player.thugs + securityThugs,
     workers: streetWorkers + assignedWorkers,
     vehicles: player.rides,
     drugs: player.hash + player.shrooms + player.coke + player.heroin,

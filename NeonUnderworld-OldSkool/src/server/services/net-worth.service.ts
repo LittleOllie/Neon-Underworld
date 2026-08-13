@@ -1,6 +1,8 @@
 import { prisma } from '@core/lib/db/prisma';
 import {
   aggregateBusinessNwContext,
+  BUSINESS_NW_SELECT,
+  type BusinessNwSelect,
 } from '@core/server/services/business.service';
 import {
   calculateCanonicalNetWorth,
@@ -38,7 +40,7 @@ function toNetWorthInput(
   return {
     cash: player.cash,
     bankCash: player.bankCash,
-    thugs: empire.thugs,
+    thugs: empire.thugs + (businessContext?.assignedSecurityThugs ?? 0),
     workers: player.prostitutes + (businessContext?.assignedWorkers ?? 0),
     vehicles: empire.vehicles,
     drugs: empire.drugs,
@@ -66,6 +68,7 @@ export const NetWorthService = {
       return calculateCanonicalNetWorthFromPlayer(player, {
         streetWorkers: player.prostitutes,
         assignedWorkers: businessContext.assignedWorkers,
+        assignedSecurityThugs: businessContext.assignedSecurityThugs,
         businessStreetAssets: businessContext.businessStreetAssets,
       });
     }
@@ -85,16 +88,12 @@ export const NetWorthService = {
     if (players.length === 0) return new Map();
 
     const playerIds = players.map((p) => p.id);
-    let allBusinesses: Array<{
-      playerId: string;
-      purchasePrice: number;
-      assignedWorkers: number;
-    }> = [];
+    let allBusinesses: Array<{ playerId: string } & BusinessNwSelect> = [];
 
     try {
       allBusinesses = await prisma.business.findMany({
         where: { playerId: { in: playerIds } },
-        select: { playerId: true, purchasePrice: true, assignedWorkers: true },
+        select: { playerId: true, ...BUSINESS_NW_SELECT },
       });
     } catch {
       const map = new Map<string, number>();
@@ -120,6 +119,7 @@ export const NetWorthService = {
         calculateCanonicalNetWorthFromPlayer(player, {
           streetWorkers: player.prostitutes,
           assignedWorkers: ctx.assignedWorkers,
+          assignedSecurityThugs: ctx.assignedSecurityThugs,
           businessStreetAssets: ctx.businessStreetAssets,
         }),
       );

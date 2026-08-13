@@ -23,6 +23,7 @@ interface ProduceFormProps {
   prostituteCount: number;
   prostituteHappiness: number;
   thugHappiness: number;
+  drugLabBonus?: number;
 }
 
 const DRUGS: { key: ProductionDrug; label: string; hint: string }[] = [
@@ -38,6 +39,7 @@ export function ProduceForm({
   prostituteCount,
   prostituteHappiness,
   thugHappiness,
+  drugLabBonus = 0,
 }: ProduceFormProps) {
   const reconcile = useGameplayReconcile();
   const [turns, setTurns] = useState(initialTurns);
@@ -109,6 +111,12 @@ export function ProduceForm({
         tone: 'negative',
       });
     }
+    if (result.businessBonusUnits && result.businessBonusUnits > 0) {
+      lines.push({
+        text: `Business Bonus: +${result.businessBonusUnits.toLocaleString()} units`,
+        tone: 'positive',
+      });
+    }
     lines.push({ text: `${result.turnsSpent} turns used` });
 
     return (
@@ -151,6 +159,12 @@ export function ProduceForm({
       {thugCount === 0 && (
         <p className="g-note">
           Need thugs? <Link href="/scout">Scout to recruit</Link>
+        </p>
+      )}
+
+      {drugLabBonus > 0 && (
+        <p className="g-note">
+          <strong>Business Bonus</strong> — Drug Labs: +{Math.round(drugLabBonus * 100)}% Production
         </p>
       )}
 

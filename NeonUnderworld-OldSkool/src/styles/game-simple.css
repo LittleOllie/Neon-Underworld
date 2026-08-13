@@ -287,6 +287,96 @@
   height: 7px;
 }
 
+/* Business heat summary — Home + Empire */
+.g-business-heat-summary {
+  margin: 0 0 16px;
+  padding: 14px 12px;
+  border: 1px solid rgba(201, 169, 98, 0.22);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.g-business-heat-summary--home {
+  margin-top: 0;
+}
+
+.g-business-heat-summary__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.g-business-heat-summary__label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--os-text-dim, #7a7872);
+}
+
+.g-business-heat-summary__count {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--game-gold, #c9a962);
+  text-shadow: 0 0 20px rgba(201, 169, 98, 0.12);
+}
+
+.g-business-heat-row {
+  margin-top: 10px;
+}
+
+.g-business-heat-name {
+  margin: 0 0 4px;
+  font-size: var(--game-fs-secondary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--game-text-primary);
+}
+
+.g-business-heat-summary .g-bar-wrap {
+  margin: 0;
+}
+
+.g-business-heat-summary .g-bar-head {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.g-business-heat-summary .g-bar {
+  height: 7px;
+}
+
+.g-business-heat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 10px;
+  font-size: var(--game-fs-secondary);
+  color: var(--game-text-secondary);
+}
+
+.g-business-heat-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: var(--game-fs-secondary);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--game-gold, #c9a962);
+  text-decoration: none;
+}
+
+.g-business-heat-link:hover {
+  color: var(--os-link-hover, #e0c878);
+  text-decoration: underline;
+}
+
 /* ── Cartel HQ ── */
 .g-cartel-hq__header {
   margin-bottom: 16px;

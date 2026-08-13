@@ -18,11 +18,14 @@ export interface ProductionInput {
   prostitutePayoutPercent: number;
   drugType: ProductionDrug;
   seed: number;
+  /** Fractional bonus from Drug Lab businesses (0–0.2). Applied before floor. */
+  drugProductionBonus?: number;
 }
 
 export interface ProductionOutcome {
   drugType: ProductionDrug;
   drugUnitsProduced: number;
+  businessBonusUnits: number;
   cashEarned: number;
   prostitutesLost: number;
   thugsLost: number;
@@ -43,7 +46,10 @@ export function resolveProduction(input: ProductionInput): ProductionOutcome {
     variance *
     thugEfficiency;
 
-  const drugUnitsProduced = Math.max(0, Math.floor(rawUnits));
+  const baseUnits = Math.max(0, Math.floor(rawUnits));
+  const bonusMultiplier = 1 + Math.max(0, input.drugProductionBonus ?? 0);
+  const drugUnitsProduced = Math.max(0, Math.floor(rawUnits * bonusMultiplier));
+  const businessBonusUnits = Math.max(0, drugUnitsProduced - baseUnits);
 
   const grossCash = grossWorkerCash(
     input.prostituteCount,
@@ -75,6 +81,7 @@ export function resolveProduction(input: ProductionInput): ProductionOutcome {
   return {
     drugType: input.drugType,
     drugUnitsProduced,
+    businessBonusUnits,
     cashEarned,
     prostitutesLost,
     thugsLost,

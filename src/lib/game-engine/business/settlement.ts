@@ -1,6 +1,7 @@
 import {
   businessHourlyIncomePerWorker,
-  getBusinessTypeRule,
+  effectivePassiveWorkers,
+  getBusinessLevelStats,
   type BusinessType,
 } from '@/config/game/business-rules';
 
@@ -8,6 +9,7 @@ const MS_PER_HOUR = 60 * 60 * 1000;
 
 export interface BusinessSettlementInput {
   businessType: BusinessType;
+  level: number;
   assignedWorkers: number;
   safeCash: number;
   lastSettledAt: Date;
@@ -22,15 +24,20 @@ export interface BusinessSettlementResult {
 }
 
 /**
- * Lazy passive income settlement — accrues up to safe capacity without losing elapsed time precision.
+ * Lazy passive income settlement — accrues up to safe capacity.
+ * Income uses min(assignedWorkers, workerCapacity) workers only.
  */
 export function settleBusinessIncome(input: BusinessSettlementInput): BusinessSettlementResult {
   const now = input.now ?? new Date();
-  const rule = getBusinessTypeRule(input.businessType);
-  const capacity = rule.safeCapacity;
+  const levelStats = getBusinessLevelStats(input.businessType, input.level);
+  const capacity = levelStats.safeCapacity;
+  const incomeWorkers = effectivePassiveWorkers(
+    input.assignedWorkers,
+    levelStats.workerCapacity,
+  );
 
   if (
-    input.assignedWorkers <= 0 ||
+    incomeWorkers <= 0 ||
     input.safeCash >= capacity ||
     now.getTime() <= input.lastSettledAt.getTime()
   ) {
@@ -44,7 +51,7 @@ export function settleBusinessIncome(input: BusinessSettlementInput): BusinessSe
 
   const remainingCapacity = capacity - input.safeCash;
   const incomePerMs =
-    (businessHourlyIncomePerWorker(input.businessType) * input.assignedWorkers) /
+    (businessHourlyIncomePerWorker(input.businessType, input.level) * incomeWorkers) /
     MS_PER_HOUR;
 
   if (incomePerMs <= 0) {

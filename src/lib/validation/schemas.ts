@@ -185,6 +185,17 @@ export const businessDrugTransferSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
+export const businessUpgradeSchema = z.object({
+  businessId: z.string().min(1),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const businessSecuritySchema = z.object({
+  businessId: z.string().min(1),
+  quantity: z.coerce.number().int().min(1),
+  idempotencyKey: z.string().uuid(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;

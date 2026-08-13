@@ -14,7 +14,12 @@ import {
   type BusinessDrugResult,
   type BusinessPurchaseResult,
   type BusinessWorkerResult,
+  type BusinessUpgradeResult,
+  type BusinessSecurityResult,
   type BusinessesPageData,
+  upgradeBusinessAction as coreUpgradeBusiness,
+  assignBusinessSecurityAction as coreAssignSecurity,
+  removeBusinessSecurityAction as coreRemoveSecurity,
 } from '@core/server/actions/business.actions';
 import type { BusinessType } from '@prisma/client';
 import type { ActionResult } from '@core/server/actions/auth.actions';
@@ -194,5 +199,60 @@ export async function withdrawBusinessDrugsAction(
     result,
     `Withdrew ${quantity.toLocaleString()} ${drug} from business storage.`,
     ['/businesses', '/empire'],
+  );
+}
+
+export async function upgradeBusinessAction(
+  businessId: string,
+  idempotencyKey: string,
+): Promise<ActionResult<WithPlayerShell<BusinessUpgradeResult>>> {
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+
+  const result = await coreUpgradeBusiness(businessId, idempotencyKey);
+  if (!result.success) return result;
+
+  return wrapMutation(
+    playerId,
+    result,
+    `Upgraded business to Level ${result.data.level}.`,
+    ['/businesses', '/empire', '/command'],
+  );
+}
+
+export async function assignBusinessSecurityAction(
+  businessId: string,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<WithPlayerShell<BusinessSecurityResult>>> {
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+
+  const result = await coreAssignSecurity(businessId, quantity, idempotencyKey);
+  return wrapMutation(
+    playerId,
+    result,
+    `Assigned ${quantity.toLocaleString()} Thugs to business security.`,
+    ['/businesses', '/empire', '/attack', '/produce'],
+  );
+}
+
+export async function removeBusinessSecurityAction(
+  businessId: string,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<WithPlayerShell<BusinessSecurityResult>>> {
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+
+  const result = await coreRemoveSecurity(businessId, quantity, idempotencyKey);
+  return wrapMutation(
+    playerId,
+    result,
+    `Removed ${quantity.toLocaleString()} Thugs from business security.`,
+    ['/businesses', '/empire', '/attack', '/produce'],
   );
 }

@@ -508,7 +508,9 @@ model Business {
   districtId      String
   name            String
   purchasePrice   Int
+  level           Int          @default(1)
   assignedWorkers Int          @default(0)
+  assignedThugs   Int          @default(0)
   safeCash        Int          @default(0)
   hash            Int          @default(0)
   shrooms         Int          @default(0)

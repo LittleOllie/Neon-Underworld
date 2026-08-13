@@ -91,6 +91,14 @@ export interface EmpireManagementData {
     assignedWorkers: number;
     safeBalance: number;
     overallHeat: string;
+    overallHeatScore: number;
+    sites: Array<{
+      id: string;
+      name: string;
+      heatScore: number;
+      heatBand: string;
+      heatLabel: string;
+    }>;
   } | null;
 
   finances: {

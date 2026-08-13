@@ -17,6 +17,7 @@ import { deriveScoutSeed } from '@/lib/game-engine/rng';
 import { calculateNetWorth, netWorthDelta } from '@/lib/game-engine/net-worth';
 import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
 import { PRODUCTION_CONFIG } from '@/config/game/balance';
+import { getBusinessDrugProductionBonus } from '@/config/game/business-rules';
 import { workerCashBreakdown } from '@/lib/game-engine/worker-economics';
 import {
   InvalidScoutAmountError,
@@ -57,6 +58,8 @@ export interface ProduceResultData {
   workerMoraleAfter?: number;
   thugMoraleBefore?: number;
   thugMoraleAfter?: number;
+  /** Extra drug units from Drug Lab business bonuses. */
+  businessBonusUnits?: number;
 }
 
 export async function produceAction(
@@ -153,6 +156,11 @@ export async function produceAction(
       }).score;
 
       const seed = deriveScoutSeed(playerId, idempotencyKey);
+      const drugLabs = await tx.business.findMany({
+        where: { playerId, businessType: 'DRUG_LAB' },
+        select: { businessType: true, level: true },
+      });
+      const drugProductionBonus = getBusinessDrugProductionBonus(drugLabs);
       const outcome = resolveProduction({
         turnsSpent: parsed.data.turns,
         thugCount: player.thugs,
@@ -162,6 +170,7 @@ export async function produceAction(
         prostitutePayoutPercent: player.prostitutePayoutPercent,
         drugType: parsed.data.drugType,
         seed,
+        drugProductionBonus,
       });
 
       const { newState } = consumeTurns(settled, parsed.data.turns, now);
@@ -273,6 +282,9 @@ export async function produceAction(
         workerMoraleAfter: newProstituteHappiness,
         thugMoraleBefore,
         thugMoraleAfter: newThugHappiness,
+        ...(outcome.businessBonusUnits > 0
+          ? { businessBonusUnits: outcome.businessBonusUnits }
+          : {}),
       };
 
       await tx.gameAction.create({

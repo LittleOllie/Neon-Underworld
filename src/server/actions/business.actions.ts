@@ -7,13 +7,19 @@ import {
   businessCollectSchema,
   businessDrugTransferSchema,
   businessPurchaseSchema,
+  businessSecuritySchema,
+  businessUpgradeSchema,
   businessWorkerSchema,
 } from '@/lib/validation/schemas';
 import {
-  BUSINESS_TYPE_RULES,
   BUSINESS_TYPES,
+  MAX_BUSINESSES_PER_PLAYER,
   businessPurchasePrice,
+  getBusinessInvestedValue,
+  getBusinessLevelStats,
+  getBusinessStreetNwAsset,
   getBusinessTypeRule,
+  getBusinessUpgradeCost,
 } from '@/config/game/business-rules';
 import { calculatePlayerCanonicalNetWorthSync } from '@/lib/game-engine/business/net-worth';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
@@ -24,15 +30,19 @@ import { snapshotPlayerState } from '@/lib/game-engine/state';
 import {
   assertBusinessDrugKey,
   buildPortfolioSummary,
+  BUSINESS_NW_SELECT,
   businessNameForPurchase,
   nextBusinessSequence,
   settleBusinessInTransaction,
   toBusinessViewModel,
+  validateAssignSecurity,
   validateAssignWorkers,
   validateDrugTransfer,
   validateDrugWithdraw,
   validatePurchase,
+  validateRemoveSecurity,
   validateRemoveWorkers,
+  validateUpgrade,
 } from '@/server/services/business.service';
 import type { ActionResult } from './auth.actions';
 
@@ -42,8 +52,11 @@ export interface BusinessCatalogEntry {
   purchasePrice: number;
   streetNwContribution: number;
   passiveIncomeMultiplier: number;
+  workerCapacity: number;
+  securityCapacity: number;
   safeCapacity: number;
   drugStorageCapacity: number;
+  baseHeat: number;
   blurb: string;
 }
 
@@ -53,6 +66,7 @@ export interface BusinessesPageData {
   summary: ReturnType<typeof buildPortfolioSummary>;
   streetDrugs: { hash: number; shrooms: number; coke: number; heroin: number };
   streetWorkers: number;
+  streetThugs: number;
   cash: number;
   canonicalNetWorth: number;
   canPurchase: boolean;
@@ -88,17 +102,33 @@ export interface BusinessDrugResult extends BusinessMutationResult {
   quantity: number;
 }
 
+export interface BusinessUpgradeResult extends BusinessMutationResult {
+  level: number;
+  upgradeCost: number;
+  investedValue: number;
+}
+
+export interface BusinessSecurityResult extends BusinessMutationResult {
+  quantity: number;
+  assignedThugs: number;
+  streetThugs: number;
+}
+
 function formatCatalog(): BusinessCatalogEntry[] {
   return BUSINESS_TYPES.map((type) => {
     const rule = getBusinessTypeRule(type);
+    const l1 = getBusinessLevelStats(type, 1);
     return {
       type,
       displayName: rule.displayName,
       purchasePrice: rule.purchasePrice,
-      streetNwContribution: Math.floor(rule.purchasePrice * 0.5),
+      streetNwContribution: getBusinessStreetNwAsset(type, 1),
       passiveIncomeMultiplier: rule.passiveIncomeMultiplier,
-      safeCapacity: rule.safeCapacity,
-      drugStorageCapacity: rule.drugStorageCapacity,
+      workerCapacity: l1.workerCapacity,
+      securityCapacity: l1.securityCapacity,
+      safeCapacity: l1.safeCapacity,
+      drugStorageCapacity: l1.drugStorageCapacity,
+      baseHeat: rule.baseHeat,
       blurb: rule.blurb,
     };
   });
@@ -141,11 +171,12 @@ export async function getBusinessesPageData(playerId: string): Promise<Businesse
       heroin: player.heroin,
     },
     streetWorkers: player.prostitutes,
+    streetThugs: player.thugs,
     cash: player.cash,
     canonicalNetWorth,
-    canPurchase: settled.length < 10,
+    canPurchase: settled.length < MAX_BUSINESSES_PER_PLAYER,
     ownedCount: settled.length,
-    maxBusinesses: 10,
+    maxBusinesses: MAX_BUSINESSES_PER_PLAYER,
   };
 }
 
@@ -200,6 +231,7 @@ export async function purchaseBusinessAction(
           districtId: player.districtId,
           name,
           purchasePrice: price,
+          level: 1,
         },
       });
 
@@ -213,7 +245,7 @@ export async function purchaseBusinessAction(
 
       const allBusinesses = await tx.business.findMany({
         where: { playerId },
-        select: { purchasePrice: true, assignedWorkers: true },
+        select: BUSINESS_NW_SELECT,
       });
       const canonicalNetWorth = calculatePlayerCanonicalNetWorthSync(updated, allBusinesses);
 
@@ -312,9 +344,15 @@ async function mutateBusinessWorkers(
 
       const fresh = await tx.business.findUniqueOrThrow({ where: { id: business.id } });
       const qty = parsed.data.quantity;
+      const levelStats = getBusinessLevelStats(fresh.businessType, fresh.level);
 
       if (mode === 'ASSIGN') {
-        const err = validateAssignWorkers(player.prostitutes, qty);
+        const err = validateAssignWorkers(
+          player.prostitutes,
+          qty,
+          fresh.assignedWorkers,
+          levelStats.workerCapacity,
+        );
         if (err) throw new GameplayError('INVALID_QUANTITY', err);
       } else {
         const err = validateRemoveWorkers(fresh.assignedWorkers, qty);
@@ -336,7 +374,7 @@ async function mutateBusinessWorkers(
 
       const allBusinesses = await tx.business.findMany({
         where: { playerId },
-        select: { purchasePrice: true, assignedWorkers: true },
+        select: BUSINESS_NW_SELECT,
       });
       const canonicalNetWorth = calculatePlayerCanonicalNetWorthSync(updatedPlayer, allBusinesses);
 
@@ -414,7 +452,7 @@ export async function collectBusinessSafeAction(
 
       const allBusinesses = await tx.business.findMany({
         where: { playerId },
-        select: { purchasePrice: true, assignedWorkers: true },
+        select: BUSINESS_NW_SELECT,
       });
       const canonicalNetWorth = calculatePlayerCanonicalNetWorthSync(updated, allBusinesses);
 
@@ -523,13 +561,18 @@ async function transferBusinessDrugs(
 
       await settleBusinessInTransaction(tx, business.id);
       const fresh = await tx.business.findUniqueOrThrow({ where: { id: business.id } });
-      const rule = getBusinessTypeRule(fresh.businessType);
+      const levelStats = getBusinessLevelStats(fresh.businessType, fresh.level);
       const qty = parsed.data.quantity;
       const storedTotal = fresh.hash + fresh.shrooms + fresh.coke + fresh.heroin;
       const playerQty = player[drugKey];
 
       if (mode === 'STORE') {
-        const err = validateDrugTransfer(playerQty, storedTotal, rule.drugStorageCapacity, qty);
+        const err = validateDrugTransfer(
+          playerQty,
+          storedTotal,
+          levelStats.drugStorageCapacity,
+          qty,
+        );
         if (err) throw new GameplayError('INVALID_QUANTITY', err);
       } else {
         const storedQty = fresh[drugKey];
@@ -554,7 +597,7 @@ async function transferBusinessDrugs(
 
       const allBusinesses = await tx.business.findMany({
         where: { playerId },
-        select: { purchasePrice: true, assignedWorkers: true },
+        select: BUSINESS_NW_SELECT,
       });
       const canonicalNetWorth = calculatePlayerCanonicalNetWorthSync(updatedPlayer, allBusinesses);
 
@@ -584,6 +627,225 @@ async function transferBusinessDrugs(
     return { success: true, data: result };
   } catch (error) {
     console.error('Business drug transfer error:', error);
+    return { success: false, error: toUserMessage(error) };
+  }
+}
+
+export async function upgradeBusinessAction(
+  businessId: string,
+  idempotencyKey: string,
+): Promise<ActionResult<BusinessUpgradeResult>> {
+  try {
+    const session = await requirePlayer();
+    const parsed = businessUpgradeSchema.safeParse({ businessId, idempotencyKey });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    const playerId = session.user.playerId!;
+    const cached = await idempotentAction<BusinessUpgradeResult>(playerId, idempotencyKey);
+    if (cached) return { success: true, data: cached };
+
+    const result = await runSerializableTransaction(async (tx) => {
+      const player = await tx.player.findUniqueOrThrow({
+        where: { id: playerId },
+        include: { season: true },
+      });
+      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertPlayerCanPerformAction(player);
+
+      const business = await tx.business.findFirst({
+        where: { id: parsed.data.businessId, playerId },
+      });
+      if (!business) throw new GameplayError('INVALID_TARGET', 'Business not found.');
+
+      await settleBusinessInTransaction(tx, business.id);
+      const fresh = await tx.business.findUniqueOrThrow({ where: { id: business.id } });
+      const err = validateUpgrade(fresh.level, player.cash, fresh.businessType);
+      if (err) throw new GameplayError('INVALID_QUANTITY', err);
+
+      const upgradeCost = getBusinessUpgradeCost(fresh.businessType, fresh.level + 1);
+      const newLevel = fresh.level + 1;
+
+      const updatedBusiness = await tx.business.update({
+        where: { id: business.id },
+        data: { level: newLevel },
+      });
+
+      const updatedPlayer = await tx.player.update({
+        where: { id: playerId },
+        data: { cash: player.cash - upgradeCost },
+      });
+
+      const allBusinesses = await tx.business.findMany({
+        where: { playerId },
+        select: BUSINESS_NW_SELECT,
+      });
+      const canonicalNetWorth = calculatePlayerCanonicalNetWorthSync(updatedPlayer, allBusinesses);
+      const investedValue = getBusinessInvestedValue(fresh.businessType, newLevel);
+
+      const resultData: BusinessUpgradeResult = {
+        businessId: business.id,
+        level: updatedBusiness.level,
+        upgradeCost,
+        investedValue,
+        newCash: updatedPlayer.cash,
+        streetWorkers: updatedPlayer.prostitutes,
+        canonicalNetWorth,
+      };
+
+      await tx.gameAction.create({
+        data: {
+          playerId,
+          seasonId: player.seasonId,
+          actionType: 'BUSINESS_UPGRADE',
+          idempotencyKey,
+          requestPayload: { businessId } as object,
+          resultPayload: resultData as object,
+        },
+      });
+
+      await tx.economicAuditLog.create({
+        data: {
+          playerId,
+          userId: session.user.id,
+          eventType: 'BUSINESS_UPGRADE',
+          source: 'business',
+          beforeState: snapshotPlayerState(player) as object,
+          delta: { cash: -upgradeCost },
+          afterState: snapshotPlayerState(updatedPlayer) as object,
+          metadata: {
+            businessId: business.id,
+            fromLevel: fresh.level,
+            toLevel: newLevel,
+            upgradeCost,
+          },
+        },
+      });
+
+      return resultData;
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Business upgrade error:', error);
+    return { success: false, error: toUserMessage(error) };
+  }
+}
+
+export async function assignBusinessSecurityAction(
+  businessId: string,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<BusinessSecurityResult>> {
+  return mutateBusinessSecurity(businessId, quantity, idempotencyKey, 'ASSIGN');
+}
+
+export async function removeBusinessSecurityAction(
+  businessId: string,
+  quantity: number,
+  idempotencyKey: string,
+): Promise<ActionResult<BusinessSecurityResult>> {
+  return mutateBusinessSecurity(businessId, quantity, idempotencyKey, 'REMOVE');
+}
+
+async function mutateBusinessSecurity(
+  businessId: string,
+  quantity: number,
+  idempotencyKey: string,
+  mode: 'ASSIGN' | 'REMOVE',
+): Promise<ActionResult<BusinessSecurityResult>> {
+  try {
+    const session = await requirePlayer();
+    const parsed = businessSecuritySchema.safeParse({ businessId, quantity, idempotencyKey });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    const playerId = session.user.playerId!;
+    const actionType =
+      mode === 'ASSIGN' ? 'BUSINESS_ASSIGN_SECURITY' : 'BUSINESS_REMOVE_SECURITY';
+    const cached = await idempotentAction<BusinessSecurityResult>(playerId, idempotencyKey);
+    if (cached) return { success: true, data: cached };
+
+    const result = await runSerializableTransaction(async (tx) => {
+      const player = await tx.player.findUniqueOrThrow({
+        where: { id: playerId },
+        include: { season: true },
+      });
+      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertPlayerCanPerformAction(player);
+
+      const business = await tx.business.findFirst({
+        where: { id: parsed.data.businessId, playerId },
+      });
+      if (!business) throw new GameplayError('INVALID_TARGET', 'Business not found.');
+
+      await settleBusinessInTransaction(tx, business.id);
+
+      const fresh = await tx.business.findUniqueOrThrow({ where: { id: business.id } });
+      const qty = parsed.data.quantity;
+      const levelStats = getBusinessLevelStats(fresh.businessType, fresh.level);
+
+      if (mode === 'ASSIGN') {
+        const err = validateAssignSecurity(
+          player.thugs,
+          qty,
+          fresh.assignedThugs,
+          levelStats.securityCapacity,
+        );
+        if (err) throw new GameplayError('INVALID_QUANTITY', err);
+      } else {
+        const err = validateRemoveSecurity(fresh.assignedThugs, qty);
+        if (err) throw new GameplayError('INVALID_QUANTITY', err);
+      }
+
+      const playerDelta = mode === 'ASSIGN' ? -qty : qty;
+      const businessDelta = mode === 'ASSIGN' ? qty : -qty;
+
+      const updatedPlayer = await tx.player.update({
+        where: { id: playerId },
+        data: { thugs: player.thugs + playerDelta },
+      });
+
+      const updatedBusiness = await tx.business.update({
+        where: { id: business.id },
+        data: { assignedThugs: fresh.assignedThugs + businessDelta },
+      });
+
+      const allBusinesses = await tx.business.findMany({
+        where: { playerId },
+        select: BUSINESS_NW_SELECT,
+      });
+      const canonicalNetWorth = calculatePlayerCanonicalNetWorthSync(updatedPlayer, allBusinesses);
+
+      const resultData: BusinessSecurityResult = {
+        businessId: business.id,
+        quantity: qty,
+        assignedThugs: updatedBusiness.assignedThugs,
+        streetThugs: updatedPlayer.thugs,
+        newCash: updatedPlayer.cash,
+        streetWorkers: updatedPlayer.prostitutes,
+        canonicalNetWorth,
+      };
+
+      await tx.gameAction.create({
+        data: {
+          playerId,
+          seasonId: player.seasonId,
+          actionType,
+          idempotencyKey,
+          requestPayload: { businessId, quantity: qty, mode } as object,
+          resultPayload: resultData as object,
+        },
+      });
+
+      return resultData;
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Business security mutation error:', error);
     return { success: false, error: toUserMessage(error) };
   }
 }
