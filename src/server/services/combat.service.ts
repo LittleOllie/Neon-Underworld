@@ -8,6 +8,10 @@ import {
   ridesRequired,
   type PlayerIntelSnapshot,
 } from '@/lib/game-engine/combat/eligibility';
+import {
+  calculatePlayerCanonicalNetWorthWithBusinesses,
+  loadBusinessNwRowsInTx,
+} from '@/lib/game-engine/business/net-worth';
 import { allocateWeaponsForThugs, weaponCoverageBand } from '@/lib/game-engine/combat/weapon-allocation';
 import { deriveCombatSeed, resolveCombat } from '@/lib/game-engine/combat/resolve-combat';
 import { calculateProstituteHappiness } from '@/lib/game-engine/happiness';
@@ -83,6 +87,9 @@ export interface CombatResolutionOutput {
 
 export type NetWorthCalculator = (player: CombatPlayerRecord) => number;
 
+/** @deprecated Combat resolves business-aware NW internally — do not inject blind calculators. */
+export type LegacyNetWorthCalculator = NetWorthCalculator;
+
 /** Stored on CombatEncounter when attacking without prior player intel */
 export const DIRECT_ATTACK_SCOUT_REPORT_ID = 'direct-attack';
 
@@ -123,7 +130,6 @@ export async function resolveAttackEncounter(
   attackType: AttackType,
   attackingThugs: number,
   idempotencyKey: string,
-  calculateNetWorth: NetWorthCalculator,
 ): Promise<CombatResolutionOutput> {
   const thugs = Math.floor(Number(attackingThugs));
   if (!Number.isFinite(thugs) || thugs < ATTACK_RULES.minAttackingThugs) {
@@ -236,8 +242,15 @@ export async function resolveAttackEncounter(
     const attackerRecord = attacker as unknown as CombatPlayerRecord;
     const defenderRecord = defender as unknown as CombatPlayerRecord;
 
-    const attackerNw = calculateNetWorth(attackerRecord);
-    const defenderNw = calculateNetWorth(defenderRecord);
+    const businessRowsByPlayer = await loadBusinessNwRowsInTx(tx, [attacker.id, defender.id]);
+    const attackerNw = calculatePlayerCanonicalNetWorthWithBusinesses(
+      attackerRecord,
+      businessRowsByPlayer.get(attacker.id) ?? [],
+    );
+    const defenderNw = calculatePlayerCanonicalNetWorthWithBusinesses(
+      defenderRecord,
+      businessRowsByPlayer.get(defender.id) ?? [],
+    );
 
     const settled = settleTurnRegeneration(
       resolveCanonicalTurnState({

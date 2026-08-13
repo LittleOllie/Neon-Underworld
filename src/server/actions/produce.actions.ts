@@ -14,7 +14,11 @@ import {
   calculateThugHappiness,
 } from '@/lib/game-engine/happiness';
 import { deriveScoutSeed } from '@/lib/game-engine/rng';
-import { calculateNetWorth, netWorthDelta } from '@/lib/game-engine/net-worth';
+import { netWorthDelta } from '@/lib/game-engine/net-worth';
+import {
+  calculatePlayerCanonicalNetWorthWithBusinesses,
+} from '@/lib/game-engine/business/net-worth';
+import { BUSINESS_NW_SELECT } from '@/server/services/business.service';
 import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
 import { PRODUCTION_CONFIG } from '@/config/game/balance';
 import { getBusinessDrugProductionBonus } from '@/config/game/business-rules';
@@ -248,7 +252,11 @@ export async function produceAction(
       });
 
       const nwChange = netWorthDelta(beforeResources, afterResources);
-      const newNetWorth = calculateNetWorth(afterResources);
+      const businessRows = await tx.business.findMany({
+        where: { playerId },
+        select: BUSINESS_NW_SELECT,
+      });
+      const newNetWorth = calculatePlayerCanonicalNetWorthWithBusinesses(updatedPlayer, businessRows);
       const workerCash = workerCashBreakdown(
         player.prostitutes,
         parsed.data.turns,

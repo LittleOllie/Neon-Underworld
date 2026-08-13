@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@local/lib/auth/config';
+import { requireActivePlayerSession } from '@local/lib/auth/active-session';
 import { prisma } from '@core/lib/db/prisma';
 import {
   assignBusinessWorkersAction as coreAssignWorkers,
@@ -39,10 +39,9 @@ export async function getBusinessesPageDataFromContext(
 }
 
 export async function refreshBusinessesPageDataAction(): Promise<ActionResult<BusinessesPageData>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
-  const data = await coreGetBusinessesPageData(playerId);
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const data = await coreGetBusinessesPageData(active.playerId);
   return { success: true, data };
 }
 
@@ -94,9 +93,9 @@ export async function purchaseBusinessAction(
   businessType: BusinessType,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessPurchaseResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await corePurchaseBusiness(businessType, idempotencyKey);
   if (!result.success) return result;
@@ -114,9 +113,9 @@ export async function assignBusinessWorkersAction(
   quantity: number,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessWorkerResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreAssignWorkers(businessId, quantity, idempotencyKey);
   return wrapMutation(
@@ -132,9 +131,9 @@ export async function removeBusinessWorkersAction(
   quantity: number,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessWorkerResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreRemoveWorkers(businessId, quantity, idempotencyKey);
   return wrapMutation(
@@ -149,9 +148,9 @@ export async function collectBusinessSafeAction(
   businessId: string,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessCollectResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreCollectSafe(businessId, idempotencyKey);
   if (!result.success) return result;
@@ -170,9 +169,9 @@ export async function storeBusinessDrugsAction(
   quantity: number,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessDrugResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreStoreDrugs(businessId, drug, quantity, idempotencyKey);
   return wrapMutation(
@@ -189,9 +188,9 @@ export async function withdrawBusinessDrugsAction(
   quantity: number,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessDrugResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreWithdrawDrugs(businessId, drug, quantity, idempotencyKey);
   return wrapMutation(
@@ -206,9 +205,9 @@ export async function upgradeBusinessAction(
   businessId: string,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessUpgradeResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreUpgradeBusiness(businessId, idempotencyKey);
   if (!result.success) return result;
@@ -226,9 +225,9 @@ export async function assignBusinessSecurityAction(
   quantity: number,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessSecurityResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreAssignSecurity(businessId, quantity, idempotencyKey);
   return wrapMutation(
@@ -244,9 +243,9 @@ export async function removeBusinessSecurityAction(
   quantity: number,
   idempotencyKey: string,
 ): Promise<ActionResult<WithPlayerShell<BusinessSecurityResult>>> {
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const playerId = active.playerId;
 
   const result = await coreRemoveSecurity(businessId, quantity, idempotencyKey);
   return wrapMutation(

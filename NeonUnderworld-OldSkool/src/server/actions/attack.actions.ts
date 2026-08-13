@@ -9,7 +9,7 @@ import type { ActionResult } from '@core/server/actions/auth.actions';
 import type { AttackType } from '@core/config/game/attack-rules';
 import { ATTACK_TYPE_LABELS, ATTACK_RULES } from '@core/config/game/attack-rules';
 import { attackLaunchSchema, directAttackLaunchSchema } from '@core/lib/validation/schemas';
-import { auth } from '@local/lib/auth/config';
+import { requireActivePlayerSession } from '@local/lib/auth/active-session';
 import { prisma } from '@core/lib/db/prisma';
 import {
   ACTIVITY_TYPES,
@@ -35,7 +35,6 @@ import { revalidatePath } from 'next/cache';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
 import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
-import type { CombatPlayerRecord } from '@core/server/services/combat.service';
 import type { AttackTargetCandidate } from '@local/features/attack/AttackForm.types';
 
 export type { AttackLaunchResult, AttackTargetCandidate };
@@ -43,9 +42,6 @@ export type { AttackLaunchResult, AttackTargetCandidate };
 export type OldSkoolAttackLaunchResult = AttackLaunchResult & {
   shell?: PlayerShellSnapshot;
 };
-
-const calculateNetWorth = (player: CombatPlayerRecord) =>
-  NetWorthService.calculateFromPlayer(player);
 
 function buildLaunchResult(data: CombatResolutionOutput): AttackLaunchResult {
   return {
@@ -324,10 +320,9 @@ export async function launchAttackAction(
   idempotencyKey: string,
 ): Promise<ActionResult<OldSkoolAttackLaunchResult>> {
   try {
-    const session = await auth();
-    const attackerId = session?.user?.playerId;
-    const userId = session?.user?.id;
-    if (!attackerId || !userId) return { success: false, error: 'Not authenticated' };
+    const active = await requireActivePlayerSession();
+    if (!active) return { success: false, error: 'Not authenticated' };
+    const { playerId: attackerId, userId } = active;
 
     const parsed = attackLaunchSchema.safeParse({
       scoutReportId,
@@ -371,7 +366,6 @@ export async function launchAttackAction(
         parsed.data.attackType,
         parsed.data.attackingThugs,
         parsed.data.idempotencyKey,
-        calculateNetWorth,
       );
 
       return finalizeAttackLaunch(
@@ -402,10 +396,9 @@ export async function launchDirectAttackAction(
   idempotencyKey: string,
 ): Promise<ActionResult<OldSkoolAttackLaunchResult>> {
   try {
-    const session = await auth();
-    const attackerId = session?.user?.playerId;
-    const userId = session?.user?.id;
-    if (!attackerId || !userId) return { success: false, error: 'Not authenticated' };
+    const active = await requireActivePlayerSession();
+    if (!active) return { success: false, error: 'Not authenticated' };
+    const { playerId: attackerId, userId } = active;
 
     const parsed = directAttackLaunchSchema.safeParse({
       targetAliasNormalized,
@@ -452,7 +445,6 @@ export async function launchDirectAttackAction(
         parsed.data.attackType,
         parsed.data.attackingThugs,
         parsed.data.idempotencyKey,
-        calculateNetWorth,
       );
 
       return finalizeAttackLaunch(
@@ -550,10 +542,12 @@ export async function getAttackPageData(
     defenderStatusRows.map((row) => [row.playerId, row]),
   );
 
+  const candidateNwMap = await NetWorthService.calculateForPlayers(candidates);
+
   const targets: AttackTargetCandidate[] = [];
 
   for (const player of candidates) {
-    const targetNw = NetWorthService.calculateFromPlayer(player);
+    const targetNw = candidateNwMap.get(player.id) ?? 0;
     const attacksOnTarget = attacksByDefender.get(player.id) ?? 0;
     const offlineState = offlineStateByDefender.get(player.id) ?? {
       offlineDamagingHits: 0,

@@ -5,7 +5,7 @@ import { TURNS_CONFIG } from '@core/config/game/balance';
 import { isPlaytestTurnsEnabled } from '@core/config/game/playtest';
 import { settleTurnRegeneration } from '@core/lib/game-engine/turns';
 import type { ActionResult } from '@core/server/actions/auth.actions';
-import { auth } from '@local/lib/auth/config';
+import { requireActivePlayerSession } from '@local/lib/auth/active-session';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
 import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
@@ -22,9 +22,9 @@ export async function grantPlaytestTurnsAction(
     return { success: false, error: 'Playtest turn grants are disabled.' };
   }
 
-  const session = await auth();
-  const playerId = session?.user?.playerId;
-  if (!playerId) return { success: false, error: 'Not authenticated' };
+  const active = await requireActivePlayerSession();
+  if (!active) return { success: false, error: 'Not authenticated' };
+  const { playerId } = active;
 
   const turnState = await prisma.playerTurnState.findUnique({ where: { playerId } });
   if (!turnState) return { success: false, error: 'Turn state not found' };

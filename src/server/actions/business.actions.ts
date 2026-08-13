@@ -159,6 +159,11 @@ async function loadSettledBusinesses(playerId: string) {
 }
 
 export async function getBusinessesPageData(playerId: string): Promise<BusinessesPageData> {
+  const session = await requirePlayer();
+  if (session.user.playerId !== playerId) {
+    throw new GameplayError('INVALID_TARGET', 'You cannot access this business portfolio.');
+  }
+
   const player = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
   const settled = await loadSettledBusinesses(playerId);
   const businesses = settled.map((b) => toBusinessViewModel(b, b.district.name));

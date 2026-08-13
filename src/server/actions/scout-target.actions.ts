@@ -11,6 +11,10 @@ import {
 } from '@/lib/game-engine/turns';
 import { buildPlayerIntelSnapshot, deriveIntelSeed } from '@/lib/game-engine/combat/build-intel-snapshot';
 import type { PlayerIntelSnapshot } from '@/lib/game-engine/combat/eligibility';
+import {
+  calculatePlayerCanonicalNetWorthWithBusinesses,
+  loadBusinessNwRowsInTx,
+} from '@/lib/game-engine/business/net-worth';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
@@ -27,25 +31,6 @@ export interface ScoutTargetResultData {
 export async function scoutTargetAction(
   targetAlias: string,
   idempotencyKey: string,
-  calculateNetWorth: (player: {
-    id: string;
-    alias: string;
-    cash: number;
-    bankCash: number;
-    thugs: number;
-    prostitutes: number;
-    rides: number;
-    glocks: number;
-    uzis: number;
-    aks: number;
-    hash: number;
-    shrooms: number;
-    coke: number;
-    heroin: number;
-    businesses: number;
-    cartelId: string | null;
-    district: { name: string };
-  }) => number,
 ): Promise<ActionResult<ScoutTargetResultData>> {
   try {
     const session = await requirePlayer();
@@ -102,7 +87,11 @@ export async function scoutTargetAction(
 
       const { newState } = consumeTurns(settled, turnCost);
       const seed = deriveIntelSeed(playerId, target.id, idempotencyKey);
-      const nw = calculateNetWorth(target);
+      const businessRows = await loadBusinessNwRowsInTx(tx, [target.id]);
+      const nw = calculatePlayerCanonicalNetWorthWithBusinesses(
+        target,
+        businessRows.get(target.id) ?? [],
+      );
       const intel = buildPlayerIntelSnapshot(
         {
           id: target.id,

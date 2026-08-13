@@ -1,12 +1,14 @@
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { UnauthorizedError } from '@/lib/game-engine/errors';
+import { assertUserNotBanned } from '@/lib/auth/ban-guard';
 
 export async function requireAuth() {
   const session = await auth();
   if (!session?.user?.id) {
     throw new UnauthorizedError();
   }
+  await assertUserNotBanned(session.user.id);
   return session;
 }
 

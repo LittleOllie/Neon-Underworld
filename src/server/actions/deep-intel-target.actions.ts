@@ -11,6 +11,10 @@ import {
 } from '@/lib/game-engine/turns';
 import { buildDeepIntelSnapshot, type DeepIntelSnapshot } from '@/lib/game-engine/combat/deep-intel';
 import { isIntelReportValid, type PlayerIntelSnapshot } from '@/lib/game-engine/combat/eligibility';
+import {
+  calculatePlayerCanonicalNetWorthWithBusinesses,
+  loadBusinessNwRowsInTx,
+} from '@/lib/game-engine/business/net-worth';
 import { CartelService } from '@/server/services/cartel.service';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
@@ -46,25 +50,6 @@ function findValidBasicIntel(
 export async function deepIntelTargetAction(
   targetAlias: string,
   idempotencyKey: string,
-  calculateNetWorth: (player: {
-    id: string;
-    alias: string;
-    cash: number;
-    bankCash: number;
-    thugs: number;
-    prostitutes: number;
-    rides: number;
-    glocks: number;
-    uzis: number;
-    aks: number;
-    hash: number;
-    shrooms: number;
-    coke: number;
-    heroin: number;
-    businesses: number;
-    cartelId: string | null;
-    district: { name: string };
-  }) => number,
 ): Promise<ActionResult<DeepIntelTargetResultData>> {
   try {
     const session = await requirePlayer();
@@ -143,7 +128,11 @@ export async function deepIntelTargetAction(
       }
 
       const { newState } = consumeTurns(settled, turnCost);
-      const nw = calculateNetWorth(target);
+      const businessRows = await loadBusinessNwRowsInTx(tx, [target.id]);
+      const nw = calculatePlayerCanonicalNetWorthWithBusinesses(
+        target,
+        businessRows.get(target.id) ?? [],
+      );
       const deepIntel = buildDeepIntelSnapshot(
         {
           id: target.id,

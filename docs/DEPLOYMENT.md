@@ -26,7 +26,7 @@ In **Settings → Environment Variables** (Production + Preview):
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `APP_URL` | `https://neon-underworld-kappa.vercel.app` |
 | `PLAYTEST_TURNS` | Optional — set to `true` only in non-production playtest environments to enable More → Add Turns. **Omit or leave unset in production.** |
-| `NEXT_PUBLIC_PLAYTEST_TURNS` | Optional — set to `true` alongside `PLAYTEST_TURNS` to show the Add Turns link in the More menu (client UI). |
+| `NEXT_PUBLIC_PLAYTEST_TURNS` | Optional — set to `true` alongside `PLAYTEST_TURNS` to show the Add Turns link in the More menu (client UI). Both must be `true` to enable. |
 
 ## First deploy checklist
 

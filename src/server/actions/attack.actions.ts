@@ -6,7 +6,6 @@ import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import {
   resolveAttackEncounter,
-  type NetWorthCalculator,
 } from '@/server/services/combat.service';
 import type { ActionResult } from './auth.actions';
 import type { AttackType } from '@/config/game/attack-rules';
@@ -42,7 +41,6 @@ export async function launchAttackAction(
   attackType: AttackType,
   attackingThugs: number,
   idempotencyKey: string,
-  calculateNetWorth: NetWorthCalculator,
 ): Promise<ActionResult<AttackLaunchResult>> {
   try {
     const session = await requirePlayer();
@@ -63,7 +61,6 @@ export async function launchAttackAction(
       parsed.data.attackType,
       parsed.data.attackingThugs,
       parsed.data.idempotencyKey,
-      calculateNetWorth,
     );
 
     return {
@@ -105,7 +102,6 @@ export async function launchDirectAttackAction(
   attackType: AttackType,
   attackingThugs: number,
   idempotencyKey: string,
-  calculateNetWorth: NetWorthCalculator,
 ): Promise<ActionResult<AttackLaunchResult>> {
   try {
     const session = await requirePlayer();
@@ -126,7 +122,6 @@ export async function launchDirectAttackAction(
       parsed.data.attackType,
       parsed.data.attackingThugs,
       parsed.data.idempotencyKey,
-      calculateNetWorth,
     );
 
     return {

@@ -267,7 +267,7 @@ export const EmpireService = {
     });
 
     const inventory = toInventoryRow(player);
-    const netWorth = NetWorthService.calculateFromPlayer(player);
+    const netWorth = await NetWorthService.calculateFromPlayerAsync(player);
     const weapons = buildWeaponsBreakdown(inventory);
     const vehicles = buildVehiclesBreakdown(inventory);
     const drugs = buildDrugsBreakdown(inventory);

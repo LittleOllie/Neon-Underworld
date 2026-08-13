@@ -12,9 +12,9 @@ describe('playtest turns safety', () => {
     else process.env.NEXT_PUBLIC_PLAYTEST_TURNS = originalPublic;
   });
 
-  it('is enabled by default when env unset', () => {
+  it('is disabled when env unset (production-safe default)', () => {
     delete process.env.PLAYTEST_TURNS;
-    expect(isPlaytestTurnsEnabled()).toBe(true);
+    expect(isPlaytestTurnsEnabled()).toBe(false);
   });
 
   it('is disabled when env is false', () => {
@@ -22,13 +22,18 @@ describe('playtest turns safety', () => {
     expect(isPlaytestTurnsEnabled()).toBe(false);
   });
 
-  it('is enabled when explicitly true', () => {
+  it('is enabled only when explicitly true', () => {
     process.env.PLAYTEST_TURNS = 'true';
     expect(isPlaytestTurnsEnabled()).toBe(true);
   });
 
-  it('shows nav by default when public env unset', () => {
+  it('hides nav when public env unset', () => {
     delete process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
+    expect(isPlaytestTurnsNavVisible()).toBe(false);
+  });
+
+  it('shows nav only when public env is true', () => {
+    process.env.NEXT_PUBLIC_PLAYTEST_TURNS = 'true';
     expect(isPlaytestTurnsNavVisible()).toBe(true);
   });
 

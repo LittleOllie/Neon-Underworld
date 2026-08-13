@@ -73,7 +73,7 @@ describe('navigation shell config', () => {
     expect(MORE_ITEMS.some((n) => n.href === '/reports')).toBe(true);
     expect(MORE_ITEMS.some((n) => n.href === '/attack')).toBe(true);
     expect(MORE_ITEMS.some((n) => n.href === '/rankings')).toBe(true);
-    expect(MORE_ITEMS.some((n) => n.href === '/playtest/turns')).toBe(true);
+    expect(MORE_ITEMS.some((n) => n.href === '/playtest/turns')).toBe(false);
   });
 
   it('marks active routes correctly', () => {

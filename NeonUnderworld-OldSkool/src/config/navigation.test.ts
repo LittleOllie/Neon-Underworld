@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   MOBILE_NAV,
   DESKTOP_NAV,
@@ -50,7 +50,6 @@ describe('MORE menu structure', () => {
       'Shop',
       'Market',
       'Travel',
-      'Add Turns',
     ]);
     expect(sections[1]?.items.map((item) => item.label)).toEqual([
       'Businesses',
@@ -75,5 +74,14 @@ describe('MORE menu structure', () => {
     const sections = buildMoreMenuSections({ unreadReports: 0 });
     const reports = sections[1]?.items.find((item) => item.label === 'Reports');
     expect(reports?.badge).toBeUndefined();
+  });
+
+  it('includes Add Turns only when playtest nav flag is true', () => {
+    const original = process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
+    process.env.NEXT_PUBLIC_PLAYTEST_TURNS = 'true';
+    const withPlaytest = buildMoreMenuSections();
+    expect(withPlaytest[0]?.items.some((item) => item.label === 'Add Turns')).toBe(true);
+    if (original === undefined) delete process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
+    else process.env.NEXT_PUBLIC_PLAYTEST_TURNS = original;
   });
 });

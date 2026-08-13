@@ -10,7 +10,11 @@ import {
   type CanonicalNetWorthBusinessContext,
   type CanonicalNetWorthInput,
 } from '@core/lib/game-engine/canonical-net-worth';
-import { loadBusinessNwContext } from '@core/lib/game-engine/business/net-worth';
+import {
+  calculatePlayerCanonicalNetWorthWithBusinesses,
+  calculatePlayersCanonicalNetWorthMap,
+  loadBusinessNwContext,
+} from '@core/lib/game-engine/business/net-worth';
 import { EmpireService } from './empire.service';
 
 export type { CanonicalNetWorthInput as NetWorthInput };
@@ -48,18 +52,13 @@ function toNetWorthInput(
   };
 }
 
-async function businessContextForPlayer(
-  player: PlayerNetWorthRecord,
-): Promise<Omit<CanonicalNetWorthBusinessContext, 'streetWorkers'>> {
-  return loadBusinessNwContext(player.id);
-}
-
-/** Authoritative net-worth service — all rankings, header, attack eligibility use this. */
+/** Authoritative net-worth service — rankings, header, combat, intel, profiles. */
 export const NetWorthService = {
   calculate(input: CanonicalNetWorthInput): number {
     return calculateCanonicalNetWorth(input);
   },
 
+  /** Business-aware when context supplied; otherwise street-only (avoid for gameplay paths). */
   calculateFromPlayer(
     player: PlayerNetWorthRecord,
     businessContext?: Omit<CanonicalNetWorthBusinessContext, 'streetWorkers'>,
@@ -75,56 +74,15 @@ export const NetWorthService = {
     return calculateCanonicalNetWorthFromPlayer(player);
   },
 
+  /** Preferred single-player NW — loads business context from DB. */
   async calculateFromPlayerAsync(player: PlayerNetWorthRecord): Promise<number> {
-    try {
-      const ctx = await businessContextForPlayer(player);
-      return this.calculateFromPlayer(player, ctx);
-    } catch {
-      return this.calculateFromPlayer(player);
-    }
+    const ctx = await loadBusinessNwContext(player.id);
+    return this.calculateFromPlayer(player, ctx);
   },
 
+  /** Batch NW for rankings and attack target lists — same formula as async single-player. */
   async calculateForPlayers(players: PlayerNetWorthRecord[]): Promise<Map<string, number>> {
-    if (players.length === 0) return new Map();
-
-    const playerIds = players.map((p) => p.id);
-    let allBusinesses: Array<{ playerId: string } & BusinessNwSelect> = [];
-
-    try {
-      allBusinesses = await prisma.business.findMany({
-        where: { playerId: { in: playerIds } },
-        select: { playerId: true, ...BUSINESS_NW_SELECT },
-      });
-    } catch {
-      const map = new Map<string, number>();
-      for (const player of players) {
-        map.set(player.id, this.calculateFromPlayer(player));
-      }
-      return map;
-    }
-
-    const byPlayer = new Map<string, typeof allBusinesses>();
-    for (const row of allBusinesses) {
-      const list = byPlayer.get(row.playerId) ?? [];
-      list.push(row);
-      byPlayer.set(row.playerId, list);
-    }
-
-    const map = new Map<string, number>();
-    for (const player of players) {
-      const rows = byPlayer.get(player.id) ?? [];
-      const ctx = aggregateBusinessNwContext(rows);
-      map.set(
-        player.id,
-        calculateCanonicalNetWorthFromPlayer(player, {
-          streetWorkers: player.prostitutes,
-          assignedWorkers: ctx.assignedWorkers,
-          assignedSecurityThugs: ctx.assignedSecurityThugs,
-          businessStreetAssets: ctx.businessStreetAssets,
-        }),
-      );
-    }
-    return map;
+    return calculatePlayersCanonicalNetWorthMap(players);
   },
 
   toInput(
@@ -133,4 +91,14 @@ export const NetWorthService = {
   ): CanonicalNetWorthInput {
     return toNetWorthInput(player, businessContext);
   },
+
+  calculateWithBusinessRows(
+    player: PlayerNetWorthRecord,
+    businesses: BusinessNwSelect[],
+  ): number {
+    return calculatePlayerCanonicalNetWorthWithBusinesses(player, businesses);
+  },
+
+  aggregateBusinessNwContext,
+  BUSINESS_NW_SELECT,
 };

@@ -81,6 +81,7 @@ async function loadPlayerRecord(playerId: string) {
 function buildCanonicalContext(
   player: Awaited<ReturnType<typeof loadPlayerRecord>>,
   rank: number,
+  netWorth: number,
 ): CanonicalPlayerContext {
   if (!player.turnState) {
     throw new Error('Player turn state missing');
@@ -93,7 +94,6 @@ function buildCanonicalContext(
     regenerationRatePerMs: player.turnState.regenerationRate,
   });
 
-  const netWorth = NetWorthService.calculateFromPlayer(player);
   const seasonDisplay = formatSeasonStatus(
     player.season.number,
     player.season.startsAt,
@@ -189,8 +189,11 @@ const getCanonicalContextCached = cache(async (playerId: string): Promise<Canoni
     player.bankCash = 0;
   }
 
-  const rank = await rankPromise;
-  return buildCanonicalContext(player, rank);
+  const [rank, netWorth] = await Promise.all([
+    rankPromise,
+    NetWorthService.calculateFromPlayerAsync(player),
+  ]);
+  return buildCanonicalContext(player, rank, netWorth);
 });
 
 export const PlayerService = {

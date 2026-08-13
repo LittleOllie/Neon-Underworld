@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@local/lib/auth/config';
+import { assertUserNotBanned } from '@core/lib/auth/ban-guard';
 import { PlayerService, type CanonicalPlayerContext } from '@local/server/services/player.service';
 import { RankingsService } from '@local/server/services/rankings.service';
 import { ReportService, getUnreadReportCount } from '@local/server/services/report.service';
@@ -15,6 +16,7 @@ export const requireGameSession = cache(async (): Promise<{
 }> => {
   const session = await auth();
   if (!session?.user?.playerId) redirect('/login');
+  await assertUserNotBanned(session.user.id);
   const ctx = await PlayerService.getCanonicalContext(session.user.playerId);
   return { playerId: session.user.playerId, ctx };
 });
