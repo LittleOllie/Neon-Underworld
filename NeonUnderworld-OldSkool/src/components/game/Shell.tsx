@@ -12,9 +12,12 @@ import { GameMainTransition } from './GameMainTransition';
 import { GamePageBackground } from './GamePageBackground';
 import { PlayerShellRefresh } from './PlayerShellRefresh';
 import { PlayerShellProvider, usePlayerShell } from './PlayerShellProvider';
-import { AvatarThemeProvider } from './AvatarThemeProvider';
 import { IdentityGate } from './IdentityGate';
 import { PlayerAvatar } from './PlayerAvatar';
+import {
+  avatarThemeCssVars,
+  resolvePlayerAvatarConfig,
+} from '@core/lib/game-engine/resolve-player-avatar';
 
 export type { GlobalStats };
 
@@ -33,11 +36,16 @@ function GameShellFrame({
   const { stats } = usePlayerShell();
   const resolvedBackground = background ?? getBackgroundForPath(pathname);
   const onIdentityRoute = pathname.startsWith('/identity');
+  const themeConfig = resolvePlayerAvatarConfig(avatarId);
+  const shellThemeStyle = avatarThemeCssVars(themeConfig) as React.CSSProperties;
 
   return (
-    <AvatarThemeProvider avatarId={avatarId}>
-      <IdentityGate avatarPending={avatarPending}>
-        <div className={`g-shell${resolvedBackground ? ' g-shell--bg' : ''}`}>
+    <IdentityGate avatarPending={avatarPending}>
+      <div
+        className={`g-shell${resolvedBackground ? ' g-shell--bg' : ''}`}
+        style={shellThemeStyle}
+        data-avatar-theme={themeConfig.id}
+      >
           {resolvedBackground && (
             <GamePageBackground key={resolvedBackground} background={resolvedBackground} />
           )}
@@ -71,9 +79,8 @@ function GameShellFrame({
           </main>
           {!onIdentityRoute && <PlayerShellRefresh />}
           <footer className="g-footer">Neon Underworld · OldSkool Edition</footer>
-        </div>
-      </IdentityGate>
-    </AvatarThemeProvider>
+      </div>
+    </IdentityGate>
   );
 }
 

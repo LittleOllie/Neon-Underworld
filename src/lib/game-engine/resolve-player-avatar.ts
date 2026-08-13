@@ -28,9 +28,13 @@ export function avatarThemeCssVars(config: PlayerAvatarConfig): Record<string, s
     '--nu-accent-glow': config.glow,
     '--nu-accent-muted': config.muted,
     '--nu-accent-muted-strong': config.mutedStrong,
+    /* Legacy NU tokens — map gold/link aliases so all surfaces inherit avatar colour. */
     '--os-gold': config.primary,
     '--os-gold-dark': config.secondary,
     '--os-highlight': config.muted,
     '--os-highlight-strong': config.mutedStrong,
+    '--os-link': config.primary,
+    '--game-gold': config.primary,
+    '--game-gold-dark': config.secondary,
   };
 }
