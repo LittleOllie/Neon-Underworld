@@ -11,7 +11,7 @@ const ROUTE_LOADING: Record<string, string> = {
   '/market': 'Opening Market…',
   '/cartels': 'Loading Cartel Network…',
   '/reports': 'Retrieving Reports…',
-  '/guides': 'Loading Guides…',
+  '/guides': 'Loading How to Play…',
   '/how-to-play': 'Loading Guide…',
 };
 

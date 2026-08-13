@@ -36,18 +36,11 @@ export function BusinessHeatSummary({ operations, variant = 'home' }: Props) {
         </div>
       ))}
 
-      {variant === 'empire' ? (
-        <>
-          <div className="g-business-heat-meta">
-            <span>{operations.assignedWorkers.toLocaleString()} Workers assigned</span>
-            <span>Safe ${operations.safeBalance.toLocaleString()}</span>
-          </div>
-        </>
+      {variant === 'home' ? (
+        <Link href="/businesses" className="g-business-heat-link">
+          Manage Businesses →
+        </Link>
       ) : null}
-
-      <Link href="/businesses" className="g-business-heat-link">
-        Manage Businesses →
-      </Link>
     </section>
   );
 }

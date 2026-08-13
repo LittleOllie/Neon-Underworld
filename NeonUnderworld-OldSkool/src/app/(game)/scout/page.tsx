@@ -2,9 +2,23 @@ import { PageTitle } from '@local/components/game';
 import { RoutePrefetch } from '@local/components/game/RoutePrefetch';
 import { requireGameSession } from '@local/lib/game-context';
 import { ScoutForm } from '@local/features/scout/ScoutForm';
+import {
+  REDLITE_SCOUT_AREAS,
+  type RedliteScoutAreaSlug,
+} from '@core/config/game/redlite-rules';
 
-export default async function ScoutPage() {
+const SCOUT_AREA_SLUGS = new Set<string>(REDLITE_SCOUT_AREAS.map((a) => a.slug));
+
+interface Props {
+  searchParams: Promise<{ turns?: string; area?: string }>;
+}
+
+export default async function ScoutPage({ searchParams }: Props) {
   const { ctx } = await requireGameSession();
+  const params = await searchParams;
+
+  const prefilledTurns = parsePositiveInt(params.turns);
+  const prefilledArea = parseArea(params.area);
 
   return (
     <>
@@ -17,7 +31,21 @@ export default async function ScoutPage() {
         thugHappiness={ctx.thugHappiness.score}
         prostituteCount={ctx.prostitutes}
         thugCount={ctx.thugs}
+        prefilledTurns={prefilledTurns}
+        prefilledArea={prefilledArea}
       />
     </>
   );
+}
+
+function parsePositiveInt(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n;
+}
+
+function parseArea(raw: string | undefined): RedliteScoutAreaSlug | undefined {
+  if (!raw || !SCOUT_AREA_SLUGS.has(raw)) return undefined;
+  return raw as RedliteScoutAreaSlug;
 }

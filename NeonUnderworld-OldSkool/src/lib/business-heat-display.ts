@@ -14,10 +14,25 @@ export type BusinessHeatSite = {
   heatLabel: string;
 };
 
+export type BusinessSafeFullSite = {
+  id: string;
+  name: string;
+  safeCash: number;
+  safeCapacity: number;
+};
+
 export type BusinessOperationsSummary = {
   owned: number;
+  maxOwned?: number;
   assignedWorkers: number;
+  assignedSecurityThugs?: number;
   safeBalance: number;
+  totalStoredDrugs?: number;
+  safeFullCount?: number;
+  safeFullSites?: BusinessSafeFullSite[];
+  overCapacityCount?: number;
+  criticalHeatCount?: number;
+  criticalHeatSites?: Array<{ id: string; name: string }>;
   overallHeat: string;
   overallHeatScore: number;
   sites: BusinessHeatSite[];

@@ -23,6 +23,7 @@ export { StatusValue, StatusValueFromLabel } from './StatusValue';
 export { SimpleTabs } from './SimpleTabs';
 export { PageTitle } from './PageTitle';
 export { Divider } from './Divider';
+export { FirstMoveCard } from './FirstMoveCard';
 export { GameIcon } from './GameIcon';
 export { ButtonContent } from './ButtonContent';
 export { GameLabel, GameValue, LabelValueRow } from './GameValue';

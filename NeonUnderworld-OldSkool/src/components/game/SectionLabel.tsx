@@ -1,3 +1,7 @@
-export function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <h2 className="g-section-label">{children}</h2>;
+export function SectionLabel({ children, id }: { children: React.ReactNode; id?: string }) {
+  return (
+    <h2 className="g-section-label" id={id}>
+      {children}
+    </h2>
+  );
 }

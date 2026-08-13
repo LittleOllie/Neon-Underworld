@@ -418,6 +418,7 @@ export const ReportService = {
       attackType: AttackType;
       outcome: string;
       cashStolen: number;
+      workersStolen: number;
       createdAt: Date;
     }>
   > {
@@ -443,6 +444,7 @@ export const ReportService = {
           attackType: snapshot.attackType,
           outcome: snapshot.outcome,
           cashStolen: snapshot.cashStolen ?? 0,
+          workersStolen: snapshot.workersStolen ?? 0,
           createdAt: r.createdAt,
         };
       })
@@ -450,6 +452,53 @@ export const ReportService = {
       .slice(0, limit);
 
     return alerts;
+  },
+
+  async getUnreadSystemAttentionReports(
+    playerId: string,
+    limit = 5,
+  ): Promise<
+    Array<{
+      reportId: string;
+      type: 'POLICE_RAID' | 'BUSINESS_UPGRADE_COMPLETE';
+      title: string;
+      summary: string;
+      businessId?: string;
+      businessName?: string;
+      toLevel?: number;
+      createdAt: Date;
+    }>
+  > {
+    const rows = await prisma.report.findMany({
+      where: { playerId, read: false, category: 'SYSTEM' },
+      orderBy: { createdAt: 'desc' },
+      take: limit * 3,
+    });
+
+    return rows
+      .map((r) => {
+        const meta = r.metadata as {
+          type?: string;
+          businessId?: string;
+          businessName?: string;
+          toLevel?: number;
+        } | null;
+        if (meta?.type !== 'POLICE_RAID' && meta?.type !== 'BUSINESS_UPGRADE_COMPLETE') {
+          return null;
+        }
+        return {
+          reportId: r.id,
+          type: meta.type as 'POLICE_RAID' | 'BUSINESS_UPGRADE_COMPLETE',
+          title: r.title,
+          summary: r.summary,
+          businessId: meta.businessId,
+          businessName: meta.businessName,
+          toLevel: meta.toLevel,
+          createdAt: r.createdAt,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null)
+      .slice(0, limit);
   },
 
   async getById(reportId: string, playerId: string): Promise<ReportDetail | null> {

@@ -24,6 +24,8 @@ interface ScoutFormProps {
   thugHappiness: number;
   prostituteCount: number;
   thugCount: number;
+  prefilledTurns?: number;
+  prefilledArea?: RedliteScoutAreaSlug;
 }
 
 export function ScoutForm({
@@ -33,13 +35,20 @@ export function ScoutForm({
   thugHappiness,
   prostituteCount,
   thugCount,
+  prefilledTurns,
+  prefilledArea,
 }: ScoutFormProps) {
   const reconcile = useGameplayReconcile();
   const areaDisplays = getScoutAreaDisplays(districtSlug);
+  const defaultTurns = prefilledTurns ?? 25;
+  const defaultArea =
+    prefilledArea && areaDisplays.some((a) => a.slug === prefilledArea)
+      ? prefilledArea
+      : ('streets' as RedliteScoutAreaSlug);
   const [turns, setTurns] = useState(initialTurns);
-  const [amountRaw, setAmountRaw] = useState('25');
-  const [amount, setAmount] = useState(25);
-  const [areaSlug, setAreaSlug] = useState<RedliteScoutAreaSlug>('streets');
+  const [amountRaw, setAmountRaw] = useState(String(defaultTurns));
+  const [amount, setAmount] = useState(defaultTurns);
+  const [areaSlug, setAreaSlug] = useState<RedliteScoutAreaSlug>(defaultArea);
   const selectedArea = areaDisplays.find((area) => area.slug === areaSlug);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

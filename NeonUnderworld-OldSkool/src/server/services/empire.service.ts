@@ -18,6 +18,33 @@ import {
 import { buildEmpireStatusMeters } from '@local/server/domain/status-presentation';
 import { getBusinessEmpireSummary } from '@core/server/services/business-portfolio.service';
 
+function buildPersonnelBreakdown(
+  inventory: PlayerInventoryRow,
+  weapons: ReturnType<typeof buildWeaponsBreakdown>,
+  morale: number,
+  businessOperations: Awaited<ReturnType<typeof getBusinessEmpireSummary>> | null,
+): EmpireManagementData['personnel'] {
+  const streetWorkers = inventory.prostitutes;
+  const streetThugs = inventory.thugs;
+  const businessWorkers = businessOperations?.assignedWorkers ?? 0;
+  const businessSecurity = businessOperations?.assignedSecurityThugs ?? 0;
+
+  return {
+    thugs: streetThugs,
+    workers: streetWorkers,
+    streetWorkers,
+    streetThugs,
+    businessWorkers,
+    businessSecurity,
+    totalWorkers: streetWorkers + businessWorkers,
+    totalThugs: streetThugs + businessSecurity,
+    workerPayoutPercent: inventory.prostitutePayoutPercent,
+    estimatedWorkerMorale: morale,
+    armedThugs: weapons.armedThugs,
+    unarmedThugs: weapons.unarmedThugs,
+  };
+}
+
 type AggregateInput = {
   thugs: number;
   prostitutes: number;
@@ -215,14 +242,7 @@ export const EmpireService = {
         travelDestination: ctx.travelDestination,
         rank: ctx.rank,
       },
-      personnel: {
-        thugs: inventory.thugs,
-        workers: inventory.prostitutes,
-        workerPayoutPercent: inventory.prostitutePayoutPercent,
-        estimatedWorkerMorale: morale,
-        armedThugs: weapons.armedThugs,
-        unarmedThugs: weapons.unarmedThugs,
-      },
+      personnel: buildPersonnelBreakdown(inventory, weapons, morale, businessOperations),
       weapons: {
         totalWeapons: weapons.totalWeapons,
         usableWeapons: weapons.usableWeapons,
@@ -272,6 +292,7 @@ export const EmpireService = {
     const vehicles = buildVehiclesBreakdown(inventory);
     const drugs = buildDrugsBreakdown(inventory);
     const businesses = buildBusinessesBreakdown(inventory);
+    const businessOperations = await getBusinessEmpireSummary(playerId).catch(() => null);
     const morale = estimateWorkerMorale(inventory);
     const supplySummary = buildEmpireSupplySummary(inventory);
     const readiness = calculateOperationalReadiness({
@@ -310,14 +331,7 @@ export const EmpireService = {
         travelDestination: player.travelDestination,
         rank,
       },
-      personnel: {
-        thugs: inventory.thugs,
-        workers: inventory.prostitutes,
-        workerPayoutPercent: inventory.prostitutePayoutPercent,
-        estimatedWorkerMorale: morale,
-        armedThugs: weapons.armedThugs,
-        unarmedThugs: weapons.unarmedThugs,
-      },
+      personnel: buildPersonnelBreakdown(inventory, weapons, morale, businessOperations),
       weapons: {
         totalWeapons: weapons.totalWeapons,
         usableWeapons: weapons.usableWeapons,
@@ -327,7 +341,12 @@ export const EmpireService = {
       },
       vehicles,
       drugs,
-      businesses,
+      businesses: {
+        ...businesses,
+        total: businessOperations?.owned ?? businesses.total,
+        incomeActive: (businessOperations?.owned ?? 0) > 0,
+      },
+      businessOperations,
       finances: {
         cash: player.cash,
         bankCash: player.bankCash,

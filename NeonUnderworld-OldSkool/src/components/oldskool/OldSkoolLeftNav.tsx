@@ -8,7 +8,7 @@ const NAV_MAIN = [
   { href: '/scout', label: 'Scout' },
   { href: '/empire', label: 'Empire' },
   { href: '/rankings', label: 'Rankings' },
-  { href: '/guides', label: 'Guides' },
+  { href: '/how-to-play', label: 'How to Play' },
 ];
 
 const NAV_OPS = [
@@ -22,7 +22,7 @@ const NAV_OPS = [
 
 const NAV_ECON = [
   { href: '/market', label: 'Black Market' },
-  { href: '/coming/businesses', label: 'Businesses', soon: true },
+  { href: '/businesses', label: 'Businesses' },
 ];
 
 const NAV_SOCIAL = [

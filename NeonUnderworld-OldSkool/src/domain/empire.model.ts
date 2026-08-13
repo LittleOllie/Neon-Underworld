@@ -28,8 +28,15 @@ export interface EmpireManagementData {
   };
 
   personnel: {
+    /** Street workers (Scout/Produce). */
     thugs: number;
     workers: number;
+    streetWorkers: number;
+    streetThugs: number;
+    businessWorkers: number;
+    businessSecurity: number;
+    totalWorkers: number;
+    totalThugs: number;
     workerPayoutPercent: number;
     estimatedWorkerMorale: number;
     armedThugs: number;
@@ -88,8 +95,14 @@ export interface EmpireManagementData {
 
   businessOperations?: {
     owned: number;
+    maxOwned?: number;
     assignedWorkers: number;
+    assignedSecurityThugs?: number;
     safeBalance: number;
+    totalStoredDrugs?: number;
+    safeFullCount?: number;
+    overCapacityCount?: number;
+    criticalHeatCount?: number;
     overallHeat: string;
     overallHeatScore: number;
     sites: Array<{

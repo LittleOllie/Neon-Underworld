@@ -9,10 +9,10 @@ const LIVE_ROUTE_REDIRECTS: Record<string, string> = {
   cartels: '/cartels',
   market: '/market',
   travel: '/travel',
+  businesses: '/businesses',
 };
 
 const UNAVAILABLE: Record<string, { title: string; reason: string; icon?: GameIconName }> = {
-  businesses: { title: 'Businesses', reason: 'Coming soon — business income not yet live.' },
   messages: { title: 'Messages', reason: 'Coming soon.' },
   online: { title: 'Online Players', reason: 'Coming soon.' },
 };

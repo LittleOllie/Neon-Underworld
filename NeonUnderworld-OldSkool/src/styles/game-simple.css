@@ -548,6 +548,51 @@
   text-decoration: underline;
 }
 
+.g-first-move {
+  margin: 12px 0 16px;
+  padding: 14px 12px;
+  border: 1px solid rgba(201, 169, 98, 0.35);
+  background: rgba(201, 169, 98, 0.06);
+}
+
+.g-first-move__eyebrow {
+  margin: 0 0 6px;
+  font-size: var(--game-fs-secondary);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--os-gold);
+}
+
+.g-first-move__title {
+  margin: 0 0 8px;
+  font-size: var(--game-fs-heading);
+  color: var(--os-text);
+}
+
+.g-first-move__body,
+.g-first-move__hint {
+  margin: 0 0 8px;
+  font-size: var(--game-fs-body);
+  color: var(--os-text-dim);
+  line-height: 1.45;
+}
+
+.g-first-move__actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.g-attention-more {
+  margin-top: 4px;
+}
+
+.g-empire-hint {
+  margin: 4px 0 10px;
+  font-size: var(--game-fs-secondary);
+  line-height: 1.4;
+}
+
 .g-actions {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

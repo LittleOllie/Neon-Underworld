@@ -28,15 +28,35 @@ export function EmpireSimpleView({ data }: Props) {
   const thugHappy = Math.round(data.statusMeters.thug.stability.value);
   const suppliesLabel = data.statusMeters.worker.supplies.statusText;
   const beerLabel = data.supplySummary.thugs.beer;
+  const ops = data.businessOperations;
 
   return (
     <>
       <SectionHeadingRow
         label={OS_TERMS.workers.toUpperCase()}
-        value={data.personnel.workers.toLocaleString()}
+        value={data.personnel.totalWorkers.toLocaleString()}
         icon="workers"
       />
-      <StatusBar label="Happiness" percent={workerHappy} />
+      <StatRow label="Total" value={data.personnel.totalWorkers.toLocaleString()} />
+      <StatRow label="Street" value={data.personnel.streetWorkers.toLocaleString()} />
+      <StatRow
+        label="Business"
+        value={
+          data.personnel.businessWorkers > 0 ? (
+            <Link href="/businesses" className="g-empire-shop-link">
+              {data.personnel.businessWorkers.toLocaleString()}
+            </Link>
+          ) : (
+            data.personnel.businessWorkers.toLocaleString()
+          )
+        }
+        valueTone="inherit"
+      />
+      <p className="g-note g-empire-hint">
+        Street Workers earn Scout and Produce income. Business Workers generate passive business
+        income and cannot do street work.
+      </p>
+      <StatusBar label="Street happiness" percent={workerHappy} />
       <StatRow label="Payout" value={`${data.personnel.workerPayoutPercent}%`} />
       <StatRow
         label="Supplies"
@@ -53,13 +73,32 @@ export function EmpireSimpleView({ data }: Props) {
 
       <SectionHeadingRow
         label={OS_TERMS.thugs.toUpperCase()}
-        value={data.personnel.thugs.toLocaleString()}
+        value={data.personnel.totalThugs.toLocaleString()}
         icon="thugs"
       />
-      <StatusBar label="Happiness" percent={thugHappy} />
+      <StatRow label="Total" value={data.personnel.totalThugs.toLocaleString()} />
+      <StatRow label="Street" value={data.personnel.streetThugs.toLocaleString()} />
       <StatRow
-        label="Armed"
-        value={`${data.personnel.armedThugs} / ${data.personnel.thugs}`}
+        label="Business Security"
+        value={
+          data.personnel.businessSecurity > 0 ? (
+            <Link href="/businesses" className="g-empire-shop-link">
+              {data.personnel.businessSecurity.toLocaleString()}
+            </Link>
+          ) : (
+            data.personnel.businessSecurity.toLocaleString()
+          )
+        }
+        valueTone="inherit"
+      />
+      <p className="g-note g-empire-hint">
+        Street Thugs fight, Produce, and protect Workers. Security Thugs protect Businesses and are
+        unavailable for street actions.
+      </p>
+      <StatusBar label="Street happiness" percent={thugHappy} />
+      <StatRow
+        label="Armed (street)"
+        value={`${data.personnel.armedThugs} / ${data.personnel.streetThugs}`}
       />
       <StatRow
         label="Beer"
@@ -72,9 +111,31 @@ export function EmpireSimpleView({ data }: Props) {
         valueTone="inherit"
       />
 
-      {data.businessOperations ? (
-        <BusinessHeatSummary operations={data.businessOperations} variant="empire" />
+      {ops && ops.owned > 0 ? (
+        <>
+          <Divider />
+          <SectionLabel>BUSINESSES</SectionLabel>
+          <StatRow
+            label="Owned"
+            value={`${ops.owned.toLocaleString()} / ${(ops.maxOwned ?? 8).toLocaleString()}`}
+          />
+          <StatRow label="Workers assigned" value={ops.assignedWorkers.toLocaleString()} />
+          <StatRow
+            label="Security assigned"
+            value={(ops.assignedSecurityThugs ?? 0).toLocaleString()}
+          />
+          <StatRow label="Safe cash" value={`$${ops.safeBalance.toLocaleString()}`} />
+          {ops.totalStoredDrugs != null ? (
+            <StatRow label="Stored drugs" value={ops.totalStoredDrugs.toLocaleString()} />
+          ) : null}
+          <StatRow label="Highest heat" value={ops.overallHeat} />
+          <Link href="/businesses" className="g-business-heat-link">
+            Manage Businesses →
+          </Link>
+        </>
       ) : null}
+
+      {ops ? <BusinessHeatSummary operations={ops} variant="empire" /> : null}
 
       <Divider />
 

@@ -32,7 +32,7 @@ describe('collectAttentionItems', () => {
       brief: { armedThugs: 5, unarmedThugs: 3, bankCash: 0, readinessWarningCount: 2 },
       unreadCount: 0,
     });
-    expect(items.some((i) => i.value === '3' && i.label?.includes('thugs are unarmed'))).toBe(true);
+    expect(items.some((i) => i.value === '3' && i.label?.includes('street thug'))).toBe(true);
     expect(items.some((i) => i.label?.includes('readiness note'))).toBe(false);
   });
 
@@ -73,7 +73,8 @@ describe('navigation shell config', () => {
     expect(MORE_ITEMS.some((n) => n.href === '/reports')).toBe(true);
     expect(MORE_ITEMS.some((n) => n.href === '/attack')).toBe(true);
     expect(MORE_ITEMS.some((n) => n.href === '/rankings')).toBe(true);
-    expect(MORE_ITEMS.some((n) => n.href === '/playtest/turns')).toBe(false);
+    expect(MORE_ITEMS.some((n) => n.href === '/how-to-play')).toBe(true);
+    expect(MORE_ITEMS.some((n) => n.href === '/guides')).toBe(false);
   });
 
   it('marks active routes correctly', () => {

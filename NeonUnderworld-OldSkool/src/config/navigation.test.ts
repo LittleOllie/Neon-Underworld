@@ -59,7 +59,6 @@ describe('MORE menu structure', () => {
     ]);
     expect(sections[2]?.items.map((item) => item.label)).toEqual([
       'How to Play',
-      'Guides',
       'Logout',
     ]);
   });

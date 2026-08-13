@@ -9,6 +9,8 @@ import { EmpireService } from '@local/server/services/empire.service';
 import type { GlobalStats } from '@local/components/game/Shell';
 import type { AttentionItem } from '@local/lib/attention-items';
 import { collectAttentionItems, prioritizeAttentionItems } from '@local/lib/attention-items';
+import { getBusinessEmpireSummary } from '@core/server/services/business-portfolio.service';
+import { getPendingCartelInvites } from '@local/server/services/cartel-attention.service';
 
 export const requireGameSession = cache(async (): Promise<{
   playerId: string;
@@ -22,12 +24,45 @@ export const requireGameSession = cache(async (): Promise<{
 });
 
 export async function buildAttentionItems(ctx: CanonicalPlayerContext): Promise<AttentionItem[]> {
-  const [unreadCount, defenceAlerts] = await Promise.all([
-    getUnreadReportCount(ctx.id),
-    ReportService.getUnreadDefenceAlerts(ctx.id, 5),
-  ]);
+  const bundle = await loadAttentionBundle(ctx);
+  return bundle.items;
+}
+
+export async function loadAttentionBundle(ctx: CanonicalPlayerContext): Promise<{
+  items: AttentionItem[];
+  businessOperations: Awaited<ReturnType<typeof getBusinessEmpireSummary>> | null;
+}> {
+  const loadBusiness = ctx.businesses > 0;
+
+  const [unreadCount, defenceAlerts, systemReports, cartelInvites, businessOperations] =
+    await Promise.all([
+      getUnreadReportCount(ctx.id),
+      ReportService.getUnreadDefenceAlerts(ctx.id, 5),
+      ReportService.getUnreadSystemAttentionReports(ctx.id, 5),
+      getPendingCartelInvites(ctx.id, 3),
+      loadBusiness ? getBusinessEmpireSummary(ctx.id).catch(() => null) : Promise.resolve(null),
+    ]);
+
   const brief = EmpireService.buildCommandBrief(ctx);
-  return collectAttentionItems({ ctx, brief, unreadCount, defenceAlerts });
+  const items = collectAttentionItems({
+    ctx,
+    brief,
+    unreadCount,
+    extras: {
+      defenceAlerts,
+      systemReports,
+      cartelInvites,
+      businessOperations,
+    },
+  });
+
+  return { items, businessOperations };
+}
+
+/** Business summary for Empire page. */
+export async function loadBusinessOperationsSummary(ctx: CanonicalPlayerContext) {
+  if (ctx.businesses <= 0) return null;
+  return getBusinessEmpireSummary(ctx.id).catch(() => null);
 }
 
 export { prioritizeAttentionItems };

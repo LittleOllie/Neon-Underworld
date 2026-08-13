@@ -90,10 +90,7 @@ export function buildMoreMenuSections(counts?: { unreadReports?: number }): More
     {
       id: 'help',
       label: 'Help',
-      items: [
-        { href: '/how-to-play', label: 'How to Play', icon: 'guides' },
-        { href: '/guides', label: 'Guides', icon: 'guides' },
-      ],
+      items: [{ href: '/how-to-play', label: 'How to Play', icon: 'guides' }],
     },
   ];
 
