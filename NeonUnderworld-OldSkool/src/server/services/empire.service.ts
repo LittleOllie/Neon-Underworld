@@ -16,6 +16,7 @@ import {
   type PlayerInventoryRow,
 } from '@local/server/domain/empire-calculations';
 import { buildEmpireStatusMeters } from '@local/server/domain/status-presentation';
+import { getBusinessEmpireSummary } from '@core/server/services/business-portfolio.service';
 
 type AggregateInput = {
   thugs: number;
@@ -177,6 +178,7 @@ export const EmpireService = {
     const vehicles = buildVehiclesBreakdown(inventory);
     const drugs = buildDrugsBreakdown(inventory);
     const businesses = buildBusinessesBreakdown(inventory);
+    const businessOperations = await getBusinessEmpireSummary(ctx.id).catch(() => null);
     const morale = estimateWorkerMorale(inventory);
     const supplySummary = buildEmpireSupplySummary(inventory);
     const readiness = calculateOperationalReadiness({
@@ -230,7 +232,12 @@ export const EmpireService = {
       },
       vehicles,
       drugs,
-      businesses,
+      businesses: {
+        ...businesses,
+        total: businessOperations?.owned ?? businesses.total,
+        incomeActive: (businessOperations?.owned ?? 0) > 0,
+      },
+      businessOperations,
       finances: {
         cash: ctx.cash,
         bankCash: ctx.bankCash,

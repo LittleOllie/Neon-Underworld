@@ -76,6 +76,7 @@ export function buildMoreMenuSections(counts?: { unreadReports?: number }): More
       id: 'underworld',
       label: 'Underworld',
       items: [
+        { href: '/businesses', label: 'Businesses', icon: 'market' },
         { href: '/cartels', label: 'Cartels', icon: 'cartel' },
         { href: '/rankings', label: 'Rankings', icon: 'rankings' },
         {

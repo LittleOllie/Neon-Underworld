@@ -26,8 +26,8 @@ describe('NetWorthService — canonical consistency', () => {
     expect(fromService).toBe(fromCore);
   });
 
-  it('rankings batch matches per-player calculation', () => {
-    const batch = NetWorthService.calculateForPlayers([player]);
+  it('rankings batch matches per-player calculation', async () => {
+    const batch = await NetWorthService.calculateForPlayers([player]);
     expect(batch.get(player.id)).toBe(NetWorthService.calculateFromPlayer(player));
   });
 });

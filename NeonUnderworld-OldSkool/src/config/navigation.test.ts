@@ -53,6 +53,7 @@ describe('MORE menu structure', () => {
       'Add Turns',
     ]);
     expect(sections[1]?.items.map((item) => item.label)).toEqual([
+      'Businesses',
       'Cartels',
       'Rankings',
       'Reports',

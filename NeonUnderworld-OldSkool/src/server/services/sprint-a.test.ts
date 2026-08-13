@@ -24,9 +24,9 @@ function samplePlayer(overrides: Partial<PlayerNetWorthRecord> = {}): PlayerNetW
 }
 
 describe('NetWorthService batch calculation', () => {
-  it('calculateForPlayers matches single-player calculation', () => {
+  it('calculateForPlayers matches single-player calculation', async () => {
     const players = [samplePlayer({ id: 'a' }), samplePlayer({ id: 'b', cash: 20000 })];
-    const batch = NetWorthService.calculateForPlayers(players);
+    const batch = await NetWorthService.calculateForPlayers(players);
     for (const p of players) {
       expect(batch.get(p.id)).toBe(NetWorthService.calculateFromPlayer(p));
     }

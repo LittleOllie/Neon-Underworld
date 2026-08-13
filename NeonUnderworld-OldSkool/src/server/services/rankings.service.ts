@@ -66,7 +66,7 @@ async function computePlayerRank(playerId: string, seasonId: string): Promise<nu
     orderBy: { createdAt: 'asc' },
   });
 
-  const netWorthMap = NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
+  const netWorthMap = await NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
   const ranked = players
     .map((p) => ({
       id: p.id,
@@ -108,7 +108,7 @@ async function computeSeasonRankings(
     orderBy: { createdAt: 'asc' },
   });
 
-  const netWorthMap = NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
+  const netWorthMap = await NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
 
   const enriched = players.map((p) => {
     const lastSeen = PlayerStatusService.resolveLastSeen(

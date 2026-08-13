@@ -24,6 +24,8 @@ export interface CanonicalNetWorthInput {
   workers: number;
   vehicles: number;
   drugs: number;
+  /** 50% of business purchase prices — Street NW insulation layer */
+  businessStreetAssets?: number;
   /** Ignored for net worth — kept for empire display compatibility */
   businesses?: number;
 }
@@ -49,16 +51,41 @@ export function calculateCanonicalNetWorth(input: CanonicalNetWorthInput): numbe
   total += input.workers * CANONICAL_NET_WORTH_VALUATIONS.worker;
   total += input.vehicles * CANONICAL_NET_WORTH_VALUATIONS.vehicle;
   total += input.drugs * CANONICAL_NET_WORTH_VALUATIONS.drugUnit;
+  total += input.businessStreetAssets ?? 0;
   return Math.floor(total);
 }
 
-export function calculateCanonicalNetWorthFromPlayer(player: CanonicalNetWorthPlayerRecord): number {
+export interface CanonicalNetWorthBusinessContext {
+  /** Street-available workers (Player.prostitutes). */
+  streetWorkers: number;
+  /** Sum of workers assigned to businesses. */
+  assignedWorkers: number;
+  /** Sum of floor(purchasePrice * 0.5) for owned businesses. */
+  businessStreetAssets: number;
+}
+
+export function totalOwnedWorkers(ctx: Pick<CanonicalNetWorthBusinessContext, 'streetWorkers' | 'assignedWorkers'>): number {
+  return ctx.streetWorkers + ctx.assignedWorkers;
+}
+
+export function calculateCanonicalNetWorthFromPlayer(
+  player: CanonicalNetWorthPlayerRecord,
+  businessContext?: CanonicalNetWorthBusinessContext,
+): number {
+  const streetWorkers = businessContext?.streetWorkers ?? player.prostitutes;
+  const assignedWorkers = businessContext?.assignedWorkers ?? 0;
   return calculateCanonicalNetWorth({
     cash: player.cash,
     bankCash: player.bankCash,
     thugs: player.thugs,
-    workers: player.prostitutes,
+    workers: streetWorkers + assignedWorkers,
     vehicles: player.rides,
     drugs: player.hash + player.shrooms + player.coke + player.heroin,
+    businessStreetAssets: businessContext?.businessStreetAssets ?? 0,
   });
+}
+
+/** @deprecated Prefer calculateCanonicalNetWorthFromPlayer with businessContext when businesses exist. */
+export function calculateCanonicalNetWorthFromPlayerLegacy(player: CanonicalNetWorthPlayerRecord): number {
+  return calculateCanonicalNetWorthFromPlayer(player);
 }

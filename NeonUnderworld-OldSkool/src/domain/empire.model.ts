@@ -86,6 +86,13 @@ export interface EmpireManagementData {
     }>;
   };
 
+  businessOperations?: {
+    owned: number;
+    assignedWorkers: number;
+    safeBalance: number;
+    overallHeat: string;
+  } | null;
+
   finances: {
     cash: number;
     bankCash: number;

@@ -162,6 +162,29 @@ export const cartelArmouryPurchaseSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
+export const businessPurchaseSchema = z.object({
+  businessType: z.enum(['NIGHTCLUB', 'WAREHOUSE', 'DRUG_LAB']),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const businessWorkerSchema = z.object({
+  businessId: z.string().min(1),
+  quantity: z.coerce.number().int().min(1),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const businessCollectSchema = z.object({
+  businessId: z.string().min(1),
+  idempotencyKey: z.string().uuid(),
+});
+
+export const businessDrugTransferSchema = z.object({
+  businessId: z.string().min(1),
+  drug: z.enum(['hash', 'shrooms', 'coke', 'heroin']),
+  quantity: z.coerce.number().int().min(1),
+  idempotencyKey: z.string().uuid(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;

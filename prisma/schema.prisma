@@ -86,6 +86,12 @@ enum AttackType {
   POACH_WORKERS
 }
 
+enum BusinessType {
+  NIGHTCLUB
+  WAREHOUSE
+  DRUG_LAB
+}
+
 enum CombatOutcome {
   SUCCESS
   PARTIAL
@@ -168,6 +174,7 @@ model Player {
   marketListings    MarketListing[]   @relation("MarketSeller")
   marketBids        MarketBid[]       @relation("MarketBidder")
   marketWins        MarketListing[]   @relation("MarketHighestBidder")
+  ownedBusinesses   Business[]
 
   @@index([cartelId])
   @@index([aliasNormalized])
@@ -285,6 +292,7 @@ model District {
 
   players      Player[]
   scoutResults ScoutResult[]
+  businesses   Business[]
 }
 
 model Season {
@@ -491,4 +499,30 @@ model MarketBid {
 
   @@unique([bidderId, idempotencyKey])
   @@index([listingId, createdAt])
+}
+
+model Business {
+  id              String       @id @default(cuid())
+  playerId        String
+  businessType    BusinessType
+  districtId      String
+  name            String
+  purchasePrice   Int
+  assignedWorkers Int          @default(0)
+  safeCash        Int          @default(0)
+  hash            Int          @default(0)
+  shrooms         Int          @default(0)
+  coke            Int          @default(0)
+  heroin          Int          @default(0)
+  lastSettledAt   DateTime     @default(now())
+  lastRaidCheckAt DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  player   Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  district District @relation(fields: [districtId], references: [id])
+
+  @@index([playerId])
+  @@index([playerId, businessType])
+  @@index([districtId])
 }

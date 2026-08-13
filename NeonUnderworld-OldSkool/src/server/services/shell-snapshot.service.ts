@@ -55,16 +55,19 @@ export async function buildShellSnapshotFromPlayer(
       })
     : null;
 
-  const [rank, unreadReports] = await Promise.all([
+  const [rank, unreadReports, netWorth] = await Promise.all([
     RankingsService.getPlayerRank(player.id, player.seasonId),
     getUnreadReportCount(player.id),
+    overrides.netWorth != null
+      ? Promise.resolve(overrides.netWorth)
+      : NetWorthService.calculateFromPlayerAsync(player),
   ]);
 
   return {
     cash: player.cash,
     turns: overrides.turns ?? settled?.currentTurns ?? 0,
     turnCap: overrides.turnCap ?? settled?.turnCap ?? 0,
-    netWorth: overrides.netWorth ?? NetWorthService.calculateFromPlayer(player),
+    netWorth,
     rank: overrides.rank ?? rank,
     district: overrides.district ?? player.district?.name,
     unreadReports: overrides.unreadReports ?? unreadReports,
