@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -12,6 +12,7 @@ import {
   purchaseCartelArmouryAction,
   removeCartelMemberAction,
   setCartelDonationAction,
+  type CartelArmouryPurchaseResult,
   type CartelPageData,
 } from '@local/server/actions/cartel.actions';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
@@ -22,15 +23,44 @@ import { Divider } from '@local/components/game/Divider';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { SelectableCard } from '@local/components/game/SelectableCard';
 import { FeedbackNote } from '@local/components/game/FeedbackNote';
+import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { EmptyState } from '@local/components/game/EmptyState';
 import { parsePositiveInteger } from '@local/lib/numeric-input';
 
 type Props = CartelPageData;
 
+function applyArmouryPurchase(
+  cartel: NonNullable<CartelPageData['cartel']>,
+  result: CartelArmouryPurchaseResult,
+): NonNullable<CartelPageData['cartel']> {
+  const armoury = {
+    ...cartel.armoury,
+    treasuryCash: result.newTreasuryCash,
+    thugs: result.item === 'thug' ? result.newOwnedQuantity : cartel.armoury.thugs,
+    glocks: result.item === 'glock' ? result.newOwnedQuantity : cartel.armoury.glocks,
+    uzis: result.item === 'uzi' ? result.newOwnedQuantity : cartel.armoury.uzis,
+    catalog: cartel.armoury.catalog.map((entry) =>
+      entry.key === result.item ? { ...entry, ownedQuantity: result.newOwnedQuantity } : entry,
+    ),
+  };
+
+  return {
+    ...cartel,
+    treasuryCash: result.newTreasuryCash,
+    cartelNetWorth: result.cartelNetWorth,
+    armoury,
+    protection: {
+      ...cartel.protection,
+      ownedDefenceThugs: result.item === 'thug' ? result.newOwnedQuantity : cartel.protection.ownedDefenceThugs,
+    },
+  };
+}
+
 function CartelHQView({
   cartel,
   donationOptions,
   error,
+  success,
   loading,
   inviteAlias,
   setInviteAlias,
@@ -45,6 +75,7 @@ function CartelHQView({
   cartel: NonNullable<CartelPageData['cartel']>;
   donationOptions: readonly number[];
   error: string;
+  success: string;
   loading: string | null;
   inviteAlias: string;
   setInviteAlias: (v: string) => void;
@@ -58,6 +89,9 @@ function CartelHQView({
 }) {
   return (
     <div className="g-cartel-hq">
+      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
+      {success && <FeedbackNote tone="success">{success}</FeedbackNote>}
+
       <header className="g-cartel-hq__header">
         <h2 className="g-cartel-hq__name">
           {cartel.name.toUpperCase()}
@@ -148,6 +182,12 @@ function CartelHQView({
                       setArmouryQuantities((prev) => ({ ...prev, [entry.key]: value }))
                     }
                   />
+                  {qty && !canAfford && (
+                    <FeedbackNote tone="warn">
+                      Treasury too low — need ${total.toLocaleString()}, have $
+                      {cartel.armoury.treasuryCash.toLocaleString()}.
+                    </FeedbackNote>
+                  )}
                   <PrimaryButton
                     disabled={loading !== null || !qty || !canAfford}
                     pending={loading === `armoury-${entry.key}`}
@@ -170,7 +210,11 @@ function CartelHQView({
           {cartel.members.map((m) => (
             <li key={m.id} className="g-cartel-member">
               <div className="g-cartel-member__top">
-                <span className="g-cartel-member__name">{m.alias}</span>
+                <PlayerIdentity
+                  player={{ alias: m.alias, avatarId: m.avatarId }}
+                  avatarSize="sm"
+                  static
+                />
                 <span
                   className={`g-cartel-member__presence${m.presence.online ? ' g-cartel-member__presence--online' : ''}`}
                 >
@@ -249,7 +293,6 @@ function CartelHQView({
 
       <Divider />
 
-      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
       <PrimaryButton disabled={loading !== null} onClick={onLeave}>
         Leave Cartel
       </PrimaryButton>
@@ -261,12 +304,17 @@ export function CartelPanel(initial: Props) {
   const router = useRouter();
   const [data, setData] = useState(initial);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [inviteAlias, setInviteAlias] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [armouryQuantities, setArmouryQuantities] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setData(initial);
+  }, [initial]);
 
   async function handleCreate() {
     setLoading('create');
@@ -347,16 +395,31 @@ export function CartelPanel(initial: Props) {
 
   async function handleArmouryPurchase(itemKey: string) {
     const qty = parsePositiveInteger(armouryQuantities[itemKey] ?? '1');
-    if (!qty) return;
+    if (!qty) {
+      setError('Enter a valid quantity.');
+      setSuccess('');
+      return;
+    }
 
     setLoading(`armoury-${itemKey}`);
     setError('');
+    setSuccess('');
     const response = await purchaseCartelArmouryAction(itemKey, qty, uuidv4());
     setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
     }
+
+    const label = itemKey === 'thug' ? 'thugs' : itemKey === 'glock' ? 'glocks' : 'uzis';
+    setSuccess(
+      `Purchased ${qty.toLocaleString()} ${label} for $${response.data.totalCost.toLocaleString()} from treasury.`,
+    );
+    setData((prev) =>
+      prev.cartel
+        ? { ...prev, cartel: applyArmouryPurchase(prev.cartel, response.data) }
+        : prev,
+    );
     router.refresh();
   }
 
@@ -401,6 +464,7 @@ export function CartelPanel(initial: Props) {
         cartel={data.cartel}
         donationOptions={data.donationOptions}
         error={error}
+        success={success}
         loading={loading}
         inviteAlias={inviteAlias}
         setInviteAlias={setInviteAlias}

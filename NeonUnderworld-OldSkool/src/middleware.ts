@@ -24,6 +24,8 @@ export const config = {
     '/reports/:path*',
     '/rankings/:path*',
     '/players/:path*',
+    '/identity/:path*',
+    '/settings/:path*',
     '/guides',
     '/how-to-play',
     '/coming/:path*',

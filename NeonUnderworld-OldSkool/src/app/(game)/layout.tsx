@@ -2,6 +2,10 @@ import { GameShell } from '@local/components/game';
 import { requireGameSession, globalStatsFromContext } from '@local/lib/game-context';
 import { devPerf } from '@local/lib/dev-perf';
 import { validateProductionEnv } from '@local/lib/env-validation';
+import {
+  needsAvatarSelection,
+  resolvePlayerAvatarId,
+} from '@core/lib/game-engine/resolve-player-avatar';
 
 validateProductionEnv();
 
@@ -9,5 +13,12 @@ validateProductionEnv();
 export default async function GameLayout({ children }: { children: React.ReactNode }) {
   const { ctx } = await devPerf('game layout session', () => requireGameSession());
   const stats = await devPerf('game layout stats', () => globalStatsFromContext(ctx));
-  return <GameShell stats={stats}>{children}</GameShell>;
+  const avatarId = resolvePlayerAvatarId(ctx.avatar);
+  const avatarPending = needsAvatarSelection(ctx.avatar);
+
+  return (
+    <GameShell stats={stats} avatarId={avatarId} avatarPending={avatarPending}>
+      {children}
+    </GameShell>
+  );
 }

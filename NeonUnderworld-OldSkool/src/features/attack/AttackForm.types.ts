@@ -28,6 +28,7 @@ export interface AttackTargetCandidate {
   playerId: string;
   alias: string;
   aliasNormalized: string;
+  avatarId: string;
   rank: number;
   netWorth: number;
   online: boolean;

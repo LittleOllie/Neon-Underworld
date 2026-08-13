@@ -42,6 +42,7 @@ import { SelectableCard } from '@local/components/game/SelectableCard';
 import { StatusBadge } from '@local/components/game/StatusBadge';
 import { ActionResult } from '@local/components/game/ActionResult';
 import { StatRow } from '@local/components/game/StatRow';
+import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { Divider } from '@local/components/game/Divider';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { formatRank } from '@local/lib/format-rank';
@@ -192,16 +193,26 @@ function TargetCard({
 }) {
   return (
     <SelectableCard as="div" className="g-attack-target-card" title={target.alias}>
-      {target.hasIntel || !target.eligible ? (
+      <PlayerIdentity
+        player={{
+          alias: target.alias,
+          avatarId: target.avatarId,
+          aliasNormalized: target.aliasNormalized,
+          rank: target.rank,
+          netWorth: target.netWorth,
+        }}
+        avatarSize="md"
+        showRank
+        static
+      />
+      {(target.hasIntel || !target.eligible) && (
         <div className="g-filter-row">
           {target.hasIntel ? <StatusBadge>Intel available</StatusBadge> : null}
           {!target.eligible ? (
             <StatusBadge tone="muted">{target.eligibilityNote}</StatusBadge>
           ) : null}
         </div>
-      ) : null}
-      <StatRow label="Net Worth" value={`$${target.netWorth.toLocaleString()}`} />
-      <StatRow label="Rank" value={formatRank(target.rank)} />
+      )}
       <StatRow label="Status" value={target.statusLabel} />
       <PrimaryButton className="g-btn-full g-btn-secondary" variant="secondary" onClick={onSelect}>
         {target.hasIntel ? 'View Intel / Attack' : 'Select Target'}
@@ -504,9 +515,19 @@ export function AttackForm(props: AttackFormProps) {
         ← All Targets
       </PrimaryButton>
 
-      <p className="g-section-label">{selected.alias}</p>
+      <PlayerIdentity
+        player={{
+          alias: selected.alias,
+          avatarId: selected.avatarId,
+          aliasNormalized: selected.aliasNormalized,
+          rank: selected.rank,
+        }}
+        avatarSize="lg"
+        showRank
+        static
+      />
+
       <StatRow label="Net Worth" value={`$${selected.netWorth.toLocaleString()}`} />
-      <StatRow label="Rank" value={formatRank(selected.rank)} />
       <StatRow label="Status" value={selected.statusLabel} />
 
       {!selected.eligible && (

@@ -18,6 +18,7 @@ import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonical-net-worth';
 import { formatMemberPresence } from '@/lib/game-engine/cartel-presence';
+import { resolvePlayerAvatarId } from '@/lib/game-engine/resolve-player-avatar';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -48,6 +49,7 @@ export const CartelService = {
               select: {
                 id: true,
                 alias: true,
+                avatar: true,
                 cash: true,
                 bankCash: true,
                 prostitutes: true,
@@ -95,6 +97,7 @@ export const CartelService = {
         return {
           id: m.id,
           alias: m.alias,
+          avatarId: resolvePlayerAvatarId(m.avatar),
           netWorth: calculateCanonicalNetWorthFromPlayer(m),
           donationPercent: m.cartelDonationPercent,
           city: m.district.name,

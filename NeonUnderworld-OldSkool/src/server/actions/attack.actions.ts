@@ -31,6 +31,7 @@ import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
 import { RankingsService } from '@local/server/services/rankings.service';
 import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
+import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 import { revalidatePath } from 'next/cache';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
@@ -582,6 +583,7 @@ export async function getAttackPageData(
       playerId: player.id,
       alias: player.alias,
       aliasNormalized: player.aliasNormalized,
+      avatarId: resolvePlayerAvatarId(player.avatar),
       rank: rankById.get(player.id) ?? 0,
       netWorth: targetNw,
       online,

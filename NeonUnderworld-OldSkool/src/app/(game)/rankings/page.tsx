@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PageTitle } from '@local/components/game';
+import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
 import { RankingsService, type RankingsFilter } from '@local/server/services/rankings.service';
 import { devPerf } from '@local/lib/dev-perf';
@@ -78,8 +79,20 @@ export default async function RankingsPage({ searchParams }: Props) {
             <div key={p.id} className="g-rank-row g-rank-you">
               <span className="g-rank-num">#{p.rank}</span>
               <span className="g-rank-name">
-                {p.alias} (you)
-                <span className="g-inbox-meta"> · {p.city}{p.cartelTag ? ` · [${p.cartelTag}]` : ''}</span>
+                <PlayerIdentity
+                  player={{
+                    alias: p.alias,
+                    avatarId: p.avatarId,
+                    aliasNormalized: p.aliasNormalized,
+                    cartelTag: p.cartelTag,
+                    city: p.city,
+                  }}
+                  avatarSize="sm"
+                  showCartel
+                  showCity
+                  static
+                  suffix="(you)"
+                />
               </span>
               <span className="g-rank-worth">${p.netWorth.toLocaleString()}</span>
             </div>
@@ -94,12 +107,19 @@ export default async function RankingsPage({ searchParams }: Props) {
           >
             <span className="g-rank-num">#{p.rank}</span>
             <span className="g-rank-name">
-              {p.alias}
-              <span className="g-inbox-meta">
-                {' '}
-                · {p.city}
-                {p.cartelTag ? ` · [${p.cartelTag}]` : ''} · {status}
-              </span>
+              <PlayerIdentity
+                player={{
+                  alias: p.alias,
+                  avatarId: p.avatarId,
+                  aliasNormalized: p.aliasNormalized,
+                  cartelTag: p.cartelTag,
+                  city: p.city,
+                }}
+                avatarSize="sm"
+                showCartel
+                static
+              />
+              <span className="g-inbox-meta"> · {status}</span>
             </span>
             <span className="g-rank-worth">${p.netWorth.toLocaleString()}</span>
           </Link>

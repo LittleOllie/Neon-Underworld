@@ -4,7 +4,9 @@ import { PageTitle, StatRow, Divider, SectionLabel, ActionButton } from '@local/
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
 import { ReportService, type CombatReportSnapshot } from '@local/server/services/report.service';
 import { ReportReadSync } from '@local/features/reports/ReportReadSync';
+import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { prisma } from '@core/lib/db/prisma';
+import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 import { GAMEPLAY_CONTEXT_MESSAGES } from '@core/lib/game-engine/gameplay-errors';
 import { formatCountEstimateRange } from '@core/lib/game-engine/combat/deep-intel';
 import type { DeepIntelSnapshot } from '@core/lib/game-engine/combat/deep-intel';
@@ -55,6 +57,24 @@ export default async function ReportDetailPage({ params }: Props) {
         ? id
         : null;
 
+  const combatAliases = [combat?.attackerAlias, combat?.targetAlias].filter(
+    (alias): alias is string => !!alias,
+  );
+  const intelAlias =
+    meta?.intel?.targetAlias ?? meta?.deepIntel?.targetAlias ?? null;
+  const lookupAliases = [...new Set([...combatAliases, intelAlias].filter(Boolean))] as string[];
+
+  const avatarByAlias = new Map<string, string>();
+  if (lookupAliases.length > 0) {
+    const players = await prisma.player.findMany({
+      where: { alias: { in: lookupAliases } },
+      select: { alias: true, avatar: true },
+    });
+    for (const player of players) {
+      avatarByAlias.set(player.alias, resolvePlayerAvatarId(player.avatar));
+    }
+  }
+
   return (
     <>
       <ReportReadSync wasUnread={wasUnread} />
@@ -63,8 +83,32 @@ export default async function ReportDetailPage({ params }: Props) {
 
       {combat && (
         <>
-          <StatRow label="Attacker" value={combat.attackerAlias ?? '—'} />
-          <StatRow label="Target" value={combat.targetAlias ?? '—'} />
+          {combat.attackerAlias && (
+            <div className="g-report-identity-row">
+              <span className="g-stat-label">Attacker</span>
+              <PlayerIdentity
+                player={{
+                  alias: combat.attackerAlias,
+                  avatarId: avatarByAlias.get(combat.attackerAlias),
+                }}
+                avatarSize="sm"
+                static
+              />
+            </div>
+          )}
+          {combat.targetAlias && (
+            <div className="g-report-identity-row">
+              <span className="g-stat-label">Target</span>
+              <PlayerIdentity
+                player={{
+                  alias: combat.targetAlias,
+                  avatarId: avatarByAlias.get(combat.targetAlias),
+                }}
+                avatarSize="sm"
+                static
+              />
+            </div>
+          )}
           <StatRow label="Outcome" value={combat.outcomeLabel} />
           {combat.cashStolen > 0 && (
             <StatRow label="Cash stolen" value={`$${combat.cashStolen.toLocaleString()}`} />
@@ -80,7 +124,16 @@ export default async function ReportDetailPage({ params }: Props) {
       {meta?.type === 'PLAYER_INTEL' && meta.intel && (
         <>
           <SectionLabel>PLAYER INTEL</SectionLabel>
-          <StatRow label="Target" value={meta.intel.targetAlias ?? '—'} />
+          {meta.intel.targetAlias && (
+            <PlayerIdentity
+              player={{
+                alias: meta.intel.targetAlias,
+                avatarId: avatarByAlias.get(meta.intel.targetAlias),
+              }}
+              avatarSize="md"
+              static
+            />
+          )}
           {intelBands && (
             <>
               <StatRow label="Intel quality" value={`${intelBands.confidence ?? '—'}%`} />

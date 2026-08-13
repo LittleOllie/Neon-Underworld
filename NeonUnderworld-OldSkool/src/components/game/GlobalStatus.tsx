@@ -18,6 +18,7 @@ export interface GlobalStats {
   rank: number;
   alias?: string;
   district?: string;
+  avatarId?: string;
   attention?: ShellAttentionCounts;
 }
 

@@ -38,11 +38,12 @@ describe('primary navigation', () => {
 });
 
 describe('MORE menu structure', () => {
-  it('groups actions, underworld, and help in order', () => {
+  it('groups actions, underworld, account, and help in order', () => {
     const sections = buildMoreMenuSections();
     expect(sections.map((section) => section.label)).toEqual([
       'Actions',
       'Underworld',
+      'Account',
       'Help',
     ]);
     expect(sections[0]?.items.map((item) => item.label)).toEqual([
@@ -57,7 +58,8 @@ describe('MORE menu structure', () => {
       'Rankings',
       'Reports',
     ]);
-    expect(sections[2]?.items.map((item) => item.label)).toEqual([
+    expect(sections[2]?.items.map((item) => item.label)).toEqual(['Settings']);
+    expect(sections[3]?.items.map((item) => item.label)).toEqual([
       'How to Play',
       'Logout',
     ]);

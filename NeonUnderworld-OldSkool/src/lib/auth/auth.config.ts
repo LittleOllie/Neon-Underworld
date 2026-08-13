@@ -29,6 +29,8 @@ export const authConfig = {
         path.startsWith('/rankings') ||
         path.startsWith('/players') ||
         path.startsWith('/guides') ||
+        path.startsWith('/identity') ||
+        path.startsWith('/settings') ||
         path.startsWith('/coming');
 
       if (isAuthPage) return true;

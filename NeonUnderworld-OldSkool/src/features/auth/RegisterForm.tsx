@@ -25,7 +25,7 @@ export function RegisterForm({ districts }: RegisterFormProps) {
       setError(result.error);
       return;
     }
-    router.push('/command');
+    router.push('/identity/select');
     router.refresh();
   }
 

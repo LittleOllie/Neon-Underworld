@@ -2,10 +2,12 @@ import { prisma } from '@core/lib/db/prisma';
 import { NetWorthService } from './net-worth.service';
 import { RankingsService } from './rankings.service';
 import { PlayerStatusService } from './player-status.service';
+import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 
 export interface PublicProfile {
   alias: string;
   aliasNormalized: string;
+  avatarId: string;
   districtId: string;
   city: string;
   citySlug: string;
@@ -46,6 +48,7 @@ export const PublicProfileService = {
     return {
       alias: player.alias,
       aliasNormalized: player.aliasNormalized,
+      avatarId: resolvePlayerAvatarId(player.avatar),
       districtId: player.districtId,
       city: player.district.name,
       citySlug: player.district.slug,

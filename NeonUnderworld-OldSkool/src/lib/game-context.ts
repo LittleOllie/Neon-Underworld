@@ -11,6 +11,7 @@ import type { AttentionItem } from '@local/lib/attention-items';
 import { collectAttentionItems, prioritizeAttentionItems } from '@local/lib/attention-items';
 import { getBusinessEmpireSummary } from '@core/server/services/business-portfolio.service';
 import { getPendingCartelInvites } from '@local/server/services/cartel-attention.service';
+import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 
 export const requireGameSession = cache(async (): Promise<{
   playerId: string;
@@ -85,6 +86,7 @@ export async function globalStatsFromContext(
     rank: ctx.rank,
     alias: ctx.alias,
     district: ctx.district.name,
+    avatarId: resolvePlayerAvatarId(ctx.avatar),
     attention: {
       unreadReports,
       total: unreadReports,

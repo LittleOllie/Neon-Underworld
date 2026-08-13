@@ -38,7 +38,7 @@ export interface MoreNavItem {
 }
 
 export interface MoreMenuSection {
-  id: 'actions' | 'underworld' | 'help';
+  id: 'actions' | 'underworld' | 'account' | 'help';
   label: string;
   items: MoreNavItem[];
 }
@@ -86,6 +86,11 @@ export function buildMoreMenuSections(counts?: { unreadReports?: number }): More
           badge: unread > 0 ? unread : undefined,
         },
       ],
+    },
+    {
+      id: 'account',
+      label: 'Account',
+      items: [{ href: '/settings', label: 'Settings', icon: 'player' }],
     },
     {
       id: 'help',

@@ -33,3 +33,7 @@ export { StatusBadge, heatBadgeTone } from './StatusBadge';
 export { GameIcon } from './GameIcon';
 export { ButtonContent } from './ButtonContent';
 export { GameLabel, GameValue, LabelValueRow } from './GameValue';
+export { PlayerAvatar, type PlayerAvatarSize } from './PlayerAvatar';
+export { PlayerIdentity, type PlayerIdentityData } from './PlayerIdentity';
+export { AvatarThemeProvider } from './AvatarThemeProvider';
+export { IdentityGate } from './IdentityGate';

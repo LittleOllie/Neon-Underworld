@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageTitle, StatRow } from '@local/components/game';
+import { PlayerAvatar } from '@local/components/game/PlayerAvatar';
 import { PublicProfileService } from '@local/server/services/public-profile.service';
 import { ReportService } from '@local/server/services/report.service';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
@@ -54,7 +55,10 @@ export default async function PlayerProfilePage({ params }: Props) {
 
   return (
     <>
-      <PageTitle icon="player">{profile.alias}</PageTitle>
+      <div className="g-profile-header">
+        <PlayerAvatar avatarId={profile.avatarId} alt={profile.alias} size="xl" priority />
+        <PageTitle icon="player">{profile.alias}</PageTitle>
+      </div>
 
       <StatRow label={OS_TERMS.rank} value={formatRank(profile.rank)} />
       <StatRow label={OS_TERMS.netWorth} value={`$${profile.netWorth.toLocaleString()}`} />

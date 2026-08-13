@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { prisma } from '@core/lib/db/prisma';
 import { NetWorthService, type PlayerNetWorthRecord } from './net-worth.service';
 import { PlayerStatusService } from './player-status.service';
+import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 import {
   playerRankCacheTag,
   seasonRankingsCacheTag,
@@ -15,6 +16,7 @@ export interface RankingRow {
   rank: number;
   alias: string;
   aliasNormalized: string;
+  avatarId: string;
   city: string;
   citySlug: string;
   cartelId: string | null;
@@ -97,6 +99,7 @@ async function computeSeasonRankings(
       id: p.id,
       alias: p.alias,
       aliasNormalized: p.aliasNormalized,
+      avatarId: resolvePlayerAvatarId(p.avatar),
       city: p.district.name,
       citySlug: p.district.slug,
       cartelId: p.cartelId,
