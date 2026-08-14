@@ -7,14 +7,15 @@ import {
   resolvePlayerAvatarId,
 } from '@core/lib/game-engine/resolve-player-avatar';
 
-export type PlayerAvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+export type PlayerAvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'header';
 
-const SIZE_PX: Record<PlayerAvatarSize, number> = {
+const SIZE_PX: Record<PlayerAvatarSize, number | null> = {
   xs: 24,
   sm: 32,
   md: 40,
   lg: 56,
   xl: 96,
+  header: null,
 };
 
 export interface PlayerAvatarProps {
@@ -37,6 +38,7 @@ export function PlayerAvatar({
   const resolvedId = resolvePlayerAvatarId(avatarId);
   const config = resolvePlayerAvatarConfig(avatarId);
   const px = SIZE_PX[size];
+  const renderPx = px ?? 72;
 
   return (
     <span
@@ -51,10 +53,14 @@ export function PlayerAvatar({
       style={
         {
           '--avatar-accent': config.primary,
-          width: px,
-          height: px,
-          minWidth: px,
-          minHeight: px,
+          ...(px != null
+            ? {
+                width: px,
+                height: px,
+                minWidth: px,
+                minHeight: px,
+              }
+            : {}),
         } as React.CSSProperties
       }
       data-avatar-id={resolvedId}
@@ -62,9 +68,9 @@ export function PlayerAvatar({
       <Image
         src={config.imagePath}
         alt={alt}
-        width={px}
-        height={px}
-        sizes={`${px}px`}
+        width={renderPx}
+        height={renderPx}
+        sizes={px != null ? `${px}px` : '72px'}
         priority={priority}
         className="g-player-avatar__img"
       />

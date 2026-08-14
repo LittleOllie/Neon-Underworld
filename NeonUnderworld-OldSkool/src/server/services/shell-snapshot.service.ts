@@ -14,7 +14,7 @@ type PlayerRow = PlayerNetWorthRecord & {
   seasonId: string;
   prostitutes?: number;
   thugs?: number;
-  district?: { name: string } | null;
+  district?: { name: string; slug: string } | null;
   turnState?: {
     currentTurns: number;
     lastRegeneratedAt: Date;
@@ -57,8 +57,10 @@ export async function buildShellSnapshotFromPlayer(
       })
     : null;
 
-  const [rank, unreadReports, netWorth] = await Promise.all([
-    RankingsService.getPlayerRank(player.id, player.seasonId),
+  const [districtRank, unreadReports, netWorth] = await Promise.all([
+    player.district?.slug
+      ? RankingsService.getPlayerDistrictRank(player.id, player.seasonId, player.district.slug)
+      : Promise.resolve(0),
     getUnreadReportCount(player.id),
     overrides.netWorth != null
       ? Promise.resolve(overrides.netWorth)
@@ -70,7 +72,7 @@ export async function buildShellSnapshotFromPlayer(
     turns: overrides.turns ?? settled?.currentTurns ?? 0,
     turnCap: overrides.turnCap ?? settled?.turnCap ?? 0,
     netWorth,
-    rank: overrides.rank ?? rank,
+    rank: overrides.rank ?? districtRank,
     district: overrides.district ?? player.district?.name,
     unreadReports: overrides.unreadReports ?? unreadReports,
     workers: overrides.workers ?? player.prostitutes,

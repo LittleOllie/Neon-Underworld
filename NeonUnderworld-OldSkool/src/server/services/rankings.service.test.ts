@@ -38,7 +38,7 @@ describe('RankingsService', () => {
     vi.resetModules();
   });
 
-  it('derives single-player rank from overall season leaderboard cache', async () => {
+  it('derives single-player overall rank from cached season leaderboard', async () => {
     findMany.mockResolvedValue([
       {
         id: 'p1',
@@ -99,11 +99,77 @@ describe('RankingsService', () => {
 
     const { RankingsService } = await import('./rankings.service');
 
-    const rank = await RankingsService.getPlayerRank('p1', 'season-1');
+    const rank = await RankingsService.getPlayerOverallRank('p1', 'season-1');
     expect(rank).toBe(2);
 
-    const rankAgain = await RankingsService.getPlayerRank('p2', 'season-1');
+    const rankAgain = await RankingsService.getPlayerOverallRank('p2', 'season-1');
     expect(rankAgain).toBe(1);
+  });
+
+  it('derives district rank from cached district leaderboard without extra scan', async () => {
+    findMany.mockResolvedValue([
+      {
+        id: 'p1',
+        createdAt: new Date('2026-01-01'),
+        alias: 'Alpha',
+        aliasNormalized: 'alpha',
+        avatar: null,
+        district: { name: 'Docklands', slug: 'docklands' },
+        cartel: null,
+        user: { lastLoginAt: null },
+        statusExt: null,
+        updatedAt: new Date(),
+        cash: 1000,
+        bankCash: 0,
+        prostitutes: 0,
+        thugs: 0,
+        rides: 0,
+        glocks: 0,
+        uzis: 0,
+        aks: 0,
+        hash: 0,
+        shrooms: 0,
+        coke: 0,
+        heroin: 0,
+        businesses: 0,
+      },
+      {
+        id: 'p2',
+        createdAt: new Date('2026-01-02'),
+        alias: 'Beta',
+        aliasNormalized: 'beta',
+        district: { name: 'Docklands', slug: 'docklands' },
+        cartel: null,
+        user: { lastLoginAt: null },
+        statusExt: null,
+        updatedAt: new Date(),
+        cash: 500,
+        bankCash: 0,
+        prostitutes: 0,
+        thugs: 0,
+        rides: 0,
+        glocks: 0,
+        uzis: 0,
+        aks: 0,
+        hash: 0,
+        shrooms: 0,
+        coke: 0,
+        heroin: 0,
+        businesses: 0,
+      },
+    ]);
+    calculateForPlayers.mockResolvedValue(
+      new Map([
+        ['p1', 5000],
+        ['p2', 9000],
+      ]),
+    );
+
+    const { RankingsService } = await import('./rankings.service');
+
+    const districtRank = await RankingsService.getPlayerDistrictRank('p1', 'season-1', 'docklands');
+    expect(districtRank).toBe(2);
+    expect(findMany).toHaveBeenCalledTimes(1);
   });
 
   it('getSeasonRankings assigns sequential ranks by net worth', async () => {

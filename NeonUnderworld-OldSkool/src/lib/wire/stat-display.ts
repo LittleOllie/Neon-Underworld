@@ -24,7 +24,7 @@ export function formatWireStat(stat: WireStatKind, stats: WireExecutorStats): Wi
     case 'netWorth':
       return { label: 'NET WORTH', value: `$${stats.netWorth.toLocaleString()}` };
     case 'rank':
-      return { label: 'RANK', value: formatRank(stats.rank) };
+      return { label: 'DISTRICT RANK', value: formatRank(stats.rank) };
     case 'turns':
       return { label: 'TURNS', value: formatTurnsExact(stats.turns, stats.turnCap) };
     case 'workers':

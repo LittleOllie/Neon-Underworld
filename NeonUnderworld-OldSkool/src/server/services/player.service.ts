@@ -47,7 +47,10 @@ export interface CanonicalPlayerContext {
   /** @deferred Partial regen progress not reflected — not shown in UI during v1. */
   timeUntilNextTurn: string;
   netWorth: number;
+  /** Primary player-facing rank — current district leaderboard position. */
   rank: number;
+  /** Season-wide rank — available on Rankings → Overall. */
+  overallRank: number;
   prostituteHappiness: ReturnType<typeof calculateProstituteHappiness>;
   thugHappiness: ReturnType<typeof calculateThugHappiness>;
   lastSeen: Date | null;
@@ -81,7 +84,8 @@ async function loadPlayerRecord(playerId: string) {
 
 function buildCanonicalContext(
   player: Awaited<ReturnType<typeof loadPlayerRecord>>,
-  rank: number,
+  districtRank: number,
+  overallRank: number,
   netWorth: number,
 ): CanonicalPlayerContext {
   if (!player.turnState) {
@@ -143,7 +147,8 @@ function buildCanonicalContext(
     msUntilNextTurn: settled.msUntilNextTurn,
     timeUntilNextTurn: formatTimeUntilNextTurn(settled.msUntilNextTurn),
     netWorth,
-    rank,
+    rank: districtRank,
+    overallRank,
     prostituteHappiness: calculateProstituteHappiness({
       prostitutes: player.prostitutes,
       thugs: player.thugs,
@@ -176,11 +181,12 @@ function buildCanonicalContext(
 
 const getCanonicalContextCached = cache(async (playerId: string): Promise<CanonicalPlayerContext> => {
   const player = await loadPlayerRecord(playerId);
-  const [rank, netWorth] = await Promise.all([
-    RankingsService.getPlayerRank(playerId, player.seasonId),
+  const [districtRank, overallRank, netWorth] = await Promise.all([
+    RankingsService.getPlayerDistrictRank(playerId, player.seasonId, player.district.slug),
+    RankingsService.getPlayerOverallRank(playerId, player.seasonId),
     NetWorthService.calculateFromPlayerAsync(player),
   ]);
-  return buildCanonicalContext(player, rank, netWorth);
+  return buildCanonicalContext(player, districtRank, overallRank, netWorth);
 });
 
 export const PlayerService = {

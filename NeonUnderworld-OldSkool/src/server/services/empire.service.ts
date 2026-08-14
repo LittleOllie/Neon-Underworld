@@ -309,7 +309,11 @@ export const EmpireService = {
       unarmedThugs: weapons.unarmedThugs,
     });
 
-    const rank = await RankingsService.getPlayerRank(playerId, player.seasonId);
+    const rank = await RankingsService.getPlayerDistrictRank(
+      playerId,
+      player.seasonId,
+      player.district.slug,
+    );
 
     const liquidTotal = player.cash + player.bankCash;
 

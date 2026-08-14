@@ -84,6 +84,7 @@ export async function globalStatsFromContext(
     turnCap: ctx.turnCap,
     netWorth: ctx.netWorth,
     rank: ctx.rank,
+    overallRank: ctx.overallRank,
     alias: ctx.alias,
     district: ctx.district.name,
     avatarId: resolvePlayerAvatarId(ctx.avatar),

@@ -15,7 +15,9 @@ export interface GlobalStats {
   turns: number;
   turnCap: number;
   netWorth: number;
+  /** Current district leaderboard rank (primary player-facing rank). */
   rank: number;
+  overallRank?: number;
   alias?: string;
   district?: string;
   avatarId?: string;
@@ -26,17 +28,30 @@ export interface GlobalStats {
 
 export function GlobalStatus({ stats }: { stats: GlobalStats }) {
   const items = [
-    { label: 'Cash', value: `$${stats.cash.toLocaleString()}` },
-    { label: 'Turns', value: formatTurnsExact(stats.turns, stats.turnCap) },
-    { label: 'Net Worth', value: `$${stats.netWorth.toLocaleString()}` },
-    { label: 'Rank', value: formatRank(stats.rank) },
+    { label: 'Cash', value: `$${stats.cash.toLocaleString()}`, className: undefined as string | undefined },
+    { label: 'Turns', value: formatTurnsExact(stats.turns, stats.turnCap), className: undefined as string | undefined },
+    { label: 'Net Worth', value: `$${stats.netWorth.toLocaleString()}`, className: undefined as string | undefined },
+    {
+      label: 'District Rank',
+      shortLabel: 'Dist. Rank',
+      value: formatRank(stats.rank),
+      className: 'g-status-item--district-rank',
+    },
   ];
 
   return (
     <div className="g-status" aria-label="Player status">
       {items.map((item) => (
-        <span key={item.label} className="g-status-item">
-          <GameLabel>{item.label}</GameLabel>{' '}
+        <span
+          key={item.label}
+          className={`g-status-item${item.className ? ` ${item.className}` : ''}`}
+        >
+          <GameLabel>
+            <span className="g-label-long">{item.label}</span>
+            {'shortLabel' in item && item.shortLabel ? (
+              <span className="g-label-short">{item.shortLabel}</span>
+            ) : null}
+          </GameLabel>{' '}
           <GameValue>{item.value}</GameValue>
         </span>
       ))}

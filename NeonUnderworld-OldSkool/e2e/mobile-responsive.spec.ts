@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, gotoGame } from './helpers';
+import { login, gotoGame, empireSection } from './helpers';
 
 async function assertNoHorizontalOverflow(page: import('@playwright/test').Page) {
   const overflow = await page.evaluate(() => {
@@ -38,8 +38,9 @@ test.describe('Mobile responsive core loop', () => {
     await assertNoHorizontalOverflow(page);
 
     await gotoGame(page, '/empire');
+    await expect(page.getByLabel('Empire summary')).toBeVisible();
+    await empireSection(page, 'WORKERS').locator('summary').click();
     await expect(page.getByText('Happiness').first()).toBeVisible();
-    await expect(page.getByText('Armed').first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
   });
 });

@@ -157,3 +157,10 @@ export async function loginAs(page: Page, email: string, password: string) {
 export async function login(page: Page) {
   await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 }
+
+/** Empire accordion section by exact title (WORKERS, THUGS, etc.). */
+export function empireSection(page: Page, title: string) {
+  return page.locator('details.g-empire-section').filter({
+    has: page.locator('.g-business-section-title', { hasText: title, exact: true }),
+  });
+}

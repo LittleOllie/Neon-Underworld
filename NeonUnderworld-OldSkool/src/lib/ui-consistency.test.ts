@@ -9,14 +9,30 @@ describe('Pass 3 UI consistency', () => {
   });
 
   it('exports shared selection and tab primitives', async () => {
-    const game = await import('@local/components/game');
-    expect(game.SelectableCard).toBeDefined();
-    expect(game.OptionGrid).toBeDefined();
-    expect(game.FilterPills).toBeDefined();
-    expect(game.SimpleTabs).toBeDefined();
-    expect(game.StatusBadge).toBeDefined();
-    expect(game.FeedbackNote).toBeDefined();
-    expect(game.EmptyState).toBeDefined();
+    const [
+      { SelectableCard },
+      { OptionGrid },
+      { FilterPills },
+      { SimpleTabs },
+      { StatusBadge },
+      { FeedbackNote },
+      { EmptyState },
+    ] = await Promise.all([
+      import('@local/components/game/SelectableCard'),
+      import('@local/components/game/OptionGrid'),
+      import('@local/components/game/FilterPills'),
+      import('@local/components/game/SimpleTabs'),
+      import('@local/components/game/StatusBadge'),
+      import('@local/components/game/FeedbackNote'),
+      import('@local/components/game/EmptyState'),
+    ]);
+    expect(SelectableCard).toBeDefined();
+    expect(OptionGrid).toBeDefined();
+    expect(FilterPills).toBeDefined();
+    expect(SimpleTabs).toBeDefined();
+    expect(StatusBadge).toBeDefined();
+    expect(FeedbackNote).toBeDefined();
+    expect(EmptyState).toBeDefined();
   });
 });
 

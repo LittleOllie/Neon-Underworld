@@ -33,6 +33,22 @@ const DISTRICT_FILTERS: Record<Exclude<RankingsFilter, 'overall'>, string> = {
   'old-quarter': 'old-quarter',
 };
 
+const SLUG_TO_FILTER: Record<string, RankingsFilter> = {
+  'neon-strip': 'neon-strip',
+  docklands: 'docklands',
+  'old-quarter': 'old-quarter',
+};
+
+/** Map a player district slug to a rankings filter tab (null when unknown). */
+export function districtSlugToRankingsFilter(slug: string): RankingsFilter | null {
+  return SLUG_TO_FILTER[slug] ?? null;
+}
+
+/** Default rankings tab for a player with no explicit ?filter= param. */
+export function defaultRankingsFilterForDistrict(slug: string): RankingsFilter {
+  return districtSlugToRankingsFilter(slug) ?? 'overall';
+}
+
 const RANK_NET_WORTH_SELECT = {
   id: true,
   createdAt: true,
@@ -125,29 +141,68 @@ const getCachedSeasonRankings = cache((seasonId: string, filter: RankingsFilter)
 );
 
 /**
- * Single-player rank is derived from the cached overall season leaderboard —
- * no independent full-season scan.
+ * Player rank is always derived from a cached season leaderboard snapshot —
+ * never an independent full-season scan per lookup.
+ *
+ * Cache behaviour:
+ * - `getSeasonRankings(seasonId, filter)` — shared leaderboard rows, 30s TTL, tag `season-rankings-{seasonId}`
+ * - `getPlayerOverallRank` / `getPlayerDistrictRank` — lookup within that cached snapshot, 45s TTL, tag `player-rank-{playerId}`
+ * - Invalidation: `revalidatePlayerGameplayCache` clears both tags after mutations; header rank may lag up to 45s
  */
-async function lookupPlayerRank(playerId: string, seasonId: string): Promise<number> {
-  const rows = await getCachedSeasonRankings(seasonId, 'overall');
+async function lookupPlayerRankInFilter(
+  playerId: string,
+  seasonId: string,
+  filter: RankingsFilter,
+): Promise<number> {
+  const rows = await getCachedSeasonRankings(seasonId, filter);
   return rows.find((row) => row.id === playerId)?.rank ?? 0;
 }
 
-const getCachedPlayerRank = cache((playerId: string, seasonId: string) =>
+const getCachedPlayerOverallRank = cache((playerId: string, seasonId: string) =>
   unstable_cache(
-    () => lookupPlayerRank(playerId, seasonId),
-    ['player-rank', playerId, seasonId],
+    () => lookupPlayerRankInFilter(playerId, seasonId, 'overall'),
+    ['player-overall-rank', playerId, seasonId],
     { revalidate: PLAYER_RANK_CACHE_SECONDS, tags: [playerRankCacheTag(playerId)] },
   )(),
 );
+
+const getCachedPlayerDistrictRank = cache((playerId: string, seasonId: string, districtSlug: string) => {
+  const filter = districtSlugToRankingsFilter(districtSlug);
+  if (!filter) {
+    return Promise.resolve(0);
+  }
+  return unstable_cache(
+    () => lookupPlayerRankInFilter(playerId, seasonId, filter),
+    ['player-district-rank', playerId, seasonId, districtSlug],
+    {
+      revalidate: PLAYER_RANK_CACHE_SECONDS,
+      tags: [playerRankCacheTag(playerId), seasonRankingsCacheTag(seasonId)],
+    },
+  )();
+});
 
 export const RankingsService = {
   getSeasonRankings(seasonId: string, filter: RankingsFilter = 'overall'): Promise<RankingRow[]> {
     return getCachedSeasonRankings(seasonId, filter);
   },
 
+  /** Season-wide rank — available on Rankings → Overall. */
+  getPlayerOverallRank(playerId: string, seasonId: string): Promise<number> {
+    return getCachedPlayerOverallRank(playerId, seasonId);
+  },
+
+  /** Rank within the player's current district leaderboard. */
+  getPlayerDistrictRank(
+    playerId: string,
+    seasonId: string,
+    districtSlug: string,
+  ): Promise<number> {
+    return getCachedPlayerDistrictRank(playerId, seasonId, districtSlug);
+  },
+
+  /** @deprecated Prefer getPlayerOverallRank or getPlayerDistrictRank. */
   getPlayerRank(playerId: string, seasonId: string): Promise<number> {
-    return getCachedPlayerRank(playerId, seasonId);
+    return getCachedPlayerOverallRank(playerId, seasonId);
   },
 };
 

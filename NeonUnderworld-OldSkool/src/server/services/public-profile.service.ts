@@ -38,7 +38,11 @@ export const PublicProfileService = {
     if (!player || player.isSystemPlayer) return null;
 
     const netWorth = await NetWorthService.calculateFromPlayerAsync(player);
-    const rank = await RankingsService.getPlayerRank(player.id, player.seasonId);
+    const rank = await RankingsService.getPlayerDistrictRank(
+      player.id,
+      player.seasonId,
+      player.district.slug,
+    );
     const lastSeen = PlayerStatusService.resolveLastSeen(
       player.user.lastLoginAt,
       player.statusExt?.lastSeenAt,

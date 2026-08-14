@@ -2,25 +2,33 @@ import Link from 'next/link';
 import { PageTitle } from '@local/components/game';
 import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
-import { RankingsService, type RankingsFilter } from '@local/server/services/rankings.service';
+import {
+  RankingsService,
+  defaultRankingsFilterForDistrict,
+  type RankingsFilter,
+} from '@local/server/services/rankings.service';
 import { devPerf } from '@local/lib/dev-perf';
 
-const FILTERS: { key: RankingsFilter; label: string }[] = [
-  { key: 'overall', label: 'Overall' },
+const DISTRICT_FILTERS: { key: RankingsFilter; label: string }[] = [
   { key: 'neon-strip', label: 'Neon Strip' },
   { key: 'docklands', label: 'Docklands' },
   { key: 'old-quarter', label: 'Old Quarter' },
 ];
 
-function resolveFilter(param: string | undefined): RankingsFilter {
+const FILTERS: { key: RankingsFilter; label: string }[] = [
+  ...DISTRICT_FILTERS,
+  { key: 'overall', label: 'Overall' },
+];
+
+function resolveFilter(param: string | undefined, districtSlug: string): RankingsFilter {
   if (param && FILTERS.some((f) => f.key === param)) {
     return param as RankingsFilter;
   }
-  return 'overall';
+  return defaultRankingsFilterForDistrict(districtSlug);
 }
 
 function filterHref(key: RankingsFilter): string {
-  if (key === 'overall') return '/rankings';
+  if (key === 'overall') return '/rankings?filter=overall';
   return `/rankings?filter=${key}`;
 }
 
@@ -42,7 +50,7 @@ export default async function RankingsPage({ searchParams }: Props) {
   const params = await searchParams;
   const { ctx } = await requireGameSession();
   const playerId = ctx.id;
-  const filter = resolveFilter(params.filter);
+  const filter = resolveFilter(params.filter, ctx.district.slug);
 
   const rows = await devPerf('/rankings data', () =>
     RankingsService.getSeasonRankings(ctx.seasonId, filter),
@@ -51,10 +59,15 @@ export default async function RankingsPage({ searchParams }: Props) {
   return (
     <>
       <PageTitle icon="rankings">Rankings</PageTitle>
-      {filter !== 'overall' && (
+      {filter === 'overall' ? (
         <p className="g-note">
-          Showing {activeFilterLabel(filter)} only — ranks below are for this city. Switch to Overall
-          for season-wide ranking (matches your header rank).
+          Season-wide ranking — your header shows District Rank in {ctx.district.name}. Switch to a
+          city tab for district-only standings.
+        </p>
+      ) : (
+        <p className="g-note">
+          Showing {activeFilterLabel(filter)} only — ranks below are for this city and match your
+          header District Rank when you are in {ctx.district.name}.
         </p>
       )}
 

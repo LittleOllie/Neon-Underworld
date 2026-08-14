@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, gotoGame, empireSection } from './helpers';
 
 test.describe('Core loop — Scout, Produce, City Shop', () => {
   test('shop owned/total, scout numeric input, produce numeric input', async ({ page }) => {
@@ -58,8 +58,11 @@ test.describe('Home vs Empire separation', () => {
 
     await page.goto('/empire');
     await expect(page.getByRole('heading', { name: 'Empire' })).toBeVisible();
+    await expect(page.getByLabel('Empire summary')).toBeVisible();
+    await empireSection(page, 'WORKERS').locator('summary').click();
     await expect(page.locator('.g-label', { hasText: 'Payout' })).toBeVisible();
+    await empireSection(page, 'THUGS').locator('summary').click();
     await expect(page.locator('.g-label', { hasText: 'Armed' })).toBeVisible();
-    await expect(page.getByText('GEAR')).toBeVisible();
+    await expect(empireSection(page, 'GEAR')).toHaveCount(1);
   });
 });

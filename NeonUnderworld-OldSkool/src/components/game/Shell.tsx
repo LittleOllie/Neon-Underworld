@@ -60,18 +60,30 @@ function GameShellFrame({
               <LogoutLink />
             </div>
             <div className="g-header-meta">
-              {stats.alias && (
-                <div className="g-player-line g-player-line--identity">
-                  {!onIdentityRoute && (
-                    <PlayerAvatar avatarId={avatarId} alt={stats.alias} size="xs" />
-                  )}
-                  <span>
-                    {stats.alias}
-                    {stats.district ? ` · ${stats.district}` : ''}
-                  </span>
-                </div>
-              )}
-              {!onIdentityRoute && <GlobalStatus stats={stats} />}
+              {stats.alias &&
+                (onIdentityRoute ? (
+                  <div className="g-player-line g-player-line--identity">
+                    <span>
+                      {stats.alias}
+                      {stats.district ? ` · ${stats.district}` : ''}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="g-header-profile">
+                    <div className="g-header-profile__avatar">
+                      <PlayerAvatar avatarId={avatarId} alt={stats.alias} size="header" />
+                    </div>
+                    <div className="g-header-profile__body">
+                      <div className="g-player-line g-player-line--identity">
+                        <span>
+                          {stats.alias}
+                          {stats.district ? ` · ${stats.district}` : ''}
+                        </span>
+                      </div>
+                      <GlobalStatus stats={stats} />
+                    </div>
+                  </div>
+                ))}
             </div>
             {!onIdentityRoute && <GameNav stats={stats} />}
           </div>
