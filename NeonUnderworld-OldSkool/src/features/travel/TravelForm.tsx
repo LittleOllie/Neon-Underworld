@@ -9,6 +9,7 @@ import {
   type TravelPageData,
   type TravelResult,
 } from '@local/server/actions/travel.actions';
+import { ridesRequiredForTravel, travelCrewPopulation } from '@core/lib/game-engine/travel';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { TravelPendingOverlay } from '@local/components/game/TravelPendingOverlay';
@@ -44,12 +45,23 @@ export function TravelForm({ initialDestination, ...props }: Props) {
       return;
     }
     setResult(response.data);
-    setData((prev) => ({
-      ...prev,
-      turnsAvailable: response.data.newTurns,
-      currentCity: response.data.destinationName,
-      currentSlug: response.data.destinationSlug,
-    }));
+    setData((prev) => {
+      const shell = response.data.shell;
+      const crew =
+        shell?.thugs != null && shell.workers != null
+          ? travelCrewPopulation(shell.thugs, shell.workers)
+          : prev.crewPopulation;
+      const rides = shell?.rides ?? prev.ridesOwned;
+      return {
+        ...prev,
+        turnsAvailable: response.data.newTurns,
+        currentCity: response.data.destinationName,
+        currentSlug: response.data.destinationSlug,
+        ridesOwned: rides,
+        ridesRequired: ridesRequiredForTravel(crew),
+        crewPopulation: crew,
+      };
+    });
     reconcile(response.data.shell);
   }
 

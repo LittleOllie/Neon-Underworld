@@ -10,12 +10,14 @@ import type { RedliteScoutAreaSlug } from '@core/config/game/redlite-rules';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { SelectableCard } from '@local/components/game/SelectableCard';
+import { TurnQuickAmounts } from '@local/components/game/TurnQuickAmounts';
 import { ActionResult, type ActionResultLine } from '@local/components/game/ActionResult';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
+import { SCOUT_RESULT_SECONDARY_ACTIONS } from '@local/lib/scout-result-actions';
 import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
 
 interface ScoutFormProps {
@@ -54,6 +56,12 @@ export function ScoutForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OldSkoolScoutResult | null>(null);
+
+  function selectQuickAmount(next: number) {
+    setAmountRaw(String(next));
+    setAmount(next);
+    setError('');
+  }
 
   function handleAmountChange(raw: string, parsed: number | null) {
     setAmountRaw(raw);
@@ -124,6 +132,7 @@ export function ScoutForm({
             onClick: () => setResult(null),
           },
         ]}
+        secondaryActions={SCOUT_RESULT_SECONDARY_ACTIONS}
       />
     );
   }
@@ -138,9 +147,13 @@ export function ScoutForm({
             meta={`Workers: ${area.workers} · Thugs: ${area.thugs} · Risk: ${area.risk}`}
             selected={areaSlug === area.slug}
             onClick={() => setAreaSlug(area.slug)}
-          />
+          >
+            <p className="g-area-tagline">{area.tagline}</p>
+          </SelectableCard>
         ))}
       </div>
+
+      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} />
 
       <NumericInput
         id="scout-turns"
@@ -149,6 +162,8 @@ export function ScoutForm({
         onChange={handleAmountChange}
         suffix="turns"
       />
+
+      <p className="g-note">Supplies help keep your crew loyal and effective.</p>
 
       {error && <p className="g-error">{error}</p>}
 

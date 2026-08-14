@@ -46,6 +46,10 @@ export function EmpireSimpleView({ data }: Props) {
     <>
       <div className="g-empire-summary" aria-label="Empire summary">
         <StatRow label="Net Worth" value={formatEmpireSummaryMoney(data.player.netWorth)} />
+        <p className="g-note g-empire-hint g-empire-nw-hint">
+          Your empire&apos;s overall value. Grow cash, crew, drugs, and businesses to climb the
+          rankings.
+        </p>
         <StatRow label="District Rank" value={formatRank(data.player.rank)} />
         <StatRow label="Cash" value={formatEmpireSummaryMoney(data.player.cash)} />
         <StatRow label="Businesses" value={businessesOwned.toLocaleString()} />

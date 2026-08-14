@@ -20,9 +20,8 @@ test.describe('Mobile responsive core loop', () => {
 
     await gotoGame(page, '/scout');
     await expect(page.getByRole('heading', { name: 'Scout' })).toBeVisible();
-    await page.getByRole('option').first().click();
     await page.getByLabel('Turns to scout').fill('5');
-    await page.getByRole('button', { name: 'Scout', exact: true }).click();
+    await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 15000 });
     await assertNoHorizontalOverflow(page);
 

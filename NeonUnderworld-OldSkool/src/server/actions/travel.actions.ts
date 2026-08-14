@@ -9,6 +9,7 @@ import {
   travelDestinationsForSlug,
 } from '@core/lib/game-engine/travel';
 import { auth } from '@local/lib/auth/config';
+import { assertSessionMatchesPlayer } from '@local/lib/auth/session-player';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
@@ -34,6 +35,7 @@ export interface TravelPageData {
 }
 
 export async function getTravelPageDataFromContext(ctx: CanonicalPlayerContext): Promise<TravelPageData> {
+  await assertSessionMatchesPlayer(ctx.id);
   const crew = travelCrewPopulation(ctx.thugs, ctx.prostitutes);
   return {
     currentCity: ctx.district.name,

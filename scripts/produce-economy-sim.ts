@@ -8,7 +8,6 @@ import { getCityShopItem } from '../src/config/game/shop-rules';
 import {
   estimateDrugUnitsProduced,
   estimateHashProduceNet,
-  hashProduceBreakEvenThugRatio,
 } from '../src/lib/game-engine/produce-economy';
 import { grossWorkerCash, playerCashFromGross } from '../src/lib/game-engine/worker-economics';
 import { happinessEfficiencyModifier } from '../src/lib/game-engine/happiness';
@@ -146,7 +145,7 @@ for (const split of splits) {
       condoms: 99999,
       hash: 99999,
       beer: 99999,
-    });
+    }, { exemptWorkerHash: true });
     hashUsed += p.required.hash ?? 0;
     condomsUsed += p.required.condoms ?? 0;
   }

@@ -19,6 +19,8 @@ describe('route-backgrounds', () => {
   it('maps paths to background keys', () => {
     expect(getBackgroundForPath('/scout')).toBe('scout');
     expect(getBackgroundForPath('/market')).toBe('market');
+    expect(getBackgroundForPath('/businesses')).toBe('businesses');
+    expect(getBackgroundForPath('/settings')).toBe('settings');
     expect(getBackgroundForPath('/login')).toBeUndefined();
   });
 });

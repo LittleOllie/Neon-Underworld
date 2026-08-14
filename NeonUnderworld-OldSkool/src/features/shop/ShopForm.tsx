@@ -479,6 +479,7 @@ export function ShopForm({
             <p className="g-shop-owned">
               Owned: <GameValue>{owned.toLocaleString()}</GameValue>
             </p>
+            {entry.purpose ? <p className="g-shop-purpose">{entry.purpose}</p> : null}
             <div className="g-shop-controls">
               <NumericInput
                 id={`qty-${entry.key}`}

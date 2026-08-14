@@ -17,9 +17,9 @@ repeat
 
 | Rule | Value |
 |------|-------|
-| Regeneration | 2 turns every 6 minutes |
+| Regeneration | 2 turns every 5 minutes |
 | Turn cap | 5,000 |
-| Starting turns | 50 |
+| Starting turns | 500 |
 
 Legacy `PlayerTurnState` rows are migrated via `20260807010000_canonical_turn_state`. Balances above 5,000 are clamped. Report: `npm run db:backfill-turns`.
 
@@ -64,8 +64,12 @@ Legacy `PlayerTurnState` rows are migrated via `20260807010000_canonical_turn_st
 ## Cartels
 
 - Invite-only groups, max 5 members
-- Optional cash donation 0–60% on income
-- Combined cartel net worth contributes to virtual defence
+- Optional cash donation 0–60% on Scout / Produce income
+- Cartel treasury buys shared thugs, weapons, and rides
+- **Response Force:** while at home, the cartel can send up to twice your personal thug count (minimum allowance 25), capped at 25% of current cartel thugs and limited by cartel rides (5 thugs per ride)
+- Same-city cartel mates contribute 10% of their thugs as unarmed local backup
+- Cartel thugs can die defending members — sustained attacks weaken the shared pool
+- No cartel protection while travelling
 
 ## Produce
 
@@ -114,29 +118,40 @@ Central config: `@core/config/game/attack-rules.ts`
 
 ### Prerequisites
 
-- Valid **player intel** Scout report (5 turns to gather; 48h expiry)
-- Target net worth must be **≥ 50% of attacker's** canonical net worth (no upper cap; bank included)
+- Gather **Basic Intel** on the target before attacking (5 turns; report valid 48 hours). Deep Intel is optional.
+- Basic Intel does not lock eligibility — attack range is checked again live when you launch.
+- Target net worth must be **≥ 50% of your** canonical net worth. **There is no upper limit.**
+- You cannot gather Basic Intel on players below your attack range (turns are not spent).
 - Sufficient turns, thugs, and rides
 
 ### Attack types
 
 | Type | Turns | Purpose |
 |------|-------|---------|
-| Drive-By Shooting | 2 | Kill defending thugs; no asset theft |
+| Drive-By Shooting | 2 | Win the force fight and inflict thug casualties; no asset theft |
 | Home Invasion | 3 | Steal **cash on hand** only (bank protected) |
 | Raid Drug Labs | 3 | Steal drugs proportionally from stock |
+| Poach Workers | 4 | Steal Workers from a rival's street operation (minimum 25 Workers on target) |
 
 ### Logistics (Neon simplification)
 
-- **1 ride per 5 attacking thugs** (`ceil(thugs / 5)`) — applies to all three v1 mobile attacks
+- **1 ride per 5 attacking thugs** (`ceil(thugs / 5)`) — applies to all mobile attacks
 - Weapons allocated strongest-first (AK → Uzi → Glock); **not consumed** in v1
 - **20 attacks per target** per rolling 24h (all types combined)
+
+### Offline protection
+
+- Offline players (15+ minutes inactive) can receive up to **5 damaging attacks**, then offline protection activates.
+- Non-damaging repulsed attacks do not count. Cartel thug losses count as damaging.
+- Returning and staying **active for 30 continuous minutes** resets the protection cycle.
+- Brief login/logout alone does not reset protection.
 
 ### Combat
 
 - Server-authoritative resolution with seeded randomness (force composition dominates; luck is bounded)
 - Both sides may lose thugs; no player death, hospital, or jail in v1
-- **Cartel defence:** structural support only — not active until cartel assets exist
+- **Drive-By:** success requires winning the force confrontation (strength + weapons) and inflicting at least one defender-side casualty — not merely losing fewer thugs than the defender
+- **Cartel defence:** Response Force and local backup apply on defence only while the defender is **at home (not travelling)** — see Cartels section
 - Private ATTACK / DEFENCE reports; Command notification for defenders
 
 ## Future Black Market (not live)
@@ -145,4 +160,4 @@ Player-to-player auctions only — no Buy Now. Personnel, rides, weapons, drugs 
 
 ## Unavailable / deferred
 
-Brothel/coffee-shop attacks, steal workers, jack vehicles, tag-team, player death, hospital/jail timers, business attacks.
+Brothel/coffee-shop attacks, jack vehicles, tag-team, player death, hospital/jail timers, business attacks.

@@ -4,6 +4,7 @@ import { WORKER_POACHING_RULES } from '@/config/game/worker-poaching-rules';
 import { ridesRequiredForThugs } from '@/lib/game-engine/combat-rules';
 import {
   GAMEPLAY_ERROR_MESSAGES,
+  GAMEPLAY_CONTEXT_MESSAGES,
   type GameplayErrorCode,
 } from '@/lib/game-engine/gameplay-errors';
 
@@ -181,4 +182,126 @@ export function evaluateAttackTargetPreview(input: AttackTargetPreviewInput): {
     };
   }
   return { eligible: true, code: null, message: null };
+}
+
+export type RequestedTargetIssueCode =
+  | 'INVALID_TARGET'
+  | 'TARGET_WRONG_DISTRICT'
+  | 'TARGET_OUT_OF_RANGE'
+  | 'TARGET_UNAVAILABLE'
+  | 'SELF';
+
+export interface RequestedTargetResolution {
+  issue: RequestedTargetIssueCode | null;
+  heading: string | null;
+  message: string | null;
+  alias?: string;
+  aliasNormalized?: string;
+}
+
+/** Resolve why a deep-linked target cannot appear on the Attack page. */
+export function resolveRequestedTargetIssue(input: {
+  attackerId: string;
+  defenderId: string;
+  attackerDistrictId: string;
+  defenderDistrictId: string;
+  attackerNw: number;
+  defenderNw: number;
+  defenderLifeStatus: string;
+  defenderTravelling: boolean;
+  defenderAlias?: string;
+  defenderAliasNormalized?: string;
+}): RequestedTargetResolution {
+  if (input.attackerId === input.defenderId) {
+    return {
+      issue: 'SELF',
+      heading: null,
+      message: 'You cannot attack yourself.',
+    };
+  }
+  if (ATTACK_RULES.blockedDefenderLifeStatuses.includes(input.defenderLifeStatus as never)) {
+    return {
+      issue: 'TARGET_UNAVAILABLE',
+      heading: null,
+      message: GAMEPLAY_ERROR_MESSAGES.TARGET_UNAVAILABLE,
+      alias: input.defenderAlias,
+      aliasNormalized: input.defenderAliasNormalized,
+    };
+  }
+  if (input.defenderTravelling) {
+    return {
+      issue: 'TARGET_UNAVAILABLE',
+      heading: null,
+      message: GAMEPLAY_ERROR_MESSAGES.TARGET_UNAVAILABLE,
+      alias: input.defenderAlias,
+      aliasNormalized: input.defenderAliasNormalized,
+    };
+  }
+  if (input.attackerDistrictId !== input.defenderDistrictId) {
+    return {
+      issue: 'TARGET_WRONG_DISTRICT',
+      heading: null,
+      message: GAMEPLAY_CONTEXT_MESSAGES.targetNoLongerInCity,
+      alias: input.defenderAlias,
+      aliasNormalized: input.defenderAliasNormalized,
+    };
+  }
+  if (!isWithinAttackRange(input.attackerNw, input.defenderNw)) {
+    return {
+      issue: 'TARGET_OUT_OF_RANGE',
+      heading: GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading,
+      message: GAMEPLAY_CONTEXT_MESSAGES.intelTargetOutOfRange,
+      alias: input.defenderAlias,
+      aliasNormalized: input.defenderAliasNormalized,
+    };
+  }
+  return {
+    issue: null,
+    heading: null,
+    message: null,
+    alias: input.defenderAlias,
+    aliasNormalized: input.defenderAliasNormalized,
+  };
+}
+
+export type ProfileAttackEligibility =
+  | { status: 'eligible' }
+  | { status: 'below_range'; heading: string; message: string }
+  | { status: 'unavailable'; message: string }
+  | { status: 'wrong_district' }
+  | { status: 'self' };
+
+export function resolveProfileAttackEligibility(input: {
+  viewerId: string;
+  viewerDistrictId: string;
+  viewerNw: number;
+  targetPlayerId: string;
+  targetDistrictId: string;
+  targetNw: number;
+  targetLifeStatus: string;
+  targetTravelling: boolean;
+}): ProfileAttackEligibility {
+  const resolution = resolveRequestedTargetIssue({
+    attackerId: input.viewerId,
+    defenderId: input.targetPlayerId,
+    attackerDistrictId: input.viewerDistrictId,
+    defenderDistrictId: input.targetDistrictId,
+    attackerNw: input.viewerNw,
+    defenderNw: input.targetNw,
+    defenderLifeStatus: input.targetLifeStatus,
+    defenderTravelling: input.targetTravelling,
+  });
+  if (resolution.issue === 'SELF') return { status: 'self' };
+  if (resolution.issue === 'TARGET_WRONG_DISTRICT') return { status: 'wrong_district' };
+  if (resolution.issue === 'TARGET_OUT_OF_RANGE') {
+    return {
+      status: 'below_range',
+      heading: resolution.heading ?? GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading,
+      message: resolution.message ?? GAMEPLAY_CONTEXT_MESSAGES.intelTargetOutOfRange,
+    };
+  }
+  if (resolution.issue === 'TARGET_UNAVAILABLE') {
+    return { status: 'unavailable', message: resolution.message ?? GAMEPLAY_ERROR_MESSAGES.TARGET_UNAVAILABLE };
+  }
+  return { status: 'eligible' };
 }

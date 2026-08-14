@@ -2,11 +2,22 @@
 
 import Link from 'next/link';
 import { buildMoreMenuSections } from '@local/config/navigation';
+import { shouldPrefetchRoute } from '@local/config/prefetch-policy';
 import { LogoutLink } from '@local/components/oldskool/LogoutLink';
 import { GameIcon } from './GameIcon';
 
-/** Routes that perform server-side mutations on load — never prefetch. */
-const NO_PREFETCH_HREFS = new Set(['/market', '/travel', '/cartels']);
+/** @deprecated Use prefetch-policy — kept for tests referencing the set name. */
+const NO_PREFETCH_HREFS = new Set([
+  '/produce',
+  '/empire',
+  '/attack',
+  '/market',
+  '/travel',
+  '/cartels',
+  '/businesses',
+  '/reports',
+]);
+export { NO_PREFETCH_HREFS };
 
 export function MoreMenu({
   onClose,
@@ -48,7 +59,7 @@ export function MoreMenu({
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={NO_PREFETCH_HREFS.has(item.href) ? false : undefined}
+                  prefetch={shouldPrefetchRoute(item.href) ? undefined : false}
                   className={`g-more-link${item.unavailable ? ' g-more-muted' : ''}`}
                   onClick={onClose}
                 >

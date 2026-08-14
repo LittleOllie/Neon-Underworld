@@ -10,6 +10,7 @@ import type { AttackType } from '@core/config/game/attack-rules';
 import { ATTACK_TYPE_LABELS, ATTACK_RULES } from '@core/config/game/attack-rules';
 import { attackLaunchSchema, directAttackLaunchSchema } from '@core/lib/validation/schemas';
 import { requireActivePlayerSession } from '@local/lib/auth/active-session';
+import { assertSessionMatchesPlayer } from '@local/lib/auth/session-player';
 import { prisma } from '@core/lib/db/prisma';
 import {
   ACTIVITY_TYPES,
@@ -26,15 +27,21 @@ import {
   toUserMessage,
 } from '@core/lib/game-engine/gameplay-errors';
 import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
-import { evaluateAttackTargetPreview } from '@core/lib/game-engine/combat/eligibility';
+import { evaluateAttackTargetPreview, resolveRequestedTargetIssue } from '@core/lib/game-engine/combat/eligibility';
 import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
-import { RankingsService } from '@local/server/services/rankings.service';
+import {
+  RankingsService,
+  defaultRankingsFilterForDistrict,
+} from '@local/server/services/rankings.service';
 import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 import { revalidatePath } from 'next/cache';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
-import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import {
+  buildShellSnapshotForPlayer,
+  finalizeLocalMutationShell,
+} from '@local/server/services/shell-snapshot.service';
 import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import type { AttackTargetCandidate } from '@local/features/attack/AttackForm.types';
 
@@ -69,6 +76,10 @@ function buildLaunchResult(data: CombatResolutionOutput): AttackLaunchResult {
     defenderReportId: '',
     newTurns: data.newTurns,
     idempotentReplay: data.idempotentReplay,
+    defenderThugsBefore: data.defenderThugsBefore,
+    cartelResponseDeployed: data.cartelResponseDeployed,
+    cartelThugLosses: data.cartelThugLosses,
+    cartelLocalSupport: data.cartelLocalSupport,
   };
 }
 
@@ -122,6 +133,16 @@ function buildLaunchResultFromEncounter(
     newTurns,
     idempotentReplay: true,
   };
+}
+
+async function buildAttackReplayShell(
+  attackerId: string,
+  turnsOverride?: number,
+): Promise<PlayerShellSnapshot> {
+  return buildShellSnapshotForPlayer(
+    attackerId,
+    turnsOverride != null ? { turns: turnsOverride } : {},
+  );
 }
 
 function safeRevalidateAttackPaths(): void {
@@ -195,6 +216,7 @@ async function finalizeAttackLaunchInner(
   });
 
   if (encounter.attackerReportId && encounter.defenderReportId) {
+    const shell = await buildAttackReplayShell(attackerId, result.data.newTurns);
     return {
       success: true,
       data: {
@@ -202,6 +224,7 @@ async function finalizeAttackLaunchInner(
         attackerReportId: encounter.attackerReportId,
         defenderReportId: encounter.defenderReportId,
         idempotentReplay: true,
+        shell,
       },
     };
   }
@@ -211,8 +234,12 @@ async function finalizeAttackLaunchInner(
     prisma.player.findUniqueOrThrow({ where: { id: encounter.defenderId } }),
   ]);
 
-  const defenderThugsBefore =
-    (encounter.defenderForceSnapshot as { thugsDefending?: number })?.thugsDefending ?? 0;
+  const defenderThugsBefore = result.data.defenderThugsBefore ?? 0;
+  const cartelResponseDeployed = result.data.cartelResponseDeployed ?? 0;
+  const cartelResponseLosses = result.data.cartelThugLosses ?? 0;
+  const cartelLocalSupport = result.data.cartelLocalSupport ?? 0;
+  const cartelParticipated =
+    cartelResponseDeployed > 0 || cartelLocalSupport > 0 || cartelResponseLosses > 0;
 
   const { attackerReportId, defenderReportId } = await ReportService.createCombatReports(
     attackerId,
@@ -239,7 +266,10 @@ async function finalizeAttackLaunchInner(
       outcome: result.data.outcome,
       outcomeLabel: result.data.outcomeLabel,
       scoutConfidence: 0,
-      cartelParticipated: false,
+      cartelParticipated,
+      cartelResponseDeployed: cartelParticipated ? cartelResponseDeployed : undefined,
+      cartelResponseLosses: cartelResponseLosses > 0 ? cartelResponseLosses : undefined,
+      cartelLocalSupport: cartelLocalSupport > 0 ? cartelLocalSupport : undefined,
       turnsSpent: result.data.turnsSpent,
       resolvedAt: new Date().toISOString(),
     },
@@ -341,9 +371,10 @@ export async function launchAttackAction(
     });
 
     if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
+      const shell = await buildAttackReplayShell(attackerId);
       return {
         success: true,
-        data: buildLaunchResultFromEncounter(existingEncounter),
+        data: { ...buildLaunchResultFromEncounter(existingEncounter), shell },
       };
     }
 
@@ -417,9 +448,10 @@ export async function launchDirectAttackAction(
     });
 
     if (existingEncounter?.attackerReportId && existingEncounter.defenderReportId) {
+      const shell = await buildAttackReplayShell(attackerId);
       return {
         success: true,
-        data: buildLaunchResultFromEncounter(existingEncounter),
+        data: { ...buildLaunchResultFromEncounter(existingEncounter), shell },
       };
     }
 
@@ -478,11 +510,13 @@ export async function getAttackPageData(
   ctx: CanonicalPlayerContext,
   options?: { targetAlias?: string; reportId?: string },
 ) {
+  await assertSessionMatchesPlayer(ctx.id);
   const attackerNw = ctx.netWorth;
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [seasonRankings, candidates, intelReports, deepIntelReports] = await Promise.all([
-    RankingsService.getSeasonRankings(ctx.seasonId, 'overall'),
+  const districtFilter = defaultRankingsFilterForDistrict(ctx.district.slug);
+  const [districtRankings, candidates, intelBundle] = await Promise.all([
+    RankingsService.getSeasonRankings(ctx.seasonId, districtFilter),
     prisma.player.findMany({
       where: {
         seasonId: ctx.seasonId,
@@ -496,11 +530,12 @@ export async function getAttackPageData(
         statusExt: true,
       },
     }),
-    ReportService.listValidPlayerIntelReports(ctx.id),
-    ReportService.listValidDeepIntelReports(ctx.id),
+    ReportService.listScoutTargetIntelReports(ctx.id),
   ]);
+  const intelReports = intelBundle.basicIntelReports;
+  const deepIntelReports = intelBundle.deepIntelReports;
 
-  const rankById = new Map(seasonRankings.map((row) => [row.id, row.rank]));
+  const rankById = new Map(districtRankings.map((row) => [row.id, row.rank]));
   const activeIntelByTarget = new Map(
     intelReports
       .filter((report) => !report.expired)
@@ -623,6 +658,8 @@ export async function getAttackPageData(
 
   let initialTargetAlias = options?.targetAlias?.trim().toLowerCase();
   let staleIntelNotice: string | null = null;
+  let requestedTargetNotice: { heading: string | null; message: string } | null = null;
+
   if (options?.reportId) {
     const fromReport = intelReports.find((r) => r.reportId === options.reportId);
     if (fromReport) {
@@ -633,6 +670,42 @@ export async function getAttackPageData(
       }
       if (!initialTargetAlias) {
         initialTargetAlias = fromReport.intel.targetAlias.trim().toLowerCase();
+      }
+    }
+  }
+
+  if (initialTargetAlias && !targets.some((t) => t.aliasNormalized === initialTargetAlias)) {
+    const requested = await prisma.player.findFirst({
+      where: {
+        aliasNormalized: initialTargetAlias,
+        seasonId: ctx.seasonId,
+        isSystemPlayer: false,
+      },
+    });
+    if (!requested) {
+      requestedTargetNotice = {
+        heading: null,
+        message: GAMEPLAY_ERROR_MESSAGES.INVALID_TARGET,
+      };
+    } else {
+      const requestedNw = await NetWorthService.calculateFromPlayerAsync(requested);
+      const issue = resolveRequestedTargetIssue({
+        attackerId: ctx.id,
+        defenderId: requested.id,
+        attackerDistrictId: ctx.district.id,
+        defenderDistrictId: requested.districtId,
+        attackerNw,
+        defenderNw: requestedNw,
+        defenderLifeStatus: requested.lifeStatus,
+        defenderTravelling: requested.travelling,
+        defenderAlias: requested.alias,
+        defenderAliasNormalized: requested.aliasNormalized,
+      });
+      if (issue.issue) {
+        requestedTargetNotice = {
+          heading: issue.heading,
+          message: issue.message ?? GAMEPLAY_ERROR_MESSAGES.INVALID_TARGET,
+        };
       }
     }
   }
@@ -648,6 +721,7 @@ export async function getAttackPageData(
     initialTargetAlias,
     initialReportId: options?.reportId,
     staleIntelNotice,
+    requestedTargetNotice,
     attackRangeMinNetWorth: minAttackTargetNetWorth(attackerNw),
     intelTurnCost: ATTACK_RULES.intelGatherTurnCost,
     deepIntelTurnCost: ATTACK_RULES.deepIntelTurnCost,

@@ -5,9 +5,10 @@ import { PlayerAvatar } from '@local/components/game/PlayerAvatar';
 import { PublicProfileService } from '@local/server/services/public-profile.service';
 import { ReportService } from '@local/server/services/report.service';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
-import { PlayerProfilePanel } from '@local/features/player/PlayerProfilePanel';
+import { resolveProfileAttackEligibility, type ProfileAttackEligibility } from '@core/lib/game-engine/combat/eligibility';
 import { formatRank } from '@local/lib/format-rank';
 import { OS_TERMS } from '@local/config/terminology';
+import { PlayerProfilePanel } from '@local/features/player/PlayerProfilePanel';
 
 interface Props {
   params: Promise<{ alias: string }>;
@@ -53,6 +54,19 @@ export default async function PlayerProfilePage({ params }: Props) {
       }
     : null;
 
+  const attackEligibility: ProfileAttackEligibility = isSelf
+    ? { status: 'self' }
+    : resolveProfileAttackEligibility({
+        viewerId: ctx.id,
+        viewerDistrictId: ctx.district.id,
+        viewerNw: ctx.netWorth,
+        targetPlayerId: profile.id,
+        targetDistrictId: profile.districtId,
+        targetNw: profile.netWorth,
+        targetLifeStatus: profile.lifeStatus,
+        targetTravelling: profile.travelling,
+      });
+
   return (
     <>
       <div className="g-profile-header">
@@ -60,7 +74,7 @@ export default async function PlayerProfilePage({ params }: Props) {
         <PageTitle icon="player">{profile.alias}</PageTitle>
       </div>
 
-      <StatRow label={OS_TERMS.rank} value={formatRank(profile.rank)} />
+      <StatRow label={OS_TERMS.districtRank} value={formatRank(profile.rank)} />
       <StatRow label={OS_TERMS.netWorth} value={`$${profile.netWorth.toLocaleString()}`} />
       <StatRow label={OS_TERMS.city} value={profile.city} />
       <StatRow
@@ -87,6 +101,7 @@ export default async function PlayerProfilePage({ params }: Props) {
           viewerCity={ctx.district.name}
           targetCity={profile.city}
           targetCitySlug={profile.citySlug}
+          attackEligibility={attackEligibility}
         />
       )}
 

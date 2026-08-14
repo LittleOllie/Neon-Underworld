@@ -145,12 +145,15 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
   let outcomeLabel: string;
 
   if (input.attackType === 'DRIVE_BY') {
-    if (casualties.defenderLosses > casualties.attackerLosses) {
-      outcome = casualties.attackerVictory ? 'SUCCESS' : 'PARTIAL';
-      outcomeLabel = 'Drive-by complete — significant damage inflicted.';
+    if (casualties.attackerVictory && casualties.defenderLosses > 0) {
+      outcome = 'SUCCESS';
+      outcomeLabel = 'Drive-by complete — you won the clash and inflicted damage.';
+    } else if (casualties.attackerVictory) {
+      outcome = 'PARTIAL';
+      outcomeLabel = 'Drive-by broke through — defenders held with no losses.';
     } else {
       outcome = 'REPULSED';
-      outcomeLabel = 'Drive-by repelled — limited damage.';
+      outcomeLabel = 'Drive-by repelled — defenders held the line.';
     }
   } else if (input.attackType === 'POACH_WORKERS') {
     if (!casualties.attackerVictory) {
@@ -201,6 +204,7 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
       cartelSupportThugs: cartelSupport,
       cartelArmouryThugs: cartelOwnedThugs,
       cartelArmouryAllocation: cartelAlloc,
+      cartelThugLosses,
     },
   };
 }

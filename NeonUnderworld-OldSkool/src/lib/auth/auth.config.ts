@@ -31,7 +31,12 @@ export const authConfig = {
         path.startsWith('/guides') ||
         path.startsWith('/identity') ||
         path.startsWith('/settings') ||
-        path.startsWith('/coming');
+        path.startsWith('/coming') ||
+        path.startsWith('/market') ||
+        path.startsWith('/cartels') ||
+        path.startsWith('/travel') ||
+        path.startsWith('/bank') ||
+        path.startsWith('/playtest');
 
       if (isAuthPage) return true;
       if (isProtected) return isLoggedIn;

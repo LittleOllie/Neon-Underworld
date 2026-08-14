@@ -359,7 +359,7 @@ export function collectAttentionItems(input: {
     items.push({
       id: 'worker-hash',
       label: 'Street worker supplies are low — hash',
-      href: '/shop?tab=drugs',
+      href: '/shop?tab=supplies&item=hash',
       severity: workerCritical ? 'alert' : 'info',
       icon: 'warning',
       priority: workerCritical ? PRIORITY.criticalSupply : PRIORITY.supplies,

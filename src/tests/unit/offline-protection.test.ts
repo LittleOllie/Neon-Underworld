@@ -38,6 +38,7 @@ describe('offline protection', () => {
         defenderLosses: 0,
         cartelThugLosses: 0,
         cashStolen: 5000,
+        workersStolen: 0,
         drugsStolen: { hash: 0, shrooms: 0, coke: 0, heroin: 0 },
       }),
     ).toBe(true);

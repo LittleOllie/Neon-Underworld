@@ -72,6 +72,13 @@ enum CartelInviteStatus {
   EXPIRED
 }
 
+enum CartelJoinRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
 enum MarketListingStatus {
   ACTIVE
   SETTLED
@@ -172,6 +179,7 @@ model Player {
   cartel            Cartel?           @relation("CartelMembers", fields: [cartelId], references: [id], onDelete: SetNull)
   cartelInvitesSent CartelInvite[]    @relation("CartelInviter")
   cartelInvitesRecv CartelInvite[]    @relation("CartelInvitee")
+  cartelJoinRequests CartelJoinRequest[] @relation("CartelJoinApplicant")
   marketListings    MarketListing[]   @relation("MarketSeller")
   marketBids        MarketBid[]       @relation("MarketBidder")
   marketWins        MarketListing[]   @relation("MarketHighestBidder")
@@ -203,6 +211,7 @@ model PlayerStatusExt {
   notification            String?
   unreadReports           Int       @default(0)
   lastSeenAt              DateTime?
+  onlineSessionStartedAt  DateTime?
   offlineDamagingHits     Int       @default(0)
   offlineProtectionActive Boolean   @default(false)
   updatedAt               DateTime  @updatedAt
@@ -436,13 +445,30 @@ model Cartel {
   thugs        Int      @default(0)
   glocks       Int      @default(0)
   uzis         Int      @default(0)
+  rides        Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  members Player[]       @relation("CartelMembers")
-  invites CartelInvite[]
+  members      Player[]             @relation("CartelMembers")
+  invites      CartelInvite[]
+  joinRequests CartelJoinRequest[]
 
   @@index([leaderId])
+}
+
+model CartelJoinRequest {
+  id          String                  @id @default(cuid())
+  cartelId    String
+  applicantId String
+  status      CartelJoinRequestStatus @default(PENDING)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  cartel    Cartel @relation(fields: [cartelId], references: [id], onDelete: Cascade)
+  applicant Player @relation("CartelJoinApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([cartelId, status])
+  @@index([applicantId, status])
 }
 
 model CartelInvite {

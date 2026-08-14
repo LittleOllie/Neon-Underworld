@@ -122,9 +122,11 @@ export async function deepIntelTargetAction(
       }
 
       let cartelSupportThugs = 0;
-      if (ATTACK_RULES.cartelDefenceActive && target.cartelId) {
+      let cartelResponseForceThugs = 0;
+      if (ATTACK_RULES.cartelDefenceActive && target.cartelId && !target.travelling) {
         const cartelDefence = await CartelService.getCartelDefenceContextInTx(tx, target.id);
         cartelSupportThugs = cartelDefence.virtualSupportThugs;
+        cartelResponseForceThugs = cartelDefence.responseForceThugs;
       }
 
       const { newState } = consumeTurns(settled, turnCost);
@@ -153,6 +155,7 @@ export async function deepIntelTargetAction(
           condoms: target.condoms,
           prostitutePayoutPercent: target.prostitutePayoutPercent,
           cartelSupportThugs,
+          cartelResponseForceThugs,
         },
         playerId,
         idempotencyKey,

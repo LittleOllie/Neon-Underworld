@@ -47,6 +47,11 @@ describe('game backgrounds config', () => {
     expect(gameBackgroundSrcPng('cartel')).toBe(`${GAME_BACKGROUND_DIR}/cartel.png`);
   });
 
+  it('resolves businesses and settings background paths', () => {
+    expect(gameBackgroundSrcPng('businesses')).toBe(`${GAME_BACKGROUND_DIR}/businesses.png`);
+    expect(gameBackgroundSrcPng('settings')).toBe(`${GAME_BACKGROUND_DIR}/settings.png`);
+  });
+
   it('defaults overlay darkness to 0', () => {
     expect(gameBackgroundDarkness('scout')).toBe(0);
     expect(gameBackgroundDarkness('home')).toBe(0);

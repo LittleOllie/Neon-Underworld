@@ -20,6 +20,8 @@ export function resolveSupplyConsumptionForAction(input: {
   condoms: number;
   hash: number;
   beer: number;
+  /** Hash production: workers do not consume hash as upkeep */
+  exemptWorkerHash?: boolean;
 }): SupplyActionResult {
   const inventory: SupplyInventory = {
     condoms: input.condoms,
@@ -31,6 +33,7 @@ export function resolveSupplyConsumptionForAction(input: {
     input.thugs,
     input.turnsSpent,
     inventory,
+    { exemptWorkerHash: input.exemptWorkerHash },
   );
   const inventoryAfter = applySupplyConsumption(inventory, plan.consumed);
   return { plan, inventoryAfter };

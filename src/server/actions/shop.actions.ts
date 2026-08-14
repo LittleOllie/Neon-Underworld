@@ -22,7 +22,6 @@ import { throwIfValidationMessage, toUserMessage } from '@/lib/game-engine/gamep
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
-import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import type { ActionResult } from './auth.actions';
 
 export type { ShopItemKey };
@@ -161,7 +160,6 @@ export async function shopPurchaseAction(
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
 
       assertPlayerCanPerformAction(player);
-      await OfflineProtectionService.resetProtectionCycleInTx(tx, playerId);
 
       throwIfValidationMessage(
         validateShopPurchaseContext(player, parsed.data.item, parsed.data.quantity),
@@ -329,7 +327,6 @@ export async function shopSellAction(
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
 
       assertPlayerCanPerformAction(player);
-      await OfflineProtectionService.resetProtectionCycleInTx(tx, playerId);
 
       throwIfValidationMessage(
         validateShopSellContext(player, parsed.data.item, parsed.data.quantity),

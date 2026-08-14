@@ -23,8 +23,10 @@ describe('cartel member presence', () => {
 });
 
 describe('cartel net worth', () => {
-  it('uses treasury and shared thugs only — not member NW', () => {
-    expect(calculateCartelNetWorth({ treasuryCash: 50_000, thugs: 10 })).toBe(50_000 + 10 * 700);
+  it('uses treasury, shared thugs, and rides — not member NW', () => {
+    expect(calculateCartelNetWorth({ treasuryCash: 50_000, thugs: 10, rides: 3 })).toBe(
+      50_000 + 10 * 700 + 3 * 2000,
+    );
     expect(calculateCartelNetWorth({ treasuryCash: 0, thugs: 0 })).toBe(0);
   });
 });

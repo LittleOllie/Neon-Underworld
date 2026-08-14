@@ -708,6 +708,24 @@ export function BusinessesPanel({ initialData }: Props) {
           </p>
         </BusinessSection>
 
+        {data.summary.ownedCount === 0 ? (
+          <section className="g-business-aspiration" aria-label="Business progression">
+            <h3 className="g-business-aspiration-title">Build something bigger</h3>
+            <p className="g-note g-business-aspiration-body">
+              Your first Warehouse costs{' '}
+              <strong>
+                {fmtCash(
+                  data.catalog.find((e) => e.type === 'WAREHOUSE')?.purchasePrice ??
+                    data.catalog[0]?.purchasePrice ??
+                    0
+                )}
+              </strong>
+              . Grow your operation, build your cash reserves, and turn street muscle into a real
+              empire.
+            </p>
+          </section>
+        ) : null}
+
         {data.catalog.map((entry) => (
           <details key={entry.type} className="g-business-section g-business-section--catalog">
             <summary className="g-business-section-summary">

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@local/lib/auth/config';
 import { assertUserNotBanned } from '@core/lib/auth/ban-guard';
 import { PlayerService, type CanonicalPlayerContext } from '@local/server/services/player.service';
+import { PlayerStatusService } from '@local/server/services/player-status.service';
 import { RankingsService } from '@local/server/services/rankings.service';
 import { ReportService, getUnreadReportCount } from '@local/server/services/report.service';
 import { EmpireService } from '@local/server/services/empire.service';
@@ -20,6 +21,7 @@ export const requireGameSession = cache(async (): Promise<{
   const session = await auth();
   if (!session?.user?.playerId) redirect('/login');
   await assertUserNotBanned(session.user.id);
+  await PlayerStatusService.touchLastSeen(session.user.playerId);
   const ctx = await PlayerService.getCanonicalContext(session.user.playerId);
   return { playerId: session.user.playerId, ctx };
 });

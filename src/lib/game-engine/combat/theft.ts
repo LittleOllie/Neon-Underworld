@@ -34,6 +34,10 @@ export function resolveTheft(
     return { cashStolen: 0, drugsStolen: empty };
   }
 
+  if (attackType === 'POACH_WORKERS') {
+    return { cashStolen: 0, drugsStolen: empty };
+  }
+
   if (attackType === 'HOME_INVASION') {
     if (!tacticalSuccess || defenderCash <= 0 || survivalRatio < 0.3) {
       return { cashStolen: 0, drugsStolen: empty };

@@ -14,7 +14,7 @@ describe('buildSupplyImpactLines', () => {
     expect(lines.some((l) => l.text === 'Net Hash: +85')).toBe(true);
   });
 
-  it('explains negative net hash', () => {
+  it('shows negative net hash without obsolete worker consumption copy', () => {
     const lines = buildSupplyImpactLines({
       drugType: 'hash',
       drugUnitsProduced: 200,
@@ -22,7 +22,8 @@ describe('buildSupplyImpactLines', () => {
       hashNetChange: -135,
     });
     expect(lines.some((l) => l.text === 'Net Hash: -135')).toBe(true);
-    expect(lines.some((l) => l.text.includes('Workers used more Hash'))).toBe(true);
+    expect(lines.some((l) => l.text.includes('Workers used more Hash'))).toBe(false);
+    expect(lines.some((l) => l.text.includes('consumed more Hash'))).toBe(false);
   });
 
   it('omits net hash line for non-hash drugs', () => {

@@ -16,6 +16,8 @@ export function validateProductionEnv(): void {
   }
 
   if (process.env.PLAYTEST_TURNS === 'true' || process.env.NEXT_PUBLIC_PLAYTEST_TURNS === 'true') {
-    console.warn('[env] PLAYTEST_TURNS is enabled in production — disable unless intentional.');
+    throw new Error(
+      'PLAYTEST_TURNS must not be enabled in production. Remove PLAYTEST_TURNS and NEXT_PUBLIC_PLAYTEST_TURNS from production env.',
+    );
   }
 }

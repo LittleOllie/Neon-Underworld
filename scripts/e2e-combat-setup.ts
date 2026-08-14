@@ -6,10 +6,12 @@ import { PrismaClient } from '@prisma/client';
 import { ATTACK_RULES } from '../src/config/game/attack-rules';
 import { buildPlayerIntelSnapshot } from '../src/lib/game-engine/combat/build-intel-snapshot';
 import { calculateCanonicalNetWorth } from '../NeonUnderworld-OldSkool/src/config/valuations';
+import { assertDevSeedAllowed } from './lib/dev-guard';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  assertDevSeedAllowed('e2e-combat-setup');
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@neonunderworld.local';
   const admin = await prisma.user.findUnique({
     where: { email: adminEmail.toLowerCase() },
@@ -20,13 +22,14 @@ async function main() {
   const defender = await prisma.player.findFirst({
     where: {
       seasonId: admin.player.seasonId,
-      isSystemPlayer: true,
+      districtId: admin.player.districtId,
+      isSystemPlayer: false,
       id: { not: admin.player.id },
     },
     include: { district: true },
     orderBy: { createdAt: 'asc' },
   });
-  if (!defender) throw new Error('No system defender found');
+  if (!defender) throw new Error('No attackable non-system defender found in admin district');
 
   await prisma.player.update({
     where: { id: admin.player.id },
@@ -96,6 +99,28 @@ async function main() {
     where: {
       playerId: admin.player.id,
       metadata: { path: ['type'], equals: 'PLAYER_INTEL' },
+    },
+  });
+
+  await prisma.combatEncounter.deleteMany({
+    where: {
+      attackerId: admin.player.id,
+      defenderId: defender.id,
+    },
+  });
+
+  await prisma.playerStatusExt.upsert({
+    where: { playerId: defender.id },
+    create: {
+      playerId: defender.id,
+      offlineDamagingHits: 0,
+      offlineProtectionActive: false,
+      lastSeenAt: new Date(),
+    },
+    update: {
+      offlineDamagingHits: 0,
+      offlineProtectionActive: false,
+      lastSeenAt: new Date(),
     },
   });
 

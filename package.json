@@ -20,7 +20,10 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:dev-pvp": "tsx scripts/seed-dev-pvp-opponents.ts",
+    "db:seed:fresh-e2e": "tsx scripts/seed-fresh-e2e-player.ts",
+    "db:seed:e2e-reports": "tsx scripts/seed-e2e-report-fixtures.ts",
     "db:seed:playtest-npcs": "tsx scripts/seed-playtest-npcs.ts",
+    "db:check:legacy-bank-cash": "tsx scripts/check-legacy-bank-cash.ts",
     "db:backfill-turns": "tsx scripts/backfill-canonical-turn-state.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"

@@ -40,6 +40,12 @@ const mockData: EmpireManagementData = {
   personnel: {
     thugs: 5,
     workers: 10,
+    streetWorkers: 10,
+    streetThugs: 5,
+    businessWorkers: 0,
+    businessSecurity: 0,
+    totalWorkers: 10,
+    totalThugs: 5,
     workerPayoutPercent: 50,
     estimatedWorkerMorale: 72,
     armedThugs: 4,

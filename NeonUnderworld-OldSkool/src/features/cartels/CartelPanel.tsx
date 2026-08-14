@@ -1,17 +1,22 @@
 'use client';
 
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import {
   acceptCartelInviteAction,
+  acceptCartelJoinRequestAction,
   createCartelAction,
   declineCartelInviteAction,
+  declineCartelJoinRequestAction,
   inviteToCartelAction,
   leaveCartelAction,
   purchaseCartelArmouryAction,
   removeCartelMemberAction,
+  requestCartelJoinAction,
   setCartelDonationAction,
+  transferCartelLeadershipAction,
   type CartelArmouryPurchaseResult,
   type CartelPageData,
 } from '@local/server/actions/cartel.actions';
@@ -29,64 +34,51 @@ import { parsePositiveInteger } from '@local/lib/numeric-input';
 
 type Props = CartelPageData;
 
-function applyArmouryPurchase(
-  cartel: NonNullable<CartelPageData['cartel']>,
-  result: CartelArmouryPurchaseResult,
-): NonNullable<CartelPageData['cartel']> {
-  const armoury = {
-    ...cartel.armoury,
-    treasuryCash: result.newTreasuryCash,
-    thugs: result.item === 'thug' ? result.newOwnedQuantity : cartel.armoury.thugs,
-    glocks: result.item === 'glock' ? result.newOwnedQuantity : cartel.armoury.glocks,
-    uzis: result.item === 'uzi' ? result.newOwnedQuantity : cartel.armoury.uzis,
-    catalog: cartel.armoury.catalog.map((entry) =>
-      entry.key === result.item ? { ...entry, ownedQuantity: result.newOwnedQuantity } : entry,
-    ),
-  };
-
-  return {
-    ...cartel,
-    treasuryCash: result.newTreasuryCash,
-    cartelNetWorth: result.cartelNetWorth,
-    armoury,
-    protection: {
-      ...cartel.protection,
-      ownedDefenceThugs: result.item === 'thug' ? result.newOwnedQuantity : cartel.protection.ownedDefenceThugs,
-    },
-  };
-}
-
 function CartelHQView({
   cartel,
+  pendingJoinRequestsForLeader,
   donationOptions,
   error,
   success,
   loading,
   inviteAlias,
   setInviteAlias,
+  transferTargetId,
+  setTransferTargetId,
   onInvite,
   onRemove,
   onLeave,
   onDonation,
   onArmouryPurchase,
+  onAcceptRequest,
+  onDeclineRequest,
+  onTransferLeadership,
   armouryQuantities,
   setArmouryQuantities,
 }: {
   cartel: NonNullable<CartelPageData['cartel']>;
+  pendingJoinRequestsForLeader: CartelPageData['pendingJoinRequestsForLeader'];
   donationOptions: readonly number[];
   error: string;
   success: string;
   loading: string | null;
   inviteAlias: string;
   setInviteAlias: (v: string) => void;
+  transferTargetId: string;
+  setTransferTargetId: (v: string) => void;
   onInvite: () => void;
   onRemove: (memberId: string) => void;
   onLeave: () => void;
   onDonation: (percent: number) => void;
   onArmouryPurchase: (itemKey: string) => void;
+  onAcceptRequest: (requestId: string) => void;
+  onDeclineRequest: (requestId: string) => void;
+  onTransferLeadership: () => void;
   armouryQuantities: Record<string, string>;
   setArmouryQuantities: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
+  const transferCandidates = cartel.members.filter((m) => !m.isLeader);
+
   return (
     <div className="g-cartel-hq">
       {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
@@ -122,46 +114,61 @@ function CartelHQView({
             <span className="g-cartel-hq__stat-value">{cartel.myDonationPercent}%</span>
           </div>
           <div className="g-cartel-hq__stat">
-            <span className="g-cartel-hq__stat-label">Treasury</span>
-            <span className="g-cartel-hq__stat-value">
-              ${cartel.treasuryCash.toLocaleString()}
-            </span>
+            <span className="g-cartel-hq__stat-label">Leader</span>
+            <span className="g-cartel-hq__stat-value">{cartel.leaderAlias}</span>
           </div>
         </div>
       </section>
 
-      <section className="g-cartel-hq__section" aria-label="Cartel protection">
-        <SectionLabel>PROTECTION</SectionLabel>
+      <section className="g-cartel-hq__section" aria-label="Cartel treasury">
+        <SectionLabel>CARTEL TREASURY</SectionLabel>
+        <StatRow label="Cash balance" value={`$${cartel.treasuryCash.toLocaleString()}`} />
+        <p className="g-note">
+          Shared cartel cash from member Scout / Produce donations. Used for armoury purchases.
+        </p>
+      </section>
+
+      <section className="g-cartel-hq__section" aria-label="Cartel forces">
+        <SectionLabel>CARTEL FORCES</SectionLabel>
+        <StatRow label="Cartel Thugs" value={cartel.armoury.thugs.toLocaleString()} />
+        <StatRow label="Glocks" value={cartel.armoury.glocks.toLocaleString()} />
+        <StatRow label="Uzis" value={cartel.armoury.uzis.toLocaleString()} />
+        <StatRow label="Rides" value={cartel.armoury.rides.toLocaleString()} />
         <StatRow
-          label="Virtual defence (your city)"
+          label="Transport capacity"
+          value={`${cartel.armoury.rides.toLocaleString()} rides · ${cartel.armoury.transportCapacity.toLocaleString()} thugs`}
+        />
+        <p className="g-note">
+          Shared cartel assets — not member personal net worth. Cartel thugs can be lost defending
+          members; cartel weapons are never lost. Each cartel ride carries 5 thugs for defence.
+        </p>
+      </section>
+
+      <section className="g-cartel-hq__section" aria-label="Cartel protection">
+        <SectionLabel>RESPONSE FORCE</SectionLabel>
+        <StatRow
+          label="Your max cartel response"
+          value={`${cartel.protection.responseForce.maxForYou.toLocaleString()} thugs`}
+        />
+        <StatRow
+          label="Local backup (your city)"
           value={`${cartel.protection.virtualDefenceThugs.toLocaleString()} thugs`}
         />
         <StatRow
           label={`Supporters in ${cartel.myCity}`}
           value={String(cartel.protection.sameCitySupporters)}
         />
-        <StatRow
-          label="Cartel thugs (armoury)"
-          value={`${cartel.protection.ownedDefenceThugs.toLocaleString()} thugs`}
-        />
         <p className="g-note">
-          Same-city cartel mates contribute 25% of their thugs as unarmed defence support.
-          Cartel-owned thugs from the armoury fight in all attacks and can be killed.
+          Cartel defence is limited by twice your personal thugs (minimum allowance 25), 25% of
+          current cartel thugs, and cartel transport capacity. Nearby cartel members also provide 10%
+          of their thugs as unarmed local backup. No cartel protection while travelling.
         </p>
       </section>
 
-      <section className="g-cartel-hq__section" aria-label="Cartel armoury">
-        <SectionLabel>ARMOURY</SectionLabel>
-        <p className="g-note">Shared cartel assets — not member personal net worth.</p>
-        <StatRow label="Treasury" value={`$${cartel.armoury.treasuryCash.toLocaleString()}`} />
-        <StatRow label="Thugs" value={cartel.armoury.thugs.toLocaleString()} />
-        <StatRow label="Glocks" value={cartel.armoury.glocks.toLocaleString()} />
-        <StatRow label="Uzis" value={cartel.armoury.uzis.toLocaleString()} />
-        <p className="g-note">
-          Purchases come from treasury. Uzi and Glock only — AK-47 is player-only. Cartel
-          weapons are never lost in attacks.
-        </p>
-        {cartel.isLeader && (
+      {cartel.isLeader && (
+        <section className="g-cartel-hq__section" aria-label="Cartel armoury purchases">
+          <SectionLabel>ARMOURY</SectionLabel>
+          <p className="g-note">Purchase shared assets from treasury. Uzi and Glock only — AK-47 is player-only.</p>
           <div className="g-cartel-armoury">
             {cartel.armoury.catalog.map((entry) => {
               const qty = parsePositiveInteger(armouryQuantities[entry.key] ?? '1');
@@ -178,13 +185,14 @@ function CartelHQView({
                   <NumericInput
                     id={`cartel-armoury-${entry.key}`}
                     value={armouryQuantities[entry.key] ?? '1'}
+                    max={1000}
                     onChange={(value) =>
                       setArmouryQuantities((prev) => ({ ...prev, [entry.key]: value }))
                     }
                   />
                   {qty && !canAfford && (
                     <FeedbackNote tone="warn">
-                      Treasury too low — need ${total.toLocaleString()}, have $
+                      Not enough cartel treasury — need ${total.toLocaleString()}, have $
                       {cartel.armoury.treasuryCash.toLocaleString()}.
                     </FeedbackNote>
                   )}
@@ -201,8 +209,34 @@ function CartelHQView({
               );
             })}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {cartel.isLeader && pendingJoinRequestsForLeader.length > 0 && (
+        <section className="g-cartel-hq__section" aria-label="Join requests">
+          <SectionLabel>JOIN REQUESTS</SectionLabel>
+          {pendingJoinRequestsForLeader.map((req) => (
+            <SelectableCard key={req.id} as="div" title={req.alias} meta="Request to join">
+              <div className="g-btn-row">
+                <PrimaryButton
+                  disabled={loading !== null}
+                  pending={loading === `accept-req-${req.id}`}
+                  onClick={() => onAcceptRequest(req.id)}
+                >
+                  Accept
+                </PrimaryButton>
+                <PrimaryButton
+                  variant="secondary"
+                  disabled={loading !== null}
+                  onClick={() => onDeclineRequest(req.id)}
+                >
+                  Decline
+                </PrimaryButton>
+              </div>
+            </SelectableCard>
+          ))}
+        </section>
+      )}
 
       <section className="g-cartel-hq__section" aria-label="Cartel members">
         <SectionLabel>MEMBERS</SectionLabel>
@@ -230,19 +264,6 @@ function CartelHQView({
         </ul>
       </section>
 
-      <section className="g-cartel-hq__section" aria-label="Cartel information">
-        <SectionLabel>INFO</SectionLabel>
-        <StatRow label="Leader" value={cartel.leaderAlias} />
-        <StatRow label="Founded" value={new Date(cartel.foundedAt).toLocaleDateString()} />
-        <StatRow label="Member limit" value={String(cartel.maxMembers)} />
-        <StatRow label="Max donation" value={`${cartel.maxDonationPercent}%`} />
-        <StatRow label="Treasury" value={`$${cartel.treasuryCash.toLocaleString()}`} />
-        <StatRow
-          label="Cartel net worth"
-          value={`$${cartel.cartelNetWorth.toLocaleString()}`}
-        />
-      </section>
-
       <Divider />
 
       <SectionLabel>YOUR CONTRIBUTION</SectionLabel>
@@ -265,7 +286,7 @@ function CartelHQView({
           <SectionLabel>LEADER CONTROLS</SectionLabel>
           <input
             className="g-input"
-            placeholder="Player alias"
+            placeholder="Player alias to invite"
             value={inviteAlias}
             onChange={(e) => setInviteAlias(e.target.value)}
           />
@@ -277,6 +298,31 @@ function CartelHQView({
           >
             {loading === 'invite' ? ACTION_PENDING.cartelInvite : 'Send Invite'}
           </PrimaryButton>
+
+          {transferCandidates.length > 0 && (
+            <>
+              <select
+                className="g-input"
+                value={transferTargetId}
+                onChange={(e) => setTransferTargetId(e.target.value)}
+              >
+                <option value="">Transfer leadership to…</option>
+                {transferCandidates.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.alias}
+                  </option>
+                ))}
+              </select>
+              <PrimaryButton
+                disabled={loading !== null || !transferTargetId}
+                pending={loading === 'transfer'}
+                onClick={onTransferLeadership}
+              >
+                {loading === 'transfer' ? 'Transferring…' : 'Transfer Leadership'}
+              </PrimaryButton>
+            </>
+          )}
+
           {cartel.members
             .filter((m) => !m.isLeader)
             .map((m) => (
@@ -301,7 +347,7 @@ function CartelHQView({
 }
 
 export function CartelPanel(initial: Props) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [data, setData] = useState(initial);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -309,6 +355,7 @@ export function CartelPanel(initial: Props) {
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [inviteAlias, setInviteAlias] = useState('');
+  const [transferTargetId, setTransferTargetId] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [armouryQuantities, setArmouryQuantities] = useState<Record<string, string>>({});
 
@@ -316,40 +363,81 @@ export function CartelPanel(initial: Props) {
     setData(initial);
   }, [initial]);
 
+  function applyMutation(page: CartelPageData, shell?: PlayerShellSnapshot) {
+    setData(page);
+    if (shell) reconcile(shell);
+  }
+
   async function handleCreate() {
     setLoading('create');
     setError('');
+    setSuccess('');
     const response = await createCartelAction(name, tag);
     setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
     }
-    router.refresh();
+    setSuccess(`Cartel ${name} [${tag}] created.`);
+    applyMutation(response.data.page, response.data.shell);
   }
 
   async function handleAccept(inviteId: string) {
     setLoading('accept');
+    setError('');
     const response = await acceptCartelInviteAction(inviteId);
     setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
     }
-    router.refresh();
+    applyMutation(response.data.page, response.data.shell);
   }
 
   async function handleDecline(inviteId: string) {
-    await declineCartelInviteAction(inviteId);
-    setData((prev) => ({
-      ...prev,
-      pendingInvites: prev.pendingInvites.filter((i) => i.id !== inviteId),
-    }));
+    const response = await declineCartelInviteAction(inviteId);
+    if (response.success) applyMutation(response.data.page, response.data.shell);
+  }
+
+  async function handleRequestJoin(cartelId: string) {
+    setLoading(`request-${cartelId}`);
+    setError('');
+    setSuccess('');
+    const response = await requestCartelJoinAction(cartelId);
+    setLoading(null);
+    if (!response.success) {
+      setError(response.error);
+      return;
+    }
+    setSuccess('Join request sent.');
+    applyMutation(response.data.page, response.data.shell);
+  }
+
+  async function handleAcceptRequest(requestId: string) {
+    setLoading(`accept-req-${requestId}`);
+    setError('');
+    setSuccess('');
+    const response = await acceptCartelJoinRequestAction(requestId);
+    setLoading(null);
+    if (!response.success) {
+      setError(response.error);
+      return;
+    }
+    setSuccess(`${response.data.memberAlias} joined your cartel.`);
+    applyMutation(response.data.page, response.data.shell);
+  }
+
+  async function handleDeclineRequest(requestId: string) {
+    setLoading(`decline-req-${requestId}`);
+    const response = await declineCartelJoinRequestAction(requestId);
+    setLoading(null);
+    if (response.success) applyMutation(response.data.page, response.data.shell);
   }
 
   async function handleInvite() {
     setLoading('invite');
     setError('');
+    setSuccess('');
     const response = await inviteToCartelAction(inviteAlias);
     setLoading(null);
     if (!response.success) {
@@ -357,40 +445,54 @@ export function CartelPanel(initial: Props) {
       return;
     }
     setInviteAlias('');
+    setSuccess(`Invite sent to ${inviteAlias}.`);
+    applyMutation(response.data.page, response.data.shell);
   }
 
   async function handleLeave() {
     setLoading('leave');
+    setError('');
     const response = await leaveCartelAction();
     setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
     }
-    router.refresh();
+    applyMutation(response.data.page, response.data.shell);
   }
 
   async function handleRemove(memberId: string) {
     setLoading('remove');
+    setError('');
     const response = await removeCartelMemberAction(memberId);
     setLoading(null);
     if (!response.success) {
       setError(response.error);
       return;
     }
-    router.refresh();
+    setSuccess('Member removed.');
+    applyMutation(response.data.page, response.data.shell);
+  }
+
+  async function handleTransferLeadership() {
+    if (!transferTargetId) return;
+    setLoading('transfer');
+    setError('');
+    setSuccess('');
+    const response = await transferCartelLeadershipAction(transferTargetId);
+    setLoading(null);
+    if (!response.success) {
+      setError(response.error);
+      return;
+    }
+    setTransferTargetId('');
+    setSuccess(`Leadership transferred to ${response.data.newLeaderAlias}.`);
+    applyMutation(response.data.page, response.data.shell);
   }
 
   async function handleDonation(percent: number) {
     const response = await setCartelDonationAction(percent);
-    if (response.success && data.cartel) {
-      setData((prev) => ({
-        ...prev,
-        cartel: prev.cartel
-          ? { ...prev.cartel, myDonationPercent: response.data.percent }
-          : null,
-      }));
-    }
+    if (response.success) applyMutation(response.data.page, response.data.shell);
   }
 
   async function handleArmouryPurchase(itemKey: string) {
@@ -411,16 +513,18 @@ export function CartelPanel(initial: Props) {
       return;
     }
 
-    const label = itemKey === 'thug' ? 'thugs' : itemKey === 'glock' ? 'glocks' : 'uzis';
+    const label =
+      itemKey === 'thug'
+        ? 'Cartel Thugs'
+        : itemKey === 'glock'
+          ? 'Glocks'
+          : itemKey === 'uzi'
+            ? 'Uzis'
+            : 'Rides';
     setSuccess(
       `Purchased ${qty.toLocaleString()} ${label} for $${response.data.totalCost.toLocaleString()} from treasury.`,
     );
-    setData((prev) =>
-      prev.cartel
-        ? { ...prev, cartel: applyArmouryPurchase(prev.cartel, response.data) }
-        : prev,
-    );
-    router.refresh();
+    applyMutation(response.data.page, response.data.shell);
   }
 
   if (data.pendingInvites.length > 0 && !data.inCartel) {
@@ -462,17 +566,23 @@ export function CartelPanel(initial: Props) {
     return (
       <CartelHQView
         cartel={data.cartel}
+        pendingJoinRequestsForLeader={data.pendingJoinRequestsForLeader}
         donationOptions={data.donationOptions}
         error={error}
         success={success}
         loading={loading}
         inviteAlias={inviteAlias}
         setInviteAlias={setInviteAlias}
+        transferTargetId={transferTargetId}
+        setTransferTargetId={setTransferTargetId}
         onInvite={handleInvite}
         onRemove={handleRemove}
         onLeave={handleLeave}
         onDonation={handleDonation}
         onArmouryPurchase={handleArmouryPurchase}
+        onAcceptRequest={handleAcceptRequest}
+        onDeclineRequest={handleDeclineRequest}
+        onTransferLeadership={handleTransferLeadership}
         armouryQuantities={armouryQuantities}
         setArmouryQuantities={setArmouryQuantities}
       />
@@ -484,6 +594,7 @@ export function CartelPanel(initial: Props) {
       <p className="g-note">Build your crew. Share protection. Rise together.</p>
 
       {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
+      {success && <FeedbackNote tone="success">{success}</FeedbackNote>}
 
       {!showCreate ? (
         <>
@@ -495,14 +606,33 @@ export function CartelPanel(initial: Props) {
           {data.browse.length === 0 ? (
             <EmptyState title="No cartels yet" body="Be the first to create one." />
           ) : null}
-          {data.browse.map((c) => (
-            <SelectableCard
-              key={c.id}
-              as="div"
-              title={`${c.name} [${c.tag}]`}
-              meta={`${c.memberCount} / ${c.maxMembers} members · Invite only`}
-            />
-          ))}
+          {data.browse.map((c) => {
+            const isFull = c.memberCount >= c.maxMembers;
+            const pending = c.hasPendingRequest;
+            return (
+              <SelectableCard
+                key={c.id}
+                as="div"
+                title={`${c.name} [${c.tag}]`}
+                meta={`${c.memberCount} / ${c.maxMembers} members · Leader: ${c.leaderAlias}`}
+              >
+                {pending ? (
+                  <FeedbackNote tone="info">Request pending</FeedbackNote>
+                ) : isFull ? (
+                  <FeedbackNote tone="warn">Cartel full</FeedbackNote>
+                ) : (
+                  <PrimaryButton
+                    icon="cartel"
+                    disabled={loading !== null}
+                    pending={loading === `request-${c.id}`}
+                    onClick={() => handleRequestJoin(c.id)}
+                  >
+                    {loading === `request-${c.id}` ? 'Sending…' : 'Request to Join'}
+                  </PrimaryButton>
+                )}
+              </SelectableCard>
+            );
+          })}
         </>
       ) : (
         <>

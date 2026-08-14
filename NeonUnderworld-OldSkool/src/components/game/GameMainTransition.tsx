@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 const PENDING_TIMEOUT_MS = 10_000;
+const PENDING_DIM_DELAY_MS = 175;
 
 /** Build current route key including search params — fixes stuck dim on filter navigations. */
 export function useRouteKey(): string {
@@ -13,12 +14,13 @@ export function useRouteKey(): string {
   return query ? `${pathname}?${query}` : pathname;
 }
 
-/** Dims outgoing page content instantly on tap until the route swap completes. */
+/** Delays dim until navigation exceeds ~175ms so fast routes feel instant. */
 export function GameMainTransition({ children }: { children: React.ReactNode }) {
   const routeKey = useRouteKey();
   const [pending, setPending] = useState(false);
   const prevRoute = useRef(routeKey);
   const pendingTimer = useRef<number | null>(null);
+  const dimTimer = useRef<number | null>(null);
 
   useEffect(() => {
     function clearPendingTimer() {
@@ -26,6 +28,19 @@ export function GameMainTransition({ children }: { children: React.ReactNode }) 
         window.clearTimeout(pendingTimer.current);
         pendingTimer.current = null;
       }
+    }
+
+    function clearDimTimer() {
+      if (dimTimer.current !== null) {
+        window.clearTimeout(dimTimer.current);
+        dimTimer.current = null;
+      }
+    }
+
+    function clearAll() {
+      clearPendingTimer();
+      clearDimTimer();
+      setPending(false);
     }
 
     function onNavigateStart(event: MouseEvent) {
@@ -42,18 +57,20 @@ export function GameMainTransition({ children }: { children: React.ReactNode }) 
       if (url.origin !== window.location.origin) return;
       if (url.pathname + url.search === routeKey) return;
 
-      clearPendingTimer();
-      setPending(true);
+      clearAll();
+      dimTimer.current = window.setTimeout(() => {
+        setPending(true);
+        dimTimer.current = null;
+      }, PENDING_DIM_DELAY_MS);
       pendingTimer.current = window.setTimeout(() => {
-        setPending(false);
-        pendingTimer.current = null;
+        clearAll();
       }, PENDING_TIMEOUT_MS);
     }
 
     document.addEventListener('click', onNavigateStart, true);
     return () => {
       document.removeEventListener('click', onNavigateStart, true);
-      clearPendingTimer();
+      clearAll();
     };
   }, [routeKey]);
 
@@ -64,6 +81,10 @@ export function GameMainTransition({ children }: { children: React.ReactNode }) 
     if (pendingTimer.current !== null) {
       window.clearTimeout(pendingTimer.current);
       pendingTimer.current = null;
+    }
+    if (dimTimer.current !== null) {
+      window.clearTimeout(dimTimer.current);
+      dimTimer.current = null;
     }
   }, [routeKey]);
 

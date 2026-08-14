@@ -11,6 +11,7 @@ import {
 } from '@local/server/actions/market.actions';
 import type { MarketDurationMinutes } from '@core/config/game/market-rules';
 import {
+  MARKET_RULES,
   marketFilterCategory,
   marketReferenceUnitPrice,
   suggestedMarketOpeningBid,
@@ -53,7 +54,16 @@ function formatTimeLeft(endsAt: string): string {
   return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
 }
 
+const MAX_LISTING_QUANTITY = MARKET_RULES.maxQuantityPerListing;
+
 type Props = MarketPageData & { initialFilter?: MarketFilter };
+
+function mergeMarketPage(prev: MarketPageData, next: MarketPageData, shellCash?: number): MarketPageData {
+  return {
+    ...next,
+    cash: shellCash ?? next.cash,
+  };
+}
 
 export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   const reconcile = useGameplayReconcile();
@@ -70,6 +80,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   const [priceTouched, setPriceTouched] = useState(false);
   const [duration, setDuration] = useState<MarketDurationMinutes>(60);
 
+  /** Sync from SSR only when URL filter changes — not on every parent re-render after mutations. */
   useEffect(() => {
     setData(initial);
     if (initial.tradableInventory.length > 0) {
@@ -79,7 +90,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
           : initial.tradableInventory[0]!.key,
       );
     }
-  }, [initial]);
+  }, [initialFilter]);
 
   const selectedInventory = data.tradableInventory.find((item) => item.key === sellItem);
   const sellQtyNum = parseInt(sellQty, 10) || 0;
@@ -89,6 +100,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   const startPriceNum = parseInt(startPrice, 10);
   const priceWellBelowGuide =
     suggestedBid > 0 && startPriceNum > 0 && startPriceNum < suggestedBid * 0.5;
+  const qtyOverCap = sellQtyNum > MAX_LISTING_QUANTITY;
 
   useEffect(() => {
     setPriceTouched(false);
@@ -115,7 +127,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       setError(response.error);
       return;
     }
-    setData((prev) => ({ ...prev, cash: response.data.shell.cash }));
+    setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
     reconcile(response.data.shell);
   }
 
@@ -124,6 +136,10 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
     const price = parseInt(startPrice, 10);
     if (!sellItem || !qty || qty <= 0) {
       setError('Enter a valid quantity.');
+      return;
+    }
+    if (qty > MAX_LISTING_QUANTITY) {
+      setError('Maximum quantity per listing is 1,000.');
       return;
     }
     const owned = selectedInventory?.quantity ?? 0;
@@ -153,15 +169,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
     setSuccess(`Listed ${qty}× ${selectedInventory?.name ?? sellItem} on the Market.`);
     setSellQty('1');
     setTab('mine');
-    setData((prev) => ({
-      ...prev,
-      cash: response.data.shell.cash,
-      tradableInventory: prev.tradableInventory
-        .map((item) =>
-          item.key === sellItem ? { ...item, quantity: Math.max(0, item.quantity - qty) } : item,
-        )
-        .filter((item) => item.quantity > 0),
-    }));
+    setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
     reconcile(response.data.shell);
   }
 
@@ -261,11 +269,17 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 id="market-qty"
                 label="Quantity"
                 value={sellQty}
+                max={MAX_LISTING_QUANTITY}
                 onChange={(raw) => setSellQty(raw)}
               />
               <p className="g-note">
-                How many units of this item to include in the lot. You must own at least this many.
+                How many units of this item to include in the lot. Maximum {MAX_LISTING_QUANTITY.toLocaleString()} per listing.
               </p>
+              {qtyOverCap && (
+                <FeedbackNote tone="warn">
+                  Maximum quantity per listing is 1,000.
+                </FeedbackNote>
+              )}
               <NumericInput
                 id="market-price"
                 label="Opening bid (total for lot)"
@@ -306,7 +320,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
               </select>
               <PrimaryButton
                 icon="market"
-                disabled={loading !== null}
+                disabled={loading !== null || qtyOverCap}
                 onClick={handleCreateListing}
               >
                 {loading === 'sell' ? ACTION_PENDING.marketList : 'List Item'}

@@ -35,6 +35,10 @@ export const MARKET_RULES = {
   minDurationMinutes: 30,
   maxDurationMinutes: 1440,
   maxQuantityPerListing: 1000,
+  /** Active seller listings — queried separately so history never hides live auctions. */
+  myAuctionsActiveCap: 50,
+  /** Ended seller listings shown after active rows in My Auctions. */
+  myAuctionsHistoryCap: 20,
   tradableItemKeys: MARKET_TRADABLE_ITEM_KEYS,
 } as const;
 

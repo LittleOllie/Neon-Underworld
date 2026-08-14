@@ -45,11 +45,17 @@ export interface SupplyInventory {
   beer: number;
 }
 
+export interface SupplyConsumptionOptions {
+  /** Hash production: workers do not consume hash as upkeep for this action */
+  exemptWorkerHash?: boolean;
+}
+
 export function planSupplyConsumption(
   prostitutes: number,
   thugs: number,
   turnsSpent: number,
   inventory: SupplyInventory,
+  options?: SupplyConsumptionOptions,
 ): SupplyConsumptionPlan {
   const workerTurns = workerCrewTurns(prostitutes, turnsSpent);
   const thugTurns = thugCrewTurns(thugs, turnsSpent);
@@ -61,7 +67,9 @@ export function planSupplyConsumption(
   if (workerTurns > 0) {
     const units = supplyUnitsForCrewTurns(workerTurns);
     required.condoms = units;
-    required.hash = units;
+    if (!options?.exemptWorkerHash) {
+      required.hash = units;
+    }
   }
 
   if (thugTurns > 0) {

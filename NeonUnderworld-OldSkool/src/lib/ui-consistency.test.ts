@@ -37,8 +37,9 @@ describe('Pass 3 UI consistency', () => {
 });
 
 describe('route backgrounds', () => {
-  it('maps businesses to empire artwork', async () => {
+  it('maps businesses and settings to dedicated artwork', async () => {
     const { getBackgroundForPath } = await import('@local/config/route-backgrounds');
-    expect(getBackgroundForPath('/businesses')).toBe('empire');
+    expect(getBackgroundForPath('/businesses')).toBe('businesses');
+    expect(getBackgroundForPath('/settings')).toBe('settings');
   });
 });

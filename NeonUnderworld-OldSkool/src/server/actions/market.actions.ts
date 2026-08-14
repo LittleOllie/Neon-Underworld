@@ -5,6 +5,7 @@ import { MARKET_RULES, marketItemDisplayName, type MarketDurationMinutes, type M
 import { readPlayerItemQuantity } from '@core/lib/game-engine/market-inventory';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
+import { assertSessionMatchesPlayer } from '@local/lib/auth/session-player';
 import { prisma } from '@core/lib/db/prisma';
 import { GameplayError, toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
@@ -13,10 +14,45 @@ import {
   revalidatePlayerGameplayCache,
   revalidatePlayersGameplayCache,
 } from '@local/server/services/gameplay-cache';
-import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import {
+  revalidateAfterLocalMutation,
+  buildShellSnapshotFromPlayer,
+} from '@local/server/services/shell-snapshot.service';
 import type { WithPlayerShell } from '@local/domain/player-shell.model';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import { isRoutePrefetch } from '@local/lib/is-route-prefetch';
+
+export type MarketMutationResult<T> = T & { marketPage: MarketPageData };
+
+async function loadMarketPageForPlayer(
+  playerId: string,
+  filter: MarketFilter = 'all',
+): Promise<MarketPageData> {
+  await settleMarketAndRefreshCaches();
+  const player = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+  const settlementOpt = { skipSettlement: true as const };
+  const [listings, myAuctions] = await Promise.all([
+    MarketService.getBrowseListings(filter, settlementOpt),
+    MarketService.getMyAuctions(playerId, settlementOpt),
+  ]);
+  const ctx = player as unknown as CanonicalPlayerContext;
+  const tradableInventory = MARKET_RULES.tradableItemKeys
+    .map((key) => ({
+      key,
+      name: marketItemDisplayName(key),
+      quantity: readPlayerItemQuantity(ctx, key),
+    }))
+    .filter((i) => i.quantity > 0);
+
+  return {
+    cash: player.cash,
+    listings,
+    myAuctions,
+    tradableInventory,
+    durations: MARKET_RULES.allowedDurationMinutes,
+    minStartingPrice: MARKET_RULES.minStartingPrice,
+  };
+}
 
 async function settleMarketAndRefreshCaches(): Promise<void> {
   const result = await MarketService.settleExpired();
@@ -52,12 +88,15 @@ export async function getMarketPageDataFromContext(
   ctx: CanonicalPlayerContext,
   filter: MarketFilter = 'all',
 ): Promise<MarketPageData> {
-  if (!(await isRoutePrefetch())) {
+  await assertSessionMatchesPlayer(ctx.id);
+  const skipSettlement = await isRoutePrefetch();
+  if (!skipSettlement) {
     await settleMarketAndRefreshCaches();
   }
+  const settlementOpt = { skipSettlement: true as const };
   const [listings, myAuctions] = await Promise.all([
-    MarketService.getBrowseListings(filter),
-    MarketService.getMyAuctions(ctx.id),
+    MarketService.getBrowseListings(filter, settlementOpt),
+    MarketService.getMyAuctions(ctx.id, settlementOpt),
   ]);
 
   const tradableInventory = MARKET_RULES.tradableItemKeys
@@ -84,7 +123,7 @@ export async function createMarketListingAction(
   startingPrice: number,
   durationMinutes: MarketDurationMinutes,
   idempotencyKey: string,
-): Promise<ActionResult<WithPlayerShell<{ listingId: string }>>> {
+): Promise<ActionResult<WithPlayerShell<MarketMutationResult<{ listingId: string }>>>> {
   try {
     const session = await auth();
     const playerId = session?.user?.playerId;
@@ -110,9 +149,11 @@ export async function createMarketListingAction(
       where: { id: playerId },
       include: { district: true, turnState: true },
     });
-    const shell = await finalizeLocalMutationShell(playerId, updated, ['/market']);
+    const marketPage = await loadMarketPageForPlayer(playerId);
+    const shell = await buildShellSnapshotFromPlayer(updated);
+    revalidateAfterLocalMutation(playerId, updated.seasonId, ['/market']);
 
-    return { success: true, data: { ...result, shell } };
+    return { success: true, data: { listingId: result.listingId, shell, marketPage } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
   }
@@ -122,7 +163,7 @@ export async function placeMarketBidAction(
   listingId: string,
   amount: number,
   idempotencyKey: string,
-): Promise<ActionResult<WithPlayerShell<{ bidId: string; amount: number }>>> {
+): Promise<ActionResult<WithPlayerShell<MarketMutationResult<{ bidId: string; amount: number }>>>> {
   try {
     const session = await auth();
     const playerId = session?.user?.playerId;
@@ -166,9 +207,11 @@ export async function placeMarketBidAction(
       where: { id: playerId },
       include: { district: true, turnState: true },
     });
-    const shell = await finalizeLocalMutationShell(playerId, updated, ['/market']);
+    const marketPage = await loadMarketPageForPlayer(playerId);
+    const shell = await buildShellSnapshotFromPlayer(updated);
+    revalidateAfterLocalMutation(playerId, updated.seasonId, ['/market']);
 
-    return { success: true, data: { ...result, shell } };
+    return { success: true, data: { bidId: result.bidId, amount: result.amount, shell, marketPage } };
   } catch (error) {
     return { success: false, error: toUserMessage(error) };
   }

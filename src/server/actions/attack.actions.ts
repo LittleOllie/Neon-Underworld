@@ -34,6 +34,10 @@ export interface AttackLaunchResult {
   defenderReportId: string;
   newTurns: number;
   idempotentReplay: boolean;
+  defenderThugsBefore?: number;
+  cartelResponseDeployed?: number;
+  cartelThugLosses?: number;
+  cartelLocalSupport?: number;
 }
 
 export async function launchAttackAction(

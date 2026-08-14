@@ -5,6 +5,7 @@ import { PlayerStatusService } from './player-status.service';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 
 export interface PublicProfile {
+  id: string;
   alias: string;
   aliasNormalized: string;
   avatarId: string;
@@ -17,6 +18,8 @@ export interface PublicProfile {
   joinedAt: Date;
   lastSeen: Date | null;
   online: boolean;
+  lifeStatus: string;
+  travelling: boolean;
   cartelId: string | null;
   cartelName: string | null;
   cartelTag: string | null;
@@ -50,6 +53,7 @@ export const PublicProfileService = {
     );
 
     return {
+      id: player.id,
       alias: player.alias,
       aliasNormalized: player.aliasNormalized,
       avatarId: resolvePlayerAvatarId(player.avatar),
@@ -62,6 +66,8 @@ export const PublicProfileService = {
       joinedAt: player.createdAt,
       lastSeen,
       online: PlayerStatusService.isOnline(lastSeen),
+      lifeStatus: player.lifeStatus,
+      travelling: player.travelling,
       cartelId: player.cartelId,
       cartelName: player.cartel?.name ?? null,
       cartelTag: player.cartel?.tag ?? null,

@@ -16,5 +16,10 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     cwd: __dirname,
     timeout: 120_000,
+    env: {
+      ...process.env,
+      PLAYTEST_TURNS: 'true',
+      NEXT_PUBLIC_PLAYTEST_TURNS: 'true',
+    },
   },
 });

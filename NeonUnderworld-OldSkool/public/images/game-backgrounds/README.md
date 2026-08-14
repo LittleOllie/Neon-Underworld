@@ -16,6 +16,8 @@ Drop cinematic background illustrations here. Each file maps to a game page auto
 | `attack.webp` | Attack |
 | `reports.webp` | Reports (list + detail) |
 | `guides.webp` | Guides |
+| `businesses.webp` or `businesses.png` | Businesses |
+| `settings.webp` or `settings.png` | Settings |
 
 **Reserved (art ready, page not live yet):**
 

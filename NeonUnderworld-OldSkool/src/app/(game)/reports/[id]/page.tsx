@@ -23,8 +23,9 @@ export default async function ReportDetailPage({ params }: Props) {
   if (!report) notFound();
 
   const wasUnread = !report.read;
+  let unreadAfterRead: number | undefined;
   if (wasUnread) {
-    await ReportService.markRead(id, playerId);
+    unreadAfterRead = (await ReportService.markRead(id, playerId)) ?? undefined;
     report.read = true;
   }
 
@@ -65,19 +66,34 @@ export default async function ReportDetailPage({ params }: Props) {
   const lookupAliases = [...new Set([...combatAliases, intelAlias].filter(Boolean))] as string[];
 
   const avatarByAlias = new Map<string, string>();
+  const normalizedByAlias = new Map<string, string>();
   if (lookupAliases.length > 0) {
     const players = await prisma.player.findMany({
       where: { alias: { in: lookupAliases } },
-      select: { alias: true, avatar: true },
+      select: { alias: true, aliasNormalized: true, avatar: true },
     });
     for (const player of players) {
       avatarByAlias.set(player.alias, resolvePlayerAvatarId(player.avatar));
+      normalizedByAlias.set(player.alias, player.aliasNormalized);
     }
+  }
+
+  function combatIdentityProps(alias: string) {
+    const aliasNormalized = normalizedByAlias.get(alias);
+    const isSelf = aliasNormalized === ctx.aliasNormalized;
+    return {
+      player: {
+        alias,
+        avatarId: avatarByAlias.get(alias),
+        aliasNormalized,
+      },
+      static: isSelf || !aliasNormalized,
+    } as const;
   }
 
   return (
     <>
-      <ReportReadSync wasUnread={wasUnread} />
+      <ReportReadSync unreadReports={unreadAfterRead} reportId={wasUnread ? id : undefined} />
       <PageTitle>{report.title}</PageTitle>
       <p className="g-note">{formatRelativeTime(report.createdAt)}</p>
 
@@ -87,12 +103,8 @@ export default async function ReportDetailPage({ params }: Props) {
             <div className="g-report-identity-row">
               <span className="g-stat-label">Attacker</span>
               <PlayerIdentity
-                player={{
-                  alias: combat.attackerAlias,
-                  avatarId: avatarByAlias.get(combat.attackerAlias),
-                }}
+                {...combatIdentityProps(combat.attackerAlias)}
                 avatarSize="sm"
-                static
               />
             </div>
           )}
@@ -100,12 +112,8 @@ export default async function ReportDetailPage({ params }: Props) {
             <div className="g-report-identity-row">
               <span className="g-stat-label">Target</span>
               <PlayerIdentity
-                player={{
-                  alias: combat.targetAlias,
-                  avatarId: avatarByAlias.get(combat.targetAlias),
-                }}
+                {...combatIdentityProps(combat.targetAlias)}
                 avatarSize="sm"
-                static
               />
             </div>
           )}
@@ -118,6 +126,29 @@ export default async function ReportDetailPage({ params }: Props) {
           )}
           <StatRow label="Your losses" value={String(combat.attackerLosses)} />
           <StatRow label="Enemy losses" value={String(combat.defenderLosses)} />
+          {combat.cartelParticipated && (
+            <>
+              <SectionLabel>CARTEL DEFENCE</SectionLabel>
+              {combat.cartelLocalSupport != null && combat.cartelLocalSupport > 0 && (
+                <StatRow
+                  label="Local cartel backup"
+                  value={`${combat.cartelLocalSupport.toLocaleString()} thugs`}
+                />
+              )}
+              {combat.cartelResponseDeployed != null && combat.cartelResponseDeployed > 0 && (
+                <StatRow
+                  label="Cartel response deployed"
+                  value={`${combat.cartelResponseDeployed.toLocaleString()} thugs`}
+                />
+              )}
+              {combat.cartelResponseLosses != null && combat.cartelResponseLosses > 0 && (
+                <StatRow
+                  label="Cartel thugs lost"
+                  value={String(combat.cartelResponseLosses)}
+                />
+              )}
+            </>
+          )}
         </>
       )}
 
@@ -147,8 +178,13 @@ export default async function ReportDetailPage({ params }: Props) {
             <ActionButton href={`/attack?reportId=${basicIntelReportId}`} icon="attack" className="g-btn-full">
               Attack Player
             </ActionButton>
-          ) : (
+          ) : !canAttackFromHere ? (
             <p className="g-note">{GAMEPLAY_CONTEXT_MESSAGES.targetNoLongerInCity}</p>
+          ) : (
+            <>
+              <SectionLabel>BASIC INTEL REQUIRED</SectionLabel>
+              <p className="g-note">Gather fresh Basic Intel before launching an attack.</p>
+            </>
           )}
         </>
       )}
@@ -180,8 +216,13 @@ export default async function ReportDetailPage({ params }: Props) {
             <ActionButton href={`/attack?reportId=${basicIntelReportId}`} icon="attack" className="g-btn-full">
               Attack Player
             </ActionButton>
-          ) : (
+          ) : !canAttackFromHere ? (
             <p className="g-note">{GAMEPLAY_CONTEXT_MESSAGES.targetNoLongerInCity}</p>
+          ) : (
+            <>
+              <SectionLabel>BASIC INTEL REQUIRED</SectionLabel>
+              <p className="g-note">Gather fresh Basic Intel before launching an attack.</p>
+            </>
           )}
         </>
       )}

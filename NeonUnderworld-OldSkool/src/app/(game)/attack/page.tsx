@@ -32,6 +32,7 @@ export default async function AttackPage({ searchParams }: Props) {
         initialTargetAlias={data.initialTargetAlias}
         initialReportId={data.initialReportId}
         staleIntelNotice={data.staleIntelNotice}
+        requestedTargetNotice={data.requestedTargetNotice}
         attackRangeMinNetWorth={data.attackRangeMinNetWorth}
         intelTurnCost={data.intelTurnCost}
         deepIntelTurnCost={data.deepIntelTurnCost}

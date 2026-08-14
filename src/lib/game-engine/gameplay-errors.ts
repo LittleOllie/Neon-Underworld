@@ -31,6 +31,12 @@ export type GameplayErrorCode =
   | 'CARTEL_FULL'
   | 'CARTEL_INVITE_INVALID'
   | 'CARTEL_NOT_LEADER'
+  | 'CARTEL_NAME_TAKEN'
+  | 'CARTEL_TAG_TAKEN'
+  | 'CARTEL_JOIN_REQUEST_INVALID'
+  | 'CARTEL_JOIN_REQUEST_EXISTS'
+  | 'CARTEL_NOT_MEMBER'
+  | 'MARKET_LISTING_QUANTITY_CAP'
   | 'ATTACK_CAP_REACHED'
   | 'OFFLINE_PROTECTION_ACTIVE'
   | 'POACH_TARGET_TOO_SMALL';
@@ -64,6 +70,12 @@ export const GAMEPLAY_ERROR_MESSAGES: Record<GameplayErrorCode, string> = {
   CARTEL_FULL: 'This cartel is full.',
   CARTEL_INVITE_INVALID: 'This cartel invite is no longer valid.',
   CARTEL_NOT_LEADER: 'Only the cartel leader can do that.',
+  CARTEL_NAME_TAKEN: 'That cartel name is already taken.',
+  CARTEL_TAG_TAKEN: 'That cartel tag is already taken.',
+  CARTEL_JOIN_REQUEST_INVALID: 'This join request is no longer valid.',
+  CARTEL_JOIN_REQUEST_EXISTS: 'You already have a pending request for this cartel.',
+  CARTEL_NOT_MEMBER: 'That player is not in your cartel.',
+  MARKET_LISTING_QUANTITY_CAP: 'Maximum quantity per listing is 1,000.',
   ATTACK_CAP_REACHED: "You've reached your 24-hour attack limit against this player.",
   OFFLINE_PROTECTION_ACTIVE: 'This player is under offline protection after repeated attacks.',
   POACH_TARGET_TOO_SMALL: 'This player does not have enough Workers to poach.',
@@ -73,6 +85,8 @@ export const GAMEPLAY_ERROR_MESSAGES: Record<GameplayErrorCode, string> = {
 export const GAMEPLAY_CONTEXT_MESSAGES = {
   intelWrongDistrict: 'You need to be in the same city to gather intel on this player.',
   targetNoLongerInCity: 'This player is no longer in your city.',
+  intelTargetOutOfRange: 'This player is currently too far below your Net Worth to attack.',
+  belowAttackRangeHeading: 'BELOW YOUR ATTACK RANGE',
 } as const;
 
 export class GameplayError extends DomainError {

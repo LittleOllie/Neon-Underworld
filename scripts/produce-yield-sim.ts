@@ -15,7 +15,6 @@ import {
   estimateDrugUnitsProduced,
   estimateHashProduceNet,
   estimateSplitDrugUnitsProduced,
-  hashProduceBreakEvenThugRatio,
 } from '../src/lib/game-engine/produce-economy';
 import { grossWorkerCash, playerCashFromGross } from '../src/lib/game-engine/worker-economics';
 import { PRODUCTION_CONFIG } from '../src/config/game/balance';
@@ -145,7 +144,7 @@ for (const turns of [100, 500, 1000, 5000]) {
   );
 }
 
-console.log(`\nHash break-even thug:worker ratio: ${hashProduceBreakEvenThugRatio().toFixed(4)} (~${Math.round(hashProduceBreakEvenThugRatio() * 100)} thugs per 100 workers)`);
+console.log('\n(Hash production exempts worker hash upkeep — net equals produced units.)');
 
 console.log('\n=== SUPPLY REPLACEMENT (500W/500T, 100 turns) ===');
 const plan = planSupplyConsumption(500, 500, 100, { condoms: 99999, hash: 99999, beer: 99999 });

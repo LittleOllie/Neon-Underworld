@@ -31,8 +31,9 @@ export default async function HowToPlayPage() {
       </p>
       <p className="g-note g-guide-body">
         <strong>Turns</strong> — New players start with {REDLITE_TURNS.startingTurns.toLocaleString()}{' '}
-        turns (the cap). Turns regenerate {REDLITE_TURNS.turnsPerInterval} every{' '}
-        {REDLITE_TURNS.intervalMinutes} minutes.
+        turns. Turns regenerate {REDLITE_TURNS.turnsPerInterval} every{' '}
+        {REDLITE_TURNS.intervalMinutes} minutes, up to a cap of{' '}
+        {REDLITE_TURNS.turnCap.toLocaleString()}.
         {isPlaytestTurnsNavVisible() ? (
           <>
             {' '}
@@ -66,6 +67,7 @@ export default async function HowToPlayPage() {
       <p className="g-note g-guide-body">
         <strong>Produce</strong> — With Workers and Thugs, spend turns to earn cash and drugs. Drug
         types matter — some drugs support Worker supplies, others are for profit or business storage.
+        Hash production does not consume Hash as worker upkeep during the run.
       </p>
       <p className="g-note g-guide-body">
         <strong>Shop</strong> — Weapons, rides, beer, condoms, and hash. Workers are recruited via
@@ -86,28 +88,34 @@ export default async function HowToPlayPage() {
       <SectionLabel id="go-to-war">Go to war</SectionLabel>
 
       <p className="g-note g-guide-body">
-        <strong>Intel</strong> — From a profile in your district, gather basic intel for{' '}
-        {ATTACK_RULES.intelGatherTurnCost} turns. Reports show force estimates and last about{' '}
-        {ATTACK_RULES.scoutReportExpiryHours} hours. You can also attack without intel.
+        <strong>Intel</strong> — Gather Basic Intel on a same-city rival before attacking ({' '}
+        {ATTACK_RULES.intelGatherTurnCost} turns). Reports show force estimates and last about{' '}
+        {ATTACK_RULES.scoutReportExpiryHours} hours. Intel does not lock eligibility — your attack
+        range is checked again when you launch.
       </p>
       <p className="g-note g-guide-body">
         <strong>Deep Intel</strong> — After basic intel on a same-city target, spend{' '}
         {ATTACK_RULES.deepIntelTurnCost} turns for deeper estimates (counts, cash/drug bands, cartel
-        protection hints).
+        protection hints, poaching outlook).
       </p>
       <p className="g-note g-guide-body">
-        <strong>Attacks</strong> — Same district only. Target net worth must be at least{' '}
-        {REDLITE_ATTACK.minNetWorthMultiplier * 100}% of yours — you can punch upward with no upper
-        cap. Arm thugs, bring enough rides, and read results in <Link href="/reports">Reports</Link>.
+        <strong>Attacks</strong> — Same district only. You can attack players worth at least 50% of
+        your Net Worth. There is no upper limit. Arm thugs, bring enough rides, and read results in{' '}
+        <Link href="/reports">Reports</Link>.
       </p>
       <p className="g-note g-guide-body">
-        <strong>Worker poaching</strong> — A dedicated attack type to steal Workers from a rival.
-        Success depends on forces, protection, and defender Worker happiness. Low happiness makes
-        poaching easier.
+        <strong>Worker poaching</strong> — A dedicated attack type ({ATTACK_RULES.turnCosts.POACH_WORKERS}{' '}
+        turns) to steal Workers from a rival. Targets need at least 25 Workers. Success depends on
+        forces, protection, and defender Worker happiness.
       </p>
       <p className="g-note g-guide-body">
-        <strong>Protection</strong> — Offline players can be attacked. Cartel members in your city may
-        add virtual defence thugs when you are attacked.
+        <strong>Offline protection</strong> — Offline players can take up to 5 damaging attacks, then
+        gain protection while offline. Non-damaging repulsed attacks do not count. Staying active for 30
+        continuous minutes resets the cycle — brief login/logout does not.
+      </p>
+      <p className="g-note g-guide-body">
+        <strong>Cartel defence</strong> — Cartel members in your city may add virtual defence thugs and
+        Response Force when you are attacked at home. Travelling defenders receive no cartel defence.
       </p>
 
       <Divider />

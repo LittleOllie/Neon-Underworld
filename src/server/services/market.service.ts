@@ -120,8 +120,13 @@ export const MarketService = {
     return settleExpiredMarketListings(now);
   },
 
-  async getBrowseListings(filter: MarketFilterCategory | 'all' = 'all') {
-    await settleExpiredMarketListings();
+  async getBrowseListings(
+    filter: MarketFilterCategory | 'all' = 'all',
+    options?: { skipSettlement?: boolean },
+  ) {
+    if (!options?.skipSettlement) {
+      await settleExpiredMarketListings();
+    }
     const listings = await prisma.marketListing.findMany({
       where: { status: 'ACTIVE', endsAt: { gt: new Date() } },
       include: { seller: { select: { alias: true } } },
@@ -144,30 +149,45 @@ export const MarketService = {
       }));
   },
 
-  async getMyAuctions(playerId: string) {
-    await settleExpiredMarketListings();
-    const [selling, bidding, won] = await Promise.all([
+  async getMyAuctions(playerId: string, options?: { skipSettlement?: boolean }) {
+    if (!options?.skipSettlement) {
+      await settleExpiredMarketListings();
+    }
+    const now = new Date();
+    const [activeSelling, endedSelling, bidding, won] = await Promise.all([
       prisma.marketListing.findMany({
-        where: { sellerId: playerId, status: { in: ['ACTIVE', 'SETTLED', 'EXPIRED'] } },
+        where: {
+          sellerId: playerId,
+          status: 'ACTIVE',
+          endsAt: { gt: now },
+        },
         orderBy: { createdAt: 'desc' },
-        take: 20,
+        take: MARKET_RULES.myAuctionsActiveCap,
+      }),
+      prisma.marketListing.findMany({
+        where: {
+          sellerId: playerId,
+          status: { in: ['SETTLED', 'EXPIRED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: MARKET_RULES.myAuctionsHistoryCap,
       }),
       prisma.marketListing.findMany({
         where: {
           highestBidderId: playerId,
           status: 'ACTIVE',
-          endsAt: { gt: new Date() },
+          endsAt: { gt: now },
         },
         orderBy: { endsAt: 'asc' },
-        take: 20,
+        take: MARKET_RULES.myAuctionsHistoryCap,
       }),
       prisma.marketListing.findMany({
         where: { highestBidderId: playerId, status: 'SETTLED' },
         orderBy: { settledAt: 'desc' },
-        take: 20,
+        take: MARKET_RULES.myAuctionsHistoryCap,
       }),
     ]);
-    return { selling, bidding, won };
+    return { selling: [...activeSelling, ...endedSelling], bidding, won };
   },
 
   async createListing(
@@ -182,8 +202,11 @@ export const MarketService = {
     if (!MARKET_RULES.allowedDurationMinutes.includes(durationMinutes)) {
       throw new GameplayError('INVALID_QUANTITY', 'Choose a valid auction duration.');
     }
-    if (quantity <= 0 || quantity > MARKET_RULES.maxQuantityPerListing) {
+    if (quantity <= 0) {
       throw new GameplayError('INVALID_QUANTITY');
+    }
+    if (quantity > MARKET_RULES.maxQuantityPerListing) {
+      throw new GameplayError('MARKET_LISTING_QUANTITY_CAP');
     }
     if (startingPrice < MARKET_RULES.minStartingPrice) {
       throw new GameplayError('INVALID_QUANTITY', `Minimum starting price is $${MARKET_RULES.minStartingPrice}.`);

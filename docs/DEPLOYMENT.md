@@ -25,21 +25,39 @@ In **Settings → Environment Variables** (Production + Preview):
 | `DATABASE_URL_UNPOOLED` | Optional — direct Neon URL for migrations. If omitted, the build strips `-pooler` from `DATABASE_URL` automatically. |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `APP_URL` | `https://neon-underworld-kappa.vercel.app` |
-| `PLAYTEST_TURNS` | Optional — set to `true` only in non-production playtest environments to enable More → Add Turns. **Omit or leave unset in production.** |
-| `NEXT_PUBLIC_PLAYTEST_TURNS` | Optional — set to `true` alongside `PLAYTEST_TURNS` to show the Add Turns link in the More menu (client UI). Both must be `true` to enable. |
+| `PLAYTEST_TURNS` | **Must be omitted or `false` in production.** Dev/test only — enables `/playtest/turns`. Production build **rejects** `true`. |
+| `NEXT_PUBLIC_PLAYTEST_TURNS` | **Must be omitted or `false` in production.** Client nav for Add Turns. Production build **rejects** `true`. |
+
+### Production security (required)
+
+Before closed testing or public launch:
+
+1. **Rotate admin password** — do not use seed default `AdminChangeMe123!`. Set `SEED_ADMIN_PASSWORD` only when running seed locally; store a unique production password in your secrets manager.
+2. **Rotate invite code** — do not use default `NEON-ALPHA-2026` in production. Create a fresh invite via seed with `SEED_INVITE_CODE` or admin tooling.
+3. **`AUTH_SECRET`** — generate with `openssl rand -base64 32`; never commit or reuse dev values.
+4. **`DATABASE_URL`** — pooled Neon URL for runtime; direct URL for migrations only.
+5. **Playtest flags disabled** — confirm `PLAYTEST_TURNS` and `NEXT_PUBLIC_PLAYTEST_TURNS` are unset or `false`.
+6. **Legacy bankCash** — run read-only diagnostic before deploy:
+   ```bash
+   DATABASE_URL="direct-url" npm run db:check:legacy-bank-cash
+   ```
+   If counts > 0, document and run one-time cleanup (operator only):
+   ```bash
+   DATABASE_URL="direct-url" npx tsx scripts/normalize-bank-cash.ts
+   ```
 
 ## First deploy checklist
 
 1. Root Directory = `NeonUnderworld-OldSkool` (+ include files outside root)
 2. Neon connected, env vars above set
 3. Deploy succeeds (build log shows `OldSkool build complete`)
-4. Seed once from your Mac:
+4. Seed once from your Mac (dev credentials only — rotate before testers):
 
 ```bash
-DATABASE_URL="your-neon-url-from-storage-tab" npm run db:seed
+SEED_ADMIN_PASSWORD="your-strong-dev-password" SEED_INVITE_CODE="your-dev-invite-only" DATABASE_URL="your-neon-url-from-storage-tab" npm run db:seed
 ```
 
-Default invite code: `NEON-ALPHA-2026`
+**DEV ONLY:** Example invite codes and passwords in `.env.example` must not be used in production.
 
 ### Database migrations
 

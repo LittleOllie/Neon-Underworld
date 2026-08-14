@@ -19,6 +19,7 @@ import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { ActionButton } from '@local/components/game/ActionButton';
 import { StatRow } from '@local/components/game/StatRow';
 import { Divider } from '@local/components/game/Divider';
+import type { ProfileAttackEligibility } from '@core/lib/game-engine/combat/eligibility';
 
 export interface PlayerIntelDisplay {
   reportId: string;
@@ -59,6 +60,7 @@ interface Props {
   viewerCity: string;
   targetCity: string;
   targetCitySlug: string;
+  attackEligibility: ProfileAttackEligibility;
 }
 
 function bandsFromIntel(intel: {
@@ -169,6 +171,7 @@ export function PlayerProfilePanel({
   sameCity,
   targetCity,
   targetCitySlug,
+  attackEligibility,
 }: Props) {
   const reconcile = useGameplayReconcile();
   const [turns, setTurns] = useState(initialTurns);
@@ -194,6 +197,25 @@ export function PlayerProfilePanel({
         intel={intel}
         deepIntel={deepIntel}
       />
+    );
+  }
+
+  if (attackEligibility.status === 'below_range') {
+    return (
+      <>
+        <Divider />
+        <p className="g-section-label">{attackEligibility.heading}</p>
+        <p className="g-error">{attackEligibility.message}</p>
+      </>
+    );
+  }
+
+  if (attackEligibility.status === 'unavailable') {
+    return (
+      <>
+        <Divider />
+        <p className="g-error">{attackEligibility.message}</p>
+      </>
     );
   }
 
@@ -324,13 +346,7 @@ export function PlayerProfilePanel({
       >
         {loading ? 'Gathering…' : `Gather Intel — ${intelTurnCost} Turns`}
       </PrimaryButton>
-      <ActionButton
-        className="g-btn-full g-btn-secondary"
-        icon="attack"
-        href={`/attack?target=${encodeURIComponent(targetAliasNormalized)}`}
-      >
-        Open in Attack
-      </ActionButton>
+      {error && <p className="g-error">{error}</p>}
     </>
   );
 }

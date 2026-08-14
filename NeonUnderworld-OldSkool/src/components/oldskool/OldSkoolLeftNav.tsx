@@ -80,28 +80,3 @@ function NavGroup({
     </div>
   );
 }
-
-export function OldSkoolMobileNav({ activePath }: { activePath: string }) {
-  return (
-    <div
-      className="os-mobile-nav"
-      style={{ display: 'none', padding: '6px 10px', borderBottom: '1px solid var(--os-border)' }}
-    >
-      <select
-        defaultValue={activePath}
-        onChange={(e) => {
-          window.location.href = e.target.value;
-        }}
-        className="os-input"
-        style={{ width: '100%' }}
-        aria-label="Navigate"
-      >
-        {[...NAV_MAIN, ...NAV_OPS, ...NAV_ECON, ...NAV_SOCIAL].map((item) => (
-          <option key={`${item.label}-${item.href}`} value={item.href}>
-            {item.label}{'soon' in item && item.soon ? ' (soon)' : ''}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}

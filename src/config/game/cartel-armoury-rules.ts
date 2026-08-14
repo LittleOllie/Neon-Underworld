@@ -2,14 +2,15 @@ import { getCityShopItem } from '@/config/game/shop-rules';
 import { REDLITE_NET_WORTH } from '@/config/game/redlite-rules';
 
 /** Purchasable cartel armoury items — AK-47 is player-only per Redlite guide §6. */
-export type CartelArmouryItemKey = 'thug' | 'glock' | 'uzi';
+export type CartelArmouryItemKey = 'thug' | 'glock' | 'uzi' | 'ride';
 
 export const CARTEL_ARMOURY_MAX_QUANTITY = 1000;
+export const CARTEL_RIDE_UNIT_PRICE = 5_000;
 
 export interface CartelArmouryItemRule {
   key: CartelArmouryItemKey;
   displayName: string;
-  field: 'thugs' | 'glocks' | 'uzis';
+  field: 'thugs' | 'glocks' | 'uzis' | 'rides';
   unitPrice: number;
   purpose: string;
 }
@@ -38,6 +39,13 @@ export const CARTEL_ARMOURY_ITEMS: CartelArmouryItemRule[] = [
     field: 'uzis',
     unitPrice: uziRule.shopPrice,
     purpose: 'Preferred cartel firepower — never lost in attacks.',
+  },
+  {
+    key: 'ride',
+    displayName: 'Ride',
+    field: 'rides',
+    unitPrice: CARTEL_RIDE_UNIT_PRICE,
+    purpose: 'Cartel transport — each ride carries 5 thugs for Response Force defence.',
   },
 ];
 

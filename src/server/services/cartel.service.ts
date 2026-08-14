@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { Prisma } from '@prisma/client';
 import { REDLITE_CARTEL } from '@/config/game/redlite-rules';
 import {
   CARTEL_ARMOURY_ITEMS,
@@ -14,6 +15,10 @@ import {
   calculateCartelNetWorth,
   normalizeDonationPercent,
 } from '@/lib/game-engine/cartel-economics';
+import {
+  computeCartelResponseForce,
+  CARTEL_THUGS_PER_RIDE,
+} from '@/lib/game-engine/cartel-response-force';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonical-net-worth';
@@ -28,13 +33,65 @@ export const CARTEL_AK_SUPPORTED = false;
 
 export interface CartelDefenceContext {
   virtualSupportThugs: number;
+  /** Organised cartel Response Force thugs deployed for this defence. */
+  responseForceThugs: number;
+  /** Deployed thugs passed to combat (alias of responseForceThugs). */
   ownedThugs: number;
   ownedGlocks: number;
   ownedUzis: number;
 }
 
+async function lockCartelForDefence(
+  tx: CartelTx,
+  cartelId: string,
+): Promise<{ thugs: number; glocks: number; uzis: number; rides: number }> {
+  await tx.$queryRaw`SELECT id FROM "Cartel" WHERE id = ${cartelId} FOR UPDATE`;
+  return tx.cartel.findUniqueOrThrow({
+    where: { id: cartelId },
+    select: { thugs: true, glocks: true, uzis: true, rides: true },
+  });
+}
+
 function normalizeTag(tag: string): string {
   return tag.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+type CartelTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+async function clearPendingMembershipActions(
+  tx: CartelTx,
+  playerId: string,
+  except?: { inviteId?: string; requestId?: string },
+): Promise<void> {
+  await tx.cartelInvite.updateMany({
+    where: {
+      inviteeId: playerId,
+      status: 'PENDING',
+      ...(except?.inviteId ? { id: { not: except.inviteId } } : {}),
+    },
+    data: { status: 'DECLINED' },
+  });
+  await tx.cartelJoinRequest.updateMany({
+    where: {
+      applicantId: playerId,
+      status: 'PENDING',
+      ...(except?.requestId ? { id: { not: except.requestId } } : {}),
+    },
+    data: { status: 'CANCELLED' },
+  });
+}
+
+async function assertCartelNameAndTagAvailable(
+  tx: CartelTx,
+  cleanName: string,
+  cleanTag: string,
+): Promise<void> {
+  const [nameTaken, tagTaken] = await Promise.all([
+    tx.cartel.findUnique({ where: { name: cleanName }, select: { id: true } }),
+    tx.cartel.findUnique({ where: { tag: cleanTag }, select: { id: true } }),
+  ]);
+  if (nameTaken) throw new GameplayError('CARTEL_NAME_TAKEN');
+  if (tagTaken) throw new GameplayError('CARTEL_TAG_TAKEN');
 }
 
 export const CartelService = {
@@ -84,12 +141,25 @@ export const CartelService = {
     const browse = player.cartelId
       ? []
       : await prisma.cartel.findMany({
-          include: { _count: { select: { members: true } } },
+          include: {
+            _count: { select: { members: true } },
+            members: { select: { id: true, alias: true } },
+          },
           orderBy: { createdAt: 'desc' },
           take: 20,
         });
 
+    const applicantPendingRequests = player.cartelId
+      ? []
+      : await prisma.cartelJoinRequest.findMany({
+          where: { applicantId: playerId, status: 'PENDING' },
+          include: { cartel: { select: { id: true, name: true, tag: true } } },
+        });
+
+    const pendingRequestCartelIds = new Set(applicantPendingRequests.map((r) => r.cartelId));
+
     let cartelView = null;
+    let pendingJoinRequestsForLeader: Array<{ id: string; alias: string; avatarId: string }> = [];
     if (player.cartel) {
       const leaderId = player.cartel.leaderId;
       const members = player.cartel.members.map((m) => {
@@ -118,6 +188,13 @@ export const CartelService = {
 
       const leaderMember = members.find((m) => m.isLeader);
       const assets = cartelAssetsFromRecord(player.cartel);
+      const cartelRides = assets.rides ?? 0;
+      const transportCapacity = cartelRides * CARTEL_THUGS_PER_RIDE;
+      const myMaxResponseForce = computeCartelResponseForce(
+        player.thugs,
+        assets.thugs ?? 0,
+        cartelRides,
+      );
 
       cartelView = {
         id: player.cartel.id,
@@ -142,13 +219,20 @@ export const CartelService = {
           virtualDefenceThugs: cartelDefenceThugBonus(
             eligibleSupporters.map((m) => ({ thugs: m.thugs })),
           ),
-          ownedDefenceThugs: assets.thugs ?? 0,
+          responseForce: {
+            maxForYou: myMaxResponseForce,
+            cartelRides,
+            transportCapacity,
+            poolThugs: assets.thugs ?? 0,
+          },
         },
         armoury: {
           treasuryCash: assets.treasuryCash,
           thugs: assets.thugs ?? 0,
           glocks: assets.glocks ?? 0,
           uzis: assets.uzis ?? 0,
+          rides: cartelRides,
+          transportCapacity,
           hasSharedStock: true,
           supportedWeaponTypes: [...CARTEL_ARMOURY_WEAPON_TYPES],
           akSupported: CARTEL_AK_SUPPORTED,
@@ -157,15 +241,25 @@ export const CartelService = {
             displayName: item.displayName,
             unitPrice: item.unitPrice,
             purpose: item.purpose,
-            ownedQuantity:
-              item.field === 'thugs'
-                ? (assets.thugs ?? 0)
-                : item.field === 'glocks'
-                  ? (assets.glocks ?? 0)
-                  : (assets.uzis ?? 0),
+            ownedQuantity: assets[item.field] ?? 0,
           })),
         },
       };
+
+      if (leaderId === playerId) {
+        const pendingRequests = await prisma.cartelJoinRequest.findMany({
+          where: { cartelId: player.cartel.id, status: 'PENDING' },
+          include: {
+            applicant: { select: { id: true, alias: true, avatar: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+        pendingJoinRequestsForLeader = pendingRequests.map((r) => ({
+          id: r.id,
+          alias: r.applicant.alias,
+          avatarId: resolvePlayerAvatarId(r.applicant.avatar),
+        }));
+      }
     }
 
     return {
@@ -178,13 +272,24 @@ export const CartelService = {
         inviterAlias: i.inviter.alias,
         expiresAt: i.expiresAt.toISOString(),
       })),
-      browse: browse.map((c) => ({
-        id: c.id,
-        name: c.name,
-        tag: c.tag,
-        memberCount: c._count.members,
-        maxMembers: REDLITE_CARTEL.maxMembers,
+      browse: browse.map((c) => {
+        const leaderMember = c.members.find((m) => m.id === c.leaderId);
+        return {
+          id: c.id,
+          name: c.name,
+          tag: c.tag,
+          memberCount: c._count.members,
+          maxMembers: REDLITE_CARTEL.maxMembers,
+          leaderAlias: leaderMember?.alias ?? 'Unknown',
+          hasPendingRequest: pendingRequestCartelIds.has(c.id),
+        };
+      }),
+      pendingJoinRequests: applicantPendingRequests.map((r) => ({
+        cartelId: r.cartelId,
+        cartelName: r.cartel.name,
+        cartelTag: r.cartel.tag,
       })),
+      pendingJoinRequestsForLeader,
     };
   },
 
@@ -202,6 +307,8 @@ export const CartelService = {
       const player = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
       assertPlayerCanPerformAction(player);
       if (player.cartelId) throw new GameplayError('CARTEL_ALREADY_MEMBER');
+
+      await assertCartelNameAndTagAvailable(tx, cleanName, cleanTag);
 
       const cartel = await tx.cartel.create({
         data: { name: cleanName, tag: cleanTag, leaderId: playerId },
@@ -273,6 +380,7 @@ export const CartelService = {
         data: { cartelId: invite.cartelId, cartelDonationPercent: 0 },
       });
       await tx.cartelInvite.update({ where: { id: inviteId }, data: { status: 'ACCEPTED' } });
+      await clearPendingMembershipActions(tx, playerId, { inviteId });
       return invite.cartelId;
     });
   },
@@ -345,6 +453,141 @@ export const CartelService = {
     return normalized;
   },
 
+  async requestToJoin(playerId: string, cartelId: string) {
+    return prisma.$transaction(async (tx) => {
+      const player = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
+      assertPlayerCanPerformAction(player);
+      if (player.cartelId) throw new GameplayError('CARTEL_ALREADY_MEMBER');
+
+      const cartel = await tx.cartel.findUnique({
+        where: { id: cartelId },
+        include: { _count: { select: { members: true } } },
+      });
+      if (!cartel) throw new GameplayError('INVALID_TARGET');
+      if (cartel._count.members >= REDLITE_CARTEL.maxMembers) {
+        throw new GameplayError('CARTEL_FULL');
+      }
+
+      const existing = await tx.cartelJoinRequest.findFirst({
+        where: { cartelId, applicantId: playerId, status: 'PENDING' },
+      });
+      if (existing) throw new GameplayError('CARTEL_JOIN_REQUEST_EXISTS');
+
+      try {
+        return await tx.cartelJoinRequest.create({
+          data: { cartelId, applicantId: playerId },
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new GameplayError('CARTEL_JOIN_REQUEST_EXISTS');
+        }
+        throw error;
+      }
+    });
+  },
+
+  async acceptJoinRequest(leaderId: string, requestId: string) {
+    return prisma.$transaction(async (tx) => {
+      const request = await tx.cartelJoinRequest.findUnique({
+        where: { id: requestId },
+        include: {
+          cartel: { include: { _count: { select: { members: true } } } },
+          applicant: true,
+        },
+      });
+      if (!request || request.status !== 'PENDING') {
+        throw new GameplayError('CARTEL_JOIN_REQUEST_INVALID');
+      }
+
+      const leader = await tx.player.findUniqueOrThrow({
+        where: { id: leaderId },
+        include: { cartel: true },
+      });
+      if (!leader.cartel || leader.cartel.leaderId !== leaderId) {
+        throw new GameplayError('CARTEL_NOT_LEADER');
+      }
+      if (leader.cartelId !== request.cartelId) {
+        throw new GameplayError('CARTEL_JOIN_REQUEST_INVALID');
+      }
+      if (request.cartel._count.members >= REDLITE_CARTEL.maxMembers) {
+        throw new GameplayError('CARTEL_FULL');
+      }
+      if (request.applicant.cartelId) {
+        throw new GameplayError('CARTEL_JOIN_REQUEST_INVALID');
+      }
+      assertPlayerCanPerformAction(request.applicant);
+
+      await tx.player.update({
+        where: { id: request.applicantId },
+        data: { cartelId: request.cartelId, cartelDonationPercent: 0 },
+      });
+      await tx.cartelJoinRequest.update({
+        where: { id: requestId },
+        data: { status: 'ACCEPTED' },
+      });
+      await clearPendingMembershipActions(tx, request.applicantId, { requestId });
+      return request.cartelId;
+    });
+  },
+
+  async declineJoinRequest(leaderId: string, requestId: string) {
+    return prisma.$transaction(async (tx) => {
+      const request = await tx.cartelJoinRequest.findUnique({
+        where: { id: requestId },
+        include: { cartel: true },
+      });
+      if (!request || request.status !== 'PENDING') {
+        throw new GameplayError('CARTEL_JOIN_REQUEST_INVALID');
+      }
+
+      const leader = await tx.player.findUniqueOrThrow({
+        where: { id: leaderId },
+        include: { cartel: true },
+      });
+      if (!leader.cartel || leader.cartel.leaderId !== leaderId) {
+        throw new GameplayError('CARTEL_NOT_LEADER');
+      }
+      if (leader.cartelId !== request.cartelId) {
+        throw new GameplayError('CARTEL_JOIN_REQUEST_INVALID');
+      }
+
+      await tx.cartelJoinRequest.update({
+        where: { id: requestId },
+        data: { status: 'DECLINED' },
+      });
+    });
+  },
+
+  async transferLeadership(leaderId: string, newLeaderId: string) {
+    return prisma.$transaction(async (tx) => {
+      const leader = await tx.player.findUniqueOrThrow({
+        where: { id: leaderId },
+        include: { cartel: true },
+      });
+      if (!leader.cartel || leader.cartel.leaderId !== leaderId) {
+        throw new GameplayError('CARTEL_NOT_LEADER');
+      }
+      if (newLeaderId === leaderId) {
+        throw new GameplayError('INVALID_TARGET');
+      }
+
+      const target = await tx.player.findUnique({ where: { id: newLeaderId } });
+      if (!target || target.cartelId !== leader.cartelId) {
+        throw new GameplayError('CARTEL_NOT_MEMBER');
+      }
+      assertPlayerCanPerformAction(target);
+
+      const cartelId = leader.cartelId;
+      if (!cartelId) throw new GameplayError('CARTEL_ALREADY_MEMBER');
+
+      await tx.cartel.update({
+        where: { id: cartelId },
+        data: { leaderId: newLeaderId },
+      });
+      return cartelId;
+    });
+  },
+
   async applyIncomeContribution(
     tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
     playerId: string,
@@ -365,39 +608,50 @@ export const CartelService = {
   },
 
   async getCartelDefenceContextInTx(
-    tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+    tx: CartelTx,
     defenderId: string,
   ): Promise<CartelDefenceContext> {
+    const empty: CartelDefenceContext = {
+      virtualSupportThugs: 0,
+      responseForceThugs: 0,
+      ownedThugs: 0,
+      ownedGlocks: 0,
+      ownedUzis: 0,
+    };
+
     const defender = await tx.player.findUnique({
       where: { id: defenderId },
-      select: { cartelId: true, districtId: true, travelling: true },
+      select: { cartelId: true, districtId: true, travelling: true, thugs: true },
     });
     if (!defender?.cartelId || defender.travelling) {
-      return { virtualSupportThugs: 0, ownedThugs: 0, ownedGlocks: 0, ownedUzis: 0 };
+      return empty;
     }
 
-    const [supporters, cartel] = await Promise.all([
-      tx.player.findMany({
-        where: {
-          cartelId: defender.cartelId,
-          id: { not: defenderId },
-          districtId: defender.districtId,
-          travelling: false,
-          lifeStatus: 'ACTIVE',
-        },
-        select: { thugs: true },
-      }),
-      tx.cartel.findUnique({
-        where: { id: defender.cartelId },
-        select: { thugs: true, glocks: true, uzis: true },
-      }),
-    ]);
+    const cartel = await lockCartelForDefence(tx, defender.cartelId);
+
+    const supporters = await tx.player.findMany({
+      where: {
+        cartelId: defender.cartelId,
+        id: { not: defenderId },
+        districtId: defender.districtId,
+        travelling: false,
+        lifeStatus: 'ACTIVE',
+      },
+      select: { thugs: true },
+    });
+
+    const responseForceThugs = computeCartelResponseForce(
+      defender.thugs,
+      cartel.thugs,
+      cartel.rides,
+    );
 
     return {
       virtualSupportThugs: cartelDefenceThugBonus(supporters),
-      ownedThugs: cartel?.thugs ?? 0,
-      ownedGlocks: cartel?.glocks ?? 0,
-      ownedUzis: cartel?.uzis ?? 0,
+      responseForceThugs,
+      ownedThugs: responseForceThugs,
+      ownedGlocks: cartel.glocks,
+      ownedUzis: cartel.uzis,
     };
   },
 
@@ -526,4 +780,10 @@ export const CartelService = {
 };
 
 // Re-export for tests
-export { applyCartelContribution, cartelDefenceThugBonus, calculateCartelNetWorth };
+export {
+  applyCartelContribution,
+  cartelDefenceThugBonus,
+  calculateCartelNetWorth,
+  computeCartelResponseForce,
+  lockCartelForDefence,
+};

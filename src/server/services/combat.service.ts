@@ -82,6 +82,9 @@ export interface CombatResolutionOutput {
   attackerForceSnapshot: Record<string, unknown>;
   defenderForceSnapshot: Record<string, unknown>;
   defenderThugsBefore: number;
+  cartelThugLosses: number;
+  cartelResponseDeployed: number;
+  cartelLocalSupport: number;
   idempotentReplay: boolean;
 }
 
@@ -100,6 +103,26 @@ function safeSnapshot(value: Record<string, unknown>): object {
 function safeInt(value: number, fallback = 0): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(0, Math.floor(value));
+}
+
+function cartelReportFieldsFromSnapshot(snapshot: Record<string, unknown>): {
+  defenderThugsBefore: number;
+  cartelLocalSupport: number;
+  cartelResponseDeployed: number;
+  cartelThugLosses: number;
+} {
+  const s = snapshot as {
+    thugsDefending?: number;
+    cartelSupportThugs?: number;
+    cartelArmouryThugs?: number;
+    cartelThugLosses?: number;
+  };
+  return {
+    defenderThugsBefore: s.thugsDefending ?? 0,
+    cartelLocalSupport: s.cartelSupportThugs ?? 0,
+    cartelResponseDeployed: s.cartelArmouryThugs ?? 0,
+    cartelThugLosses: s.cartelThugLosses ?? 0,
+  };
 }
 
 export type AttackEncounterTarget =
@@ -198,7 +221,7 @@ export async function resolveAttackEncounter(
       newTurns: settledTurns,
       attackerForceSnapshot: existing.attackerForceSnapshot as Record<string, unknown>,
       defenderForceSnapshot: existing.defenderForceSnapshot as Record<string, unknown>,
-      defenderThugsBefore: (existing.defenderForceSnapshot as { thugsDefending?: number })?.thugsDefending ?? 0,
+      ...cartelReportFieldsFromSnapshot(existing.defenderForceSnapshot as Record<string, unknown>),
       idempotentReplay: true,
     };
   }
@@ -436,8 +459,6 @@ export async function resolveAttackEncounter(
       );
     }
 
-    await OfflineProtectionService.resetProtectionCycleInTx(tx, attackerId);
-
     await tx.playerTurnState.update({
       where: { playerId: attackerId },
       data: {
@@ -546,7 +567,7 @@ export async function resolveAttackEncounter(
     newTurns: result.turnStateAfter.currentTurns,
     attackerForceSnapshot: result.combat.attackerForceSnapshot,
     defenderForceSnapshot: result.combat.defenderForceSnapshot,
-    defenderThugsBefore: result.defenderThugsBefore,
+    ...cartelReportFieldsFromSnapshot(result.combat.defenderForceSnapshot),
     idempotentReplay: false,
   };
 }

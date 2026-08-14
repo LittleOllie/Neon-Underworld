@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouteKey } from './GameMainTransition';
 
 const PENDING_TIMEOUT_MS = 10_000;
+const PENDING_LOADING_DELAY_MS = 175;
 
 export function NavigationProgress() {
   const routeKey = useRouteKey();
   const [phase, setPhase] = useState<'idle' | 'loading' | 'complete'>('idle');
   const prevRoute = useRef(routeKey);
   const pendingTimer = useRef<number | null>(null);
+  const loadingTimer = useRef<number | null>(null);
 
   useEffect(() => {
     function clearPendingTimer() {
@@ -17,6 +19,19 @@ export function NavigationProgress() {
         window.clearTimeout(pendingTimer.current);
         pendingTimer.current = null;
       }
+    }
+
+    function clearLoadingTimer() {
+      if (loadingTimer.current !== null) {
+        window.clearTimeout(loadingTimer.current);
+        loadingTimer.current = null;
+      }
+    }
+
+    function clearAll() {
+      clearPendingTimer();
+      clearLoadingTimer();
+      setPhase('idle');
     }
 
     function onNavigateStart(event: MouseEvent) {
@@ -33,18 +48,20 @@ export function NavigationProgress() {
       if (url.origin !== window.location.origin) return;
       if (url.pathname + url.search === routeKey) return;
 
-      clearPendingTimer();
-      setPhase('loading');
+      clearAll();
+      loadingTimer.current = window.setTimeout(() => {
+        setPhase('loading');
+        loadingTimer.current = null;
+      }, PENDING_LOADING_DELAY_MS);
       pendingTimer.current = window.setTimeout(() => {
-        setPhase('idle');
-        pendingTimer.current = null;
+        clearAll();
       }, PENDING_TIMEOUT_MS);
     }
 
     document.addEventListener('click', onNavigateStart, true);
     return () => {
       document.removeEventListener('click', onNavigateStart, true);
-      clearPendingTimer();
+      clearAll();
     };
   }, [routeKey]);
 
@@ -52,7 +69,19 @@ export function NavigationProgress() {
     if (prevRoute.current === routeKey) return;
     prevRoute.current = routeKey;
 
-    if (phase !== 'loading') return;
+    if (loadingTimer.current !== null) {
+      window.clearTimeout(loadingTimer.current);
+      loadingTimer.current = null;
+    }
+    if (pendingTimer.current !== null) {
+      window.clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+
+    if (phase !== 'loading') {
+      setPhase('idle');
+      return;
+    }
 
     setPhase('complete');
     const timer = window.setTimeout(() => setPhase('idle'), 220);

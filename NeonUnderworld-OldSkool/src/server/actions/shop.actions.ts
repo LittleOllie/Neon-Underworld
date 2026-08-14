@@ -11,6 +11,7 @@ import {
 } from '@core/server/actions/shop.actions';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
+import { assertSessionMatchesPlayer, requireSessionPlayerId } from '@local/lib/auth/session-player';
 import { prisma } from '@core/lib/db/prisma';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
@@ -57,6 +58,7 @@ export interface ShopPageData {
 export async function getShopPageDataFromContext(
   ctx: CanonicalPlayerContext,
 ): Promise<ShopPageData> {
+  await assertSessionMatchesPlayer(ctx.id);
   const [catalog, activities] = await Promise.all([
     coreGetShopCatalog(),
     prisma.activity.findMany({
@@ -98,7 +100,8 @@ export async function getShopPageDataFromContext(
   };
 }
 
-export async function getShopPageData(playerId: string): Promise<ShopPageData> {
+export async function getShopPageData(): Promise<ShopPageData> {
+  const playerId = await requireSessionPlayerId();
   const [catalog, player, activities] = await Promise.all([
     coreGetShopCatalog(),
     prisma.player.findUniqueOrThrow({

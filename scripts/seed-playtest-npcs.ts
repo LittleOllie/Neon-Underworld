@@ -294,6 +294,8 @@ export async function seedPlaytestNpcs(
 }
 
 async function main() {
+  const { assertDevSeedAllowed } = await import('./lib/dev-guard');
+  assertDevSeedAllowed('seed-playtest-npcs');
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
   try {

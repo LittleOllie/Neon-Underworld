@@ -887,6 +887,146 @@
   line-height: 1.45;
 }
 
+.g-area-tagline {
+  font-size: var(--game-fs-secondary);
+  color: var(--game-text-secondary);
+  margin: 4px 0 0;
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.g-turn-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.g-turn-quick-btn {
+  flex: 1 1 calc(25% - 8px);
+  min-width: 64px;
+  min-height: 40px;
+  padding: 8px 6px;
+  font-size: var(--game-fs-secondary);
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--os-text);
+  cursor: pointer;
+}
+
+.g-turn-quick-btn:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.g-turn-quick-btn.is-selected,
+.g-turn-quick-btn.g-turn-quick-btn-active {
+  border-color: var(--game-gold);
+  color: var(--game-gold);
+}
+
+.g-result-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 12px;
+  font-size: var(--game-fs-secondary);
+}
+
+.g-result-secondary-link {
+  color: var(--game-gold);
+  text-decoration: none;
+}
+
+.g-result-secondary-link:hover {
+  text-decoration: underline;
+}
+
+.g-result-secondary-sep {
+  color: var(--game-text-secondary);
+}
+
+.g-status-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.g-status-hint {
+  font-size: var(--game-fs-secondary);
+  color: var(--game-text-secondary);
+  margin: 0;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.g-empire-nw-hint {
+  margin: -4px 0 8px;
+}
+
+.g-shop-purpose {
+  font-size: var(--game-fs-secondary);
+  color: var(--game-text-secondary);
+  margin: 4px 0 8px;
+  line-height: 1.4;
+}
+
+.g-pvp-hint {
+  margin: 16px 0 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.g-pvp-hint-title,
+.g-pvp-hint__eyebrow {
+  margin: 0 0 4px;
+  font-size: var(--game-fs-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--game-gold);
+}
+
+.g-pvp-hint-body,
+.g-pvp-hint__body {
+  margin: 0 0 8px;
+  font-size: var(--game-fs-secondary);
+  color: var(--game-text-secondary);
+  line-height: 1.45;
+}
+
+.g-pvp-hint-link {
+  font-size: var(--game-fs-secondary);
+  color: var(--game-gold);
+  text-decoration: none;
+}
+
+.g-pvp-hint-link:hover {
+  text-decoration: underline;
+}
+
+.g-business-aspiration {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.g-business-aspiration-title {
+  margin: 0 0 6px;
+  font-size: var(--game-fs-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--game-gold);
+}
+
+.g-business-aspiration-body {
+  margin: 0;
+  line-height: 1.45;
+}
+
 .g-numeric-input {
   display: flex;
   align-items: center;

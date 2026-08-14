@@ -1,18 +1,25 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { updatePayoutAction as coreUpdatePayoutAction } from '@core/server/actions/empire.actions';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 import { ActivityService } from '@local/server/services/activity.service';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { validatePayoutPercent } from '@local/server/domain/empire-calculations';
-import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 import { prisma } from '@core/lib/db/prisma';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
 export async function updatePayoutAction(
   payoutPercent: number,
-): Promise<ActionResult<{ payoutPercent: number; prostituteHappiness: number }>> {
+): Promise<
+  ActionResult<
+    WithPlayerShell<{
+      payoutPercent: number;
+      prostituteHappiness: number;
+    }>
+  >
+> {
   const validationError = validatePayoutPercent(payoutPercent);
   if (validationError) {
     return { success: false, error: validationError };
@@ -35,12 +42,18 @@ export async function updatePayoutAction(
       );
       const player = await prisma.player.findUniqueOrThrow({
         where: { id: playerId },
-        select: { seasonId: true },
+        include: { district: true, turnState: true },
       });
-      revalidatePlayerGameplayCache(playerId, player.seasonId);
+      const shell = await finalizeLocalMutationShell(playerId, player, ['/empire', '/command']);
+      return {
+        success: true,
+        data: {
+          ...result.data,
+          shell,
+        },
+      };
     }
-    revalidatePath('/empire');
-    revalidatePath('/command');
+    return { success: false, error: 'Not authenticated' };
   }
 
   return result;

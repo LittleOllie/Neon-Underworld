@@ -1,29 +1,33 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 import { BankService, type BankTransferResult } from '@local/server/services/bank.service';
-import { revalidatePlayerGameplayCache } from '@local/server/services/gameplay-cache';
 import { prisma } from '@core/lib/db/prisma';
+import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
-export async function depositAction(amount: number): Promise<ActionResult<BankTransferResult>> {
+export type BankActionResult = WithPlayerShell<BankTransferResult>;
+
+export async function depositAction(amount: number): Promise<ActionResult<BankActionResult>> {
   try {
     const session = await auth();
     if (!session?.user?.playerId) {
       return { success: false, error: 'Not authenticated' };
     }
 
-    const data = await BankService.deposit(session.user.playerId, amount);
+    const playerId = session.user.playerId;
+    const data = await BankService.deposit(playerId, amount);
     const player = await prisma.player.findUniqueOrThrow({
-      where: { id: session.user.playerId },
-      select: { seasonId: true },
+      where: { id: playerId },
+      include: { district: true, turnState: true },
     });
-    revalidatePlayerGameplayCache(session.user.playerId, player.seasonId);
-    revalidatePath('/empire');
-    revalidatePath('/command');
-    revalidatePath('/bank');
-    return { success: true, data };
+    const shell = await finalizeLocalMutationShell(playerId, player, ['/empire', '/command', '/bank'], {
+      cash: data.cash,
+      netWorth: data.netWorth,
+      bankCash: data.bankCash,
+    });
+    return { success: true, data: { ...data, shell } };
   } catch (error) {
     return {
       success: false,
@@ -32,23 +36,25 @@ export async function depositAction(amount: number): Promise<ActionResult<BankTr
   }
 }
 
-export async function withdrawAction(amount: number): Promise<ActionResult<BankTransferResult>> {
+export async function withdrawAction(amount: number): Promise<ActionResult<BankActionResult>> {
   try {
     const session = await auth();
     if (!session?.user?.playerId) {
       return { success: false, error: 'Not authenticated' };
     }
 
-    const data = await BankService.withdraw(session.user.playerId, amount);
+    const playerId = session.user.playerId;
+    const data = await BankService.withdraw(playerId, amount);
     const player = await prisma.player.findUniqueOrThrow({
-      where: { id: session.user.playerId },
-      select: { seasonId: true },
+      where: { id: playerId },
+      include: { district: true, turnState: true },
     });
-    revalidatePlayerGameplayCache(session.user.playerId, player.seasonId);
-    revalidatePath('/empire');
-    revalidatePath('/command');
-    revalidatePath('/bank');
-    return { success: true, data };
+    const shell = await finalizeLocalMutationShell(playerId, player, ['/empire', '/command', '/bank'], {
+      cash: data.cash,
+      netWorth: data.netWorth,
+      bankCash: data.bankCash,
+    });
+    return { success: true, data: { ...data, shell } };
   } catch (error) {
     return {
       success: false,

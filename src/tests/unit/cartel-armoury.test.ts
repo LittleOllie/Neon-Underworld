@@ -9,24 +9,28 @@ import { cartelAssetsFromRecord, calculateCartelNetWorth } from '@/lib/game-engi
 import { resolveCombat, deriveCombatSeed } from '@/lib/game-engine/combat/resolve-combat';
 
 describe('cartel armoury rules', () => {
-  it('offers thug, glock, and uzi only', () => {
-    expect(CARTEL_ARMOURY_ITEMS.map((i) => i.key)).toEqual(['thug', 'glock', 'uzi']);
+  it('offers thug, glock, uzi, and ride', () => {
+    expect(CARTEL_ARMOURY_ITEMS.map((i) => i.key)).toEqual(['thug', 'glock', 'uzi', 'ride']);
     expect(isCartelArmouryItem('ak')).toBe(false);
-    expect(isCartelArmouryItem('uzi')).toBe(true);
+    expect(isCartelArmouryItem('ride')).toBe(true);
   });
 
-  it('uses city shop weapon prices and thug NW value', () => {
+  it('uses city shop weapon prices, thug NW value, and ride price', () => {
     expect(getCartelArmouryItem('glock')?.unitPrice).toBe(500);
     expect(getCartelArmouryItem('uzi')?.unitPrice).toBe(1500);
     expect(getCartelArmouryItem('thug')?.unitPrice).toBe(700);
+    expect(getCartelArmouryItem('ride')?.unitPrice).toBe(5000);
     expect(cartelArmouryPurchaseTotal('thug', 10)).toBe(7000);
+    expect(cartelArmouryPurchaseTotal('ride', 2)).toBe(10_000);
   });
 
   it('reads armoury assets from cartel record', () => {
     expect(
-      cartelAssetsFromRecord({ treasuryCash: 5000, thugs: 12, glocks: 3, uzis: 2 }),
-    ).toEqual({ treasuryCash: 5000, thugs: 12, glocks: 3, uzis: 2 });
-    expect(calculateCartelNetWorth({ treasuryCash: 1000, thugs: 5 })).toBe(1000 + 5 * 700);
+      cartelAssetsFromRecord({ treasuryCash: 5000, thugs: 12, glocks: 3, uzis: 2, rides: 4 }),
+    ).toEqual({ treasuryCash: 5000, thugs: 12, glocks: 3, uzis: 2, rides: 4 });
+    expect(calculateCartelNetWorth({ treasuryCash: 1000, thugs: 5, rides: 2 })).toBe(
+      1000 + 5 * 700 + 2 * 2000,
+    );
   });
 });
 

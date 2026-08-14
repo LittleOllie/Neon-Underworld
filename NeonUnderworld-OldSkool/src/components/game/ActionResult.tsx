@@ -28,11 +28,20 @@ export function ActionResult({
   title,
   lines,
   actions,
+  secondaryActions,
 }: {
   title: string;
   lines: ActionResultLine[];
   actions?: ActionResultAction[];
+  /** Compact inline links below primary actions (e.g. Shop · Produce · Home). */
+  secondaryActions?: ActionResultAction[];
 }) {
+  const primaryActions = actions?.filter((a) => a.primary !== false) ?? [];
+  const inlineSecondary =
+    secondaryActions ??
+    actions?.filter((a) => a.primary === false && a.href) ??
+    [];
+
   return (
     <div className="g-result">
       <h2 className="g-result-title">{title}</h2>
@@ -43,14 +52,13 @@ export function ActionResult({
           </li>
         ))}
       </ul>
-      {actions && actions.length > 0 && (
+      {primaryActions.length > 0 && (
         <div className="g-result-actions">
-          {actions.map((a) =>
+          {primaryActions.map((a) =>
             a.onClick ? (
               <PrimaryButton
                 key={a.label}
-                className={`g-btn-full${a.primary ? '' : ' g-btn-secondary'}`}
-                variant={a.primary ? undefined : 'secondary'}
+                className="g-btn-full"
                 icon={a.icon}
                 onClick={a.onClick}
               >
@@ -60,13 +68,25 @@ export function ActionResult({
               <Link
                 key={a.href ?? a.label}
                 href={a.href!}
-                className={`g-btn g-btn-full${a.primary ? '' : ' g-btn-secondary'}`}
+                className="g-btn g-btn-full"
               >
                 <ButtonContent icon={a.icon}>{a.label}</ButtonContent>
               </Link>
             ),
           )}
         </div>
+      )}
+      {inlineSecondary.length > 0 && (
+        <p className="g-result-secondary">
+          {inlineSecondary.map((a, index) => (
+            <span key={a.href ?? a.label}>
+              {index > 0 ? <span className="g-result-secondary-sep"> · </span> : null}
+              <Link href={a.href!} className="g-result-secondary-link">
+                {a.label}
+              </Link>
+            </span>
+          ))}
+        </p>
       )}
     </div>
   );

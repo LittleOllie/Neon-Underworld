@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useOptionalPlayerShell } from '@local/components/game/PlayerShellProvider';
 import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import {
   ATTACK_RULES,
@@ -35,6 +36,8 @@ import { deepIntelTargetAction } from '@local/server/actions/deep-intel-target.a
 import { formatCountEstimateRange } from '@core/lib/game-engine/combat/deep-intel';
 import { workforceStabilityHint } from '@core/lib/game-engine/combat/intel-bands';
 import { poachingOutlookHint } from '@core/lib/game-engine/combat/poach-outlook';
+import { WORKER_POACHING_RULES } from '@core/config/game/worker-poaching-rules';
+import { GAMEPLAY_CONTEXT_MESSAGES } from '@core/lib/game-engine/gameplay-errors';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { OptionGrid } from '@local/components/game/OptionGrid';
@@ -59,6 +62,7 @@ interface AttackFormProps {
   initialTargetAlias?: string;
   initialReportId?: string;
   staleIntelNotice?: string | null;
+  requestedTargetNotice?: { heading: string | null; message: string } | null;
   attackRangeMinNetWorth?: number;
   intelTurnCost: number;
   deepIntelTurnCost: number;
@@ -224,8 +228,16 @@ function TargetCard({
 export function AttackForm(props: AttackFormProps) {
   const router = useRouter();
   const reconcile = useGameplayReconcile();
+  const shellCtx = useOptionalPlayerShell();
   const [targets, setTargets] = useState(props.targets);
   const [turns, setTurns] = useState(props.turns);
+  const [crew, setCrew] = useState({
+    thugs: props.thugs,
+    rides: props.rides,
+    glocks: props.glocks,
+    uzis: props.uzis,
+    aks: props.aks,
+  });
   const [selected, setSelected] = useState<AttackTargetCandidate | null>(() =>
     resolveInitialTarget(props.targets, props.initialTargetAlias, props.initialReportId),
   );
@@ -234,7 +246,7 @@ export function AttackForm(props: AttackFormProps) {
   const [showIntel, setShowIntel] = useState(false);
   const [showDeepIntel, setShowDeepIntel] = useState(false);
 
-  const forceMax = Math.min(props.thugs, ATTACK_RULES.maxAttackingThugs);
+  const forceMax = Math.min(crew.thugs, ATTACK_RULES.maxAttackingThugs);
   const defaultForce = Math.min(50, forceMax);
   const [attackType, setAttackType] = useState<AttackType>('HOME_INVASION');
   const [forceRaw, setForceRaw] = useState(String(defaultForce));
@@ -247,7 +259,25 @@ export function AttackForm(props: AttackFormProps) {
   useEffect(() => {
     setTargets(props.targets);
     setTurns(props.turns);
-  }, [props.targets, props.turns]);
+    setCrew({
+      thugs: shellCtx?.stats.thugs ?? props.thugs,
+      rides: props.rides,
+      glocks: props.glocks,
+      uzis: props.uzis,
+      aks: props.aks,
+    });
+  }, [props.targets, props.turns, props.thugs, props.rides, props.glocks, props.uzis, props.aks, shellCtx?.stats.thugs]);
+
+  function applyAttackShell(shell: PlayerShellSnapshot) {
+    reconcile(shell);
+    setCrew((prev) => ({
+      thugs: shell.thugs ?? prev.thugs,
+      rides: shell.rides ?? prev.rides,
+      glocks: shell.glocks ?? prev.glocks,
+      uzis: shell.uzis ?? prev.uzis,
+      aks: shell.aks ?? prev.aks,
+    }));
+  }
 
   useEffect(() => {
     if (!props.initialTargetAlias && !props.initialReportId) return;
@@ -270,11 +300,11 @@ export function AttackForm(props: AttackFormProps) {
   const weaponAlloc = useMemo(
     () =>
       allocateWeaponsForThugs(force, {
-        glocks: props.glocks,
-        uzis: props.uzis,
-        aks: props.aks,
+        glocks: crew.glocks,
+        uzis: crew.uzis,
+        aks: crew.aks,
       }),
-    [force, props.glocks, props.uzis, props.aks],
+    [force, crew.glocks, crew.uzis, crew.aks],
   );
 
   const turnCost = ATTACK_RULES.turnCosts[attackType];
@@ -297,14 +327,20 @@ export function AttackForm(props: AttackFormProps) {
     !!props.initialReportId &&
     selected?.reportId === props.initialReportId;
 
+  const poachBlockedByDeepIntel =
+    attackType === 'POACH_WORKERS' &&
+    !!selected?.deepIntel &&
+    selected.deepIntel.estimatedWorkerMax < WORKER_POACHING_RULES.minWorkersToPoach;
+
   const canAttack =
     selected?.eligible &&
     selected.reportId &&
     !usingStaleReport &&
+    !poachBlockedByDeepIntel &&
     force > 0 &&
-    force <= props.thugs &&
+    force <= crew.thugs &&
     force <= ATTACK_RULES.maxAttackingThugs &&
-    ridesNeeded <= props.rides &&
+    ridesNeeded <= crew.rides &&
     turnCost <= turns;
 
   async function handleGatherIntel() {
@@ -386,14 +422,30 @@ export function AttackForm(props: AttackFormProps) {
         uuidv4(),
       );
       if (!response.success) {
-        setError(response.error);
+        const err = response.error;
+        if (
+          err.includes('below your attack range') ||
+          err.includes('too far below your Net Worth')
+        ) {
+          setSelected((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  eligible: false,
+                  eligibilityNote: GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading,
+                }
+              : prev,
+          );
+          router.refresh();
+        }
+        setError(err);
         setConfirming(false);
         return;
       }
       setResult(response.data);
       setTurns(response.data.newTurns);
       if (response.data.shell) {
-        reconcile(response.data.shell);
+        applyAttackShell(response.data.shell);
       }
     } catch (err) {
       setError('Something went wrong launching the attack. Try again.');
@@ -451,27 +503,35 @@ export function AttackForm(props: AttackFormProps) {
     return (
       <>
         <AttackCrewSummary
-          thugs={props.thugs}
-          rides={props.rides}
-          glocks={props.glocks}
-          uzis={props.uzis}
-          aks={props.aks}
+          thugs={crew.thugs}
+          rides={crew.rides}
+          glocks={crew.glocks}
+          uzis={crew.uzis}
+          aks={crew.aks}
           force={0}
           weaponAlloc={allocateWeaponsForThugs(0, {
-            glocks: props.glocks,
-            uzis: props.uzis,
-            aks: props.aks,
+            glocks: crew.glocks,
+            uzis: crew.uzis,
+            aks: crew.aks,
           })}
         />
         {props.staleIntelNotice && <p className="g-error">{props.staleIntelNotice}</p>}
+        {props.requestedTargetNotice && (
+          <div className="g-error-block">
+            {props.requestedTargetNotice.heading && (
+              <p className="g-section-label">{props.requestedTargetNotice.heading}</p>
+            )}
+            <p className="g-error">{props.requestedTargetNotice.message}</p>
+          </div>
+        )}
         <p className="g-note">
-          Players in <strong>{props.viewerCity}</strong> you can attack right now. Gather intel
-          before launching an attack.
+          Players in <strong>{props.viewerCity}</strong> you can attack right now. Gather Basic
+          Intel before launching an attack.
         </p>
         {props.attackRangeMinNetWorth != null && props.attackRangeMinNetWorth > 0 && (
           <p className="g-note">
-            Attack range: targets worth at least $
-            {props.attackRangeMinNetWorth.toLocaleString()}+
+            You can attack players worth at least 50% of your Net Worth. There is no upper limit.
+            Current floor: ${props.attackRangeMinNetWorth.toLocaleString()}+
           </p>
         )}
         {targets.length === 0 ? (
@@ -666,11 +726,11 @@ export function AttackForm(props: AttackFormProps) {
       {selected.hasIntel && selected.reportId && (
         <>
           <AttackCrewSummary
-            thugs={props.thugs}
-            rides={props.rides}
-            glocks={props.glocks}
-            uzis={props.uzis}
-            aks={props.aks}
+            thugs={crew.thugs}
+            rides={crew.rides}
+            glocks={crew.glocks}
+            uzis={crew.uzis}
+            aks={crew.aks}
             force={force}
             weaponAlloc={weaponAlloc}
           />
@@ -726,8 +786,14 @@ export function AttackForm(props: AttackFormProps) {
           <StatRow label="Turn cost" value={String(turnCost)} />
           <StatRow label="Risk" value={riskFromForce(forceEstimateLabel)} />
 
-          {ridesNeeded > props.rides && (
-            <p className="g-error">Need {ridesNeeded - props.rides} more rides for this force.</p>
+          {poachBlockedByDeepIntel && (
+            <p className="g-error">
+              Deep Intel suggests this target does not have enough Workers to poach.
+            </p>
+          )}
+
+          {ridesNeeded > crew.rides && (
+            <p className="g-error">Need {ridesNeeded - crew.rides} more rides for this force.</p>
           )}
 
           {usingStaleReport && (

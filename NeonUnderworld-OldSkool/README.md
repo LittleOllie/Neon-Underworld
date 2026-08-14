@@ -82,7 +82,7 @@ See [docs/OLDSKOOL_DESIGN.md](./docs/OLDSKOOL_DESIGN.md).
 Rules from `docs/reference/REDLITE_AMSTERDAM_GUIDES.md` are codified in `src/config/game/redlite-rules.ts` and `src/config/game/shop-rules.ts`.
 
 **Playable (Redlite-aligned):**
-- Turn regen: 2 turns / 6 minutes · cap **5,000** · start **50**
+- Turn regen: 2 turns / 5 minutes · cap **5,000** · start **500**
 - Scout with **5 areas per city** — primary personnel route
 - **Produce** drugs (scales with thugs + turns) + worker cash split
 - **City Shop** — support supplies only (**Workers and Thugs not sold**)

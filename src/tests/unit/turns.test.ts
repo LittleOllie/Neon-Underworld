@@ -14,7 +14,7 @@ import { REDLITE_TURNS } from '@/config/game/redlite-rules';
 describe('turn regeneration', () => {
   it('uses canonical Redlite turn rules from config', () => {
     expect(TURNS_CONFIG.turnCap).toBe(5000);
-    expect(TURNS_CONFIG.startingTurns).toBe(5000);
+    expect(TURNS_CONFIG.startingTurns).toBe(500);
     expect(REDLITE_TURNS.turnsPerInterval).toBe(2);
     expect(REDLITE_TURNS.intervalMinutes).toBe(5);
     expect(TURNS_CONFIG.regenerationRatePerMs).toBe(REDLITE_TURNS.regenerationRatePerMs);
@@ -78,11 +78,34 @@ describe('turn regeneration', () => {
     expect(settled.currentTurns).toBeLessThanOrEqual(5000);
   });
 
-  it('new accounts use identical rules via createInitialTurnState', () => {
+  it('new accounts start with 500 turns via createInitialTurnState', () => {
     const initial = createInitialTurnState();
     expect(initial.turnCap).toBe(5000);
-    expect(initial.currentTurns).toBe(5000);
+    expect(initial.currentTurns).toBe(500);
     expect(initial.regenerationRatePerMs).toBe(TURNS_CONFIG.regenerationRatePerMs);
+  });
+
+  it('existing accounts above starting balance are not clamped to starting turns', () => {
+    const existing = {
+      currentTurns: 3500,
+      lastRegeneratedAt: new Date(),
+      turnCap: 5000,
+      regenerationRatePerMs: TURNS_CONFIG.regenerationRatePerMs,
+    };
+    const settled = settleTurnRegeneration(existing);
+    expect(settled.currentTurns).toBe(3500);
+  });
+
+  it('players can regenerate above starting balance toward cap', () => {
+    const state = {
+      currentTurns: 500,
+      lastRegeneratedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      turnCap: 5000,
+      regenerationRatePerMs: TURNS_CONFIG.regenerationRatePerMs,
+    };
+    const settled = settleTurnRegeneration(state);
+    expect(settled.currentTurns).toBeGreaterThan(500);
+    expect(settled.currentTurns).toBeLessThanOrEqual(5000);
   });
 
   it('handles long offline periods', () => {

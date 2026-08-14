@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import { PageTitle } from '@local/components/game';
-import { EmptyState } from '@local/components/game/EmptyState';
-import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
+import { requireGameSession } from '@local/lib/game-context';
 import { ReportService, getUnreadReportCount } from '@local/server/services/report.service';
-import { MarkAllReadButton } from '@local/features/reports/MarkAllReadButton';
+import { ReportsInbox } from '@local/features/reports/ReportsInbox';
 import { devPerf } from '@local/lib/dev-perf';
 
 interface Props {
@@ -15,6 +14,8 @@ const FILTERS = [
   { key: 'unread', label: 'Unread' },
 ] as const;
 
+const PAGE_SIZE = 25;
+
 export default async function ReportsPage({ searchParams }: Props) {
   const params = await searchParams;
   const filterParam = params.filter ?? 'all';
@@ -22,12 +23,12 @@ export default async function ReportsPage({ searchParams }: Props) {
 
   const { playerId } = await requireGameSession();
 
-  const { reports, unreadCount } = await devPerf('/reports data', async () => {
-    const [reports, unreadCount] = await Promise.all([
-      ReportService.listFiltered(playerId, filter),
+  const { reports, hasMore, unreadCount } = await devPerf('/reports data', async () => {
+    const [listed, unreadCount] = await Promise.all([
+      ReportService.listFiltered(playerId, filter, { limit: PAGE_SIZE, offset: 0 }),
       getUnreadReportCount(playerId),
     ]);
-    return { reports, unreadCount };
+    return { reports: listed.items, hasMore: listed.hasMore, unreadCount };
   });
 
   return (
@@ -46,36 +47,13 @@ export default async function ReportsPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {unreadCount > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <MarkAllReadButton />
-        </div>
-      )}
-
-      {reports.length === 0 ? (
-        <EmptyState
-          title="No reports"
-          body={
-            filter === 'unread'
-              ? 'You have read everything in your inbox.'
-              : 'Scout, attack, and run your empire — reports appear here.'
-          }
-          actionHref="/scout"
-          actionLabel="Go scouting"
-        />
-      ) : (
-        reports.map((r) => (
-          <Link
-            key={r.id}
-            href={`/reports/${r.id}`}
-            className={`g-inbox-item${r.read ? '' : ' g-inbox-unread'}`}
-          >
-            <div className="g-inbox-title">{r.title}</div>
-            {r.summary && <div className="g-inbox-meta">{r.summary}</div>}
-            <div className="g-inbox-meta">{formatRelativeTime(r.createdAt)}</div>
-          </Link>
-        ))
-      )}
+      <ReportsInbox
+        key={filter}
+        initialReports={reports}
+        initialHasMore={hasMore}
+        filter={filter}
+        unreadCount={unreadCount}
+      />
     </>
   );
 }

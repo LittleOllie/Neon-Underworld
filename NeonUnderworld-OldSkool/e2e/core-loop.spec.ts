@@ -20,7 +20,7 @@ test.describe('Core loop — Scout, Produce, City Shop', () => {
     await page.goto('/scout');
     await expect(page.getByRole('heading', { name: 'Scout' })).toBeVisible({ timeout: 10000 });
     await page.getByLabel('Turns to scout').fill('25');
-    await page.getByRole('button', { name: 'Scout', exact: true }).click();
+    await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 15000 });
     const turnsStatus = page.locator('.g-status-item').filter({ hasText: 'Turns' });
     await expect(turnsStatus).toBeVisible();

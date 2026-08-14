@@ -12,8 +12,8 @@ export const REDLITE_TURNS = {
   /** ~24 turns/hour, ~576/day */
   regenerationRatePerHour: 24,
   regenerationRatePerMs: 2 / (5 * 60 * 1000),
-  /** Alpha playtest — friends start with a full turn bank to explore */
-  startingTurns: 5000,
+  /** New players start with a modest turn bank; cap and regen fill the rest */
+  startingTurns: 500,
   turnCap: 5000,
   travelTurnCost: 10,
 } as const;

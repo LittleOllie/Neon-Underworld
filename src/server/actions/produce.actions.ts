@@ -28,7 +28,6 @@ import {
   SeasonInactiveError,
 } from '@/lib/game-engine/errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
-import { OfflineProtectionService } from '@/server/services/offline-protection.service';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { CartelService } from '@/server/services/cartel.service';
 import { resolveSupplyConsumptionForAction } from '@/lib/game-engine/supply-consumption';
@@ -95,7 +94,6 @@ export async function produceAction(
 
       if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
       assertPlayerCanPerformAction(player);
-      await OfflineProtectionService.resetProtectionCycleInTx(tx, playerId);
       if (player.thugs < 1) throw new GameplayError('INVALID_FORCE', 'You need thugs to produce.');
       if (!player.turnState) throw new Error('Turn state not found');
 
@@ -114,6 +112,8 @@ export async function produceAction(
         beer: player.beer,
       }).score;
 
+      const isHashProduction = parsed.data.drugType === 'hash';
+
       const supplyResult = resolveSupplyConsumptionForAction({
         prostitutes: player.prostitutes,
         thugs: player.thugs,
@@ -121,6 +121,7 @@ export async function produceAction(
         condoms: player.condoms,
         hash: player.hash,
         beer: player.beer,
+        exemptWorkerHash: isHashProduction,
       });
       const suppliesAfter = supplyResult.inventoryAfter;
 
@@ -149,6 +150,7 @@ export async function produceAction(
         hash: suppliesAfter.hash,
         condoms: suppliesAfter.condoms,
         prostitutePayoutPercent: player.prostitutePayoutPercent,
+        exemptHashMorale: isHashProduction,
       }).score;
 
       const thugHappiness = calculateThugHappiness({
@@ -190,7 +192,7 @@ export async function produceAction(
       const hashAfter = drugCounts.hash;
       const hashNetChange =
         parsed.data.drugType === 'hash'
-          ? outcome.drugUnitsProduced - (supplyResult.plan.consumed.hash ?? 0)
+          ? outcome.drugUnitsProduced
           : undefined;
 
       const newProstitutes = Math.max(0, player.prostitutes - outcome.prostitutesLost);

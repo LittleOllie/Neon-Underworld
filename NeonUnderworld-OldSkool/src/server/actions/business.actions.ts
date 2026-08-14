@@ -29,12 +29,14 @@ import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { EmpireService } from '@local/server/services/empire.service';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
+import { assertSessionMatchesPlayer } from '@local/lib/auth/session-player';
 
 export type { BusinessesPageData };
 
 export async function getBusinessesPageDataFromContext(
   ctx: CanonicalPlayerContext,
 ): Promise<BusinessesPageData> {
+  await assertSessionMatchesPlayer(ctx.id);
   return coreGetBusinessesPageData(ctx.id);
 }
 

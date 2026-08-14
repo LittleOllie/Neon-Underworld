@@ -1,17 +1,31 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { markReportReadLocally, notifyReportRead } from '@local/lib/reports-read-state';
 
-/** Refreshes server-rendered unread counts after report detail marks read on the server. */
-export function ReportReadSync({ wasUnread }: { wasUnread: boolean }) {
-  const router = useRouter();
+/** Reconcile shell unread badge after report detail marks read on the server. */
+export function ReportReadSync({
+  unreadReports,
+  reportId,
+}: {
+  unreadReports?: number;
+  reportId?: string;
+}) {
+  const reconcile = useGameplayReconcile();
 
   useEffect(() => {
-    if (wasUnread) {
-      router.refresh();
+    if (reportId) {
+      markReportReadLocally(reportId);
+      notifyReportRead();
     }
-  }, [wasUnread, router]);
+  }, [reportId]);
+
+  useEffect(() => {
+    if (unreadReports != null) {
+      reconcile({ unreadReports });
+    }
+  }, [unreadReports, reconcile]);
 
   return null;
 }

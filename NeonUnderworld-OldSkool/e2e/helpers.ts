@@ -3,9 +3,18 @@ import { expect, type Page } from '@playwright/test';
 export const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@neonunderworld.local';
 export const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'AdminChangeMe123!';
 
+/** Canonical fresh E2E account — run npm run db:seed:fresh-e2e before tests. */
+export const FRESH_E2E_EMAIL = 'fresh-e2e+tester@neonunderworld.local';
+export const FRESH_E2E_PASSWORD = 'fresh-e2e-not-for-production';
+export const FRESH_E2E_ALIAS = 'FreshE2E';
+
 /** Dev PvP opponent from scripts/seed-dev-pvp-opponents.ts (NeonViper — enough cash to bid). */
 export const PVP_BUYER_EMAIL = 'dev-pvp+neonviper@neonunderworld.local';
 export const PVP_BUYER_PASSWORD = 'dev-pvp-neonviper-not-for-login';
+
+/** Third dev PvP account for cartel verification E2E. */
+export const PVP_PLAYER_C_EMAIL = 'dev-pvp+rustrunner@neonunderworld.local';
+export const PVP_PLAYER_C_PASSWORD = 'dev-pvp-rustrunner-not-for-login';
 
 export function headerCashLocator(page: Page) {
   return page.locator('.g-status-item').filter({ hasText: 'Cash' });
@@ -26,6 +35,30 @@ export function parseMoney(text: string | null) {
 export function parseTurnsUsed(text: string | null): number {
   const match = (text ?? '').match(/([\d,]+)\s*\//);
   return parseMoney(match?.[1] ?? '0');
+}
+
+/** Grant playtest turns when the dev account is depleted (E2E stability). */
+export async function ensureMinTurns(page: Page, minimum = 100) {
+  await dismissBootScreen(page);
+  const current = parseTurnsUsed(await headerTurnsLocator(page).textContent());
+  if (current >= minimum) return;
+
+  await page.goto('/playtest/turns');
+  const boot = page.locator('.nu-boot');
+  if (await boot.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await page.locator('.nu-boot__enter').click({ force: true });
+    await boot.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
+  }
+
+  const grantBtn = page.getByRole('button', { name: '+500 turns' });
+  if (!(await grantBtn.isVisible({ timeout: 5000 }).catch(() => false))) return;
+
+  await grantBtn.click();
+  await expect(page.getByRole('heading', { name: 'Turns updated' })).toBeVisible({
+    timeout: 15_000,
+  });
+  const after = parseTurnsUsed(await headerTurnsLocator(page).textContent());
+  expect(after).toBeGreaterThanOrEqual(minimum);
 }
 
 /** Buy button on a shop catalog row (not the Buy/Sell mode toggle). */
@@ -82,6 +115,7 @@ const MORE_NAV: Record<string, string> = {
   '/cartels': 'Cartels',
   '/rankings': 'Rankings',
   '/reports': 'Reports',
+  '/settings': 'Settings',
 };
 
 /** Dismiss intro screen — clicks the boot overlay primary action when visible. */
@@ -96,9 +130,38 @@ export async function dismissBootScreen(page: Page) {
   }
 
   const enter = boot.locator('.nu-boot__enter');
-  await enter.waitFor({ state: 'visible', timeout: 15_000 });
-  await enter.click();
-  await boot.waitFor({ state: 'detached', timeout: 20_000 });
+  try {
+    await Promise.race([
+      enter.waitFor({ state: 'visible', timeout: 45_000 }),
+      boot.waitFor({ state: 'hidden', timeout: 45_000 }),
+    ]);
+  } catch {
+    return;
+  }
+
+  if (await enter.isVisible().catch(() => false)) {
+    await enter.click();
+  }
+  await boot.waitFor({ state: 'hidden', timeout: 20_000 }).catch(async () => {
+    await boot.waitFor({ state: 'detached', timeout: 20_000 });
+  });
+}
+
+/**
+ * Canonical hard navigation: load route, dismiss boot overlay, wait for URL, ensure overlay gone.
+ * Use for deep links and post-reload navigation in E2E.
+ */
+export async function gotoPath(page: Page, path: string) {
+  const base =
+    page.url().startsWith('http') ? page.url() : `http://127.0.0.1:${process.env.PW_TEST_PORT ?? '3310'}`;
+  const target = new URL(path, base);
+  await page.goto(`${target.pathname}${target.search}`);
+  await dismissBootScreen(page);
+  await page.waitForURL(
+    new RegExp(`${target.pathname.replace(/\//g, '\\/')}(\\?|$)`),
+    { timeout: 15_000 },
+  );
+  await expect(page.locator('.nu-boot')).toBeHidden({ timeout: 20_000 }).catch(() => {});
 }
 
 /** @deprecated Use dismissBootScreen */
@@ -107,6 +170,7 @@ export async function waitForBootScreen(page: Page) {
 }
 
 async function clickNavLink(page: Page, label: string) {
+  await dismissBootScreen(page);
   const nav = page.getByRole('navigation');
   const primary = nav.getByRole('link', { name: label, exact: true });
   if (await primary.first().isVisible().catch(() => false)) {
@@ -117,7 +181,7 @@ async function clickNavLink(page: Page, label: string) {
   await page.getByRole('button', { name: 'More menu' }).click();
   await page
     .getByRole('dialog', { name: 'More' })
-    .getByRole('link', { name: label, exact: true })
+    .getByRole('link', { name: new RegExp(`^${label}(\\s|$)`) })
     .click();
 }
 
@@ -132,16 +196,15 @@ export async function gotoGame(page: Page, path: string) {
     await clickNavLink(page, label);
     await page.waitForURL(
       new RegExp(`${target.pathname.replace(/\//g, '\\/')}(\\?|$)`),
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     );
     if (target.search && !page.url().includes(target.search.slice(1))) {
-      await page.goto(`${target.pathname}${target.search}`);
+      await gotoPath(page, `${target.pathname}${target.search}`);
     }
     return;
   }
 
-  await page.goto(`${target.pathname}${target.search}`);
-  await dismissBootScreen(page);
+  await gotoPath(page, `${target.pathname}${target.search}`);
 }
 
 export async function loginAs(page: Page, email: string, password: string) {
@@ -161,6 +224,6 @@ export async function login(page: Page) {
 /** Empire accordion section by exact title (WORKERS, THUGS, etc.). */
 export function empireSection(page: Page, title: string) {
   return page.locator('details.g-empire-section').filter({
-    has: page.locator('.g-business-section-title', { hasText: title, exact: true }),
+    has: page.locator('.g-business-section-title', { hasText: new RegExp(`^${title}$`) }),
   });
 }

@@ -6,6 +6,7 @@ import {
   HomeCrewSummary,
   BusinessHeatSummary,
   FirstMoveCard,
+  PvpDiscoveryHint,
 } from '@local/components/game';
 import {
   requireGameSession,
@@ -71,6 +72,7 @@ export default async function CommandPage() {
               {remaining} more alert{remaining === 1 ? '' : 's'}
             </p>
           ) : null}
+          <PvpDiscoveryHint />
         </>
       ) : null}
 

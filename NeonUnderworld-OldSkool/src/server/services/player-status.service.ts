@@ -1,5 +1,6 @@
 import { prisma } from '@core/lib/db/prisma';
 import { ONLINE_THRESHOLD_MS } from '@local/config/game';
+import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
 
 export const PlayerStatusService = {
   resolveLastSeen(
@@ -18,11 +19,7 @@ export const PlayerStatusService = {
   },
 
   async touchLastSeen(playerId: string, at = new Date()): Promise<void> {
-    await prisma.playerStatusExt.upsert({
-      where: { playerId },
-      create: { playerId, lastSeenAt: at },
-      update: { lastSeenAt: at, updatedAt: at },
-    });
+    await OfflineProtectionService.touchLastSeenWithProtectionEval(playerId, at);
   },
 
   async setNotification(playerId: string, message: string): Promise<void> {

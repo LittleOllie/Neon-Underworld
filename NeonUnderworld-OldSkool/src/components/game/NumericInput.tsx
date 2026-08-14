@@ -7,6 +7,7 @@ export function NumericInput({
   value,
   onChange,
   suffix,
+  max,
   label,
   className,
 }: {
@@ -16,6 +17,7 @@ export function NumericInput({
   suffix?: string;
   label?: string;
   className?: string;
+  max?: number;
 }) {
   return (
     <div className={`g-numeric-input${className ? ` ${className}` : ''}`}>
@@ -30,6 +32,7 @@ export function NumericInput({
         type="number"
         inputMode="numeric"
         min={1}
+        max={max}
         step={1}
         value={value}
         onChange={(e) => onChange(e.target.value, parsePositiveInteger(e.target.value))}

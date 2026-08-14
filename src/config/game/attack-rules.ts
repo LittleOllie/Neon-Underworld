@@ -71,7 +71,7 @@ export const ATTACK_TYPE_LABELS: Record<AttackType, string> = {
 };
 
 export const ATTACK_TYPE_PURPOSE: Record<AttackType, string> = {
-  DRIVE_BY: 'Destroy defending thugs and weaken protection. No asset theft.',
+  DRIVE_BY: 'Win the force confrontation and kill defending thugs. No asset theft.',
   HOME_INVASION: 'Defeat defenders and steal exposed cash on hand. Bank is protected.',
   RAID_DRUG_LABS: 'Defeat defenders and steal drugs from stock.',
   POACH_WORKERS:

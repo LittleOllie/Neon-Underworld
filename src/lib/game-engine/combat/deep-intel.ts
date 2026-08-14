@@ -35,6 +35,8 @@ export interface DeepIntelSourcePlayer {
   prostitutePayoutPercent: number;
   /** Optional cartel virtual thugs for protection band (not exposed in snapshot). */
   cartelSupportThugs?: number;
+  /** Optional organised cartel Response Force thugs (capped, not full pool). */
+  cartelResponseForceThugs?: number;
 }
 
 /** Client-safe deep intel payload — no exact secret crew or cash values. */
@@ -142,7 +144,9 @@ export function buildDeepIntelSnapshot(
   });
 
   const thugsForProtection =
-    target.thugs + Math.max(0, target.cartelSupportThugs ?? 0);
+    target.thugs +
+    Math.max(0, target.cartelSupportThugs ?? 0) +
+    Math.max(0, target.cartelResponseForceThugs ?? 0);
   let protectionBand = workforceProtectionBand(thugsForProtection, target.prostitutes);
   if (target.cartelId && ATTACK_RULES.cartelDefenceActive && protectionBand !== 'Strong') {
     const order: WorkforceProtectionBand[] = [

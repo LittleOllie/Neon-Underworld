@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getBootCopy, type BootSessionStatus, BOOT_SCREEN } from '@local/config/boot-screen';
 import { BootBackgroundArt } from './BootBackgroundArt';
@@ -10,6 +10,13 @@ import { BrandedLoader } from './BrandedLoader';
 
 const SMOKE_EXIT_MS = 920;
 
+const BOOT_DISMISSED_KEY = 'nu-boot-dismissed';
+
+function readBootDismissed(): boolean {
+  if (typeof window === 'undefined') return false;
+  return sessionStorage.getItem(BOOT_DISMISSED_KEY) === '1';
+}
+
 type BootPhase = 'active' | 'exit' | 'hidden';
 
 /**
@@ -17,8 +24,9 @@ type BootPhase = 'active' | 'exit' | 'hidden';
  */
 export function BootScreen({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
-  const [phase, setPhase] = useState<BootPhase>('active');
+  const [phase, setPhase] = useState<BootPhase>(() => (readBootDismissed() ? 'hidden' : 'active'));
 
   const bootStatus: BootSessionStatus =
     sessionStatus === 'loading'
@@ -37,10 +45,12 @@ export function BootScreen({ children }: { children: React.ReactNode }) {
 
     window.setTimeout(() => {
       if (bootStatus === 'authenticated') {
-        router.push('/command');
+        const isDefaultEntry = pathname === '/' || pathname === '/login';
+        router.push(isDefaultEntry ? '/command' : pathname);
       } else {
         router.push('/login');
       }
+      sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
       setPhase('hidden');
     }, SMOKE_EXIT_MS);
   }

@@ -8,6 +8,8 @@ export interface ProstituteHappinessInput {
   hash: number;
   condoms: number;
   prostitutePayoutPercent: number;
+  /** Hash production: treat hash supply as satisfied for morale on this action */
+  exemptHashMorale?: boolean;
 }
 
 export interface ThugHappinessInput {
@@ -52,7 +54,9 @@ export function calculateProstituteHappiness(input: ProstituteHappinessInput): H
   const condomNeeded = count * cfg.condomPerWorker;
   const thugsNeeded = Math.ceil(count * cfg.thugProtectionRatio);
 
-  const hashReadiness = clamp(input.hash / Math.max(hashNeeded, 1), 0, 1);
+  const hashReadiness = input.exemptHashMorale
+    ? 1
+    : clamp(input.hash / Math.max(hashNeeded, 1), 0, 1);
   const condomReadiness = clamp(input.condoms / Math.max(condomNeeded, 1), 0, 1);
   const protectionReadiness = clamp(input.thugs / Math.max(thugsNeeded, 1), 0, 1);
 

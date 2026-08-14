@@ -32,15 +32,17 @@ describe('cartel economics', () => {
     expect(REDLITE_CARTEL.maxDonationPercent).toBe(60);
   });
 
-  it('cartel net worth is treasury plus shared thugs — not member totals', () => {
-    expect(calculateCartelNetWorth({ treasuryCash: 100_000, thugs: 5 })).toBe(103_500);
+  it('cartel net worth is treasury plus shared thugs and rides — not member totals', () => {
+    expect(calculateCartelNetWorth({ treasuryCash: 100_000, thugs: 5, rides: 1 })).toBe(
+      103_500 + 2000,
+    );
     expect(calculateCartelNetWorth({ treasuryCash: 25_000 })).toBe(25_000);
   });
 });
 
 describe('cartel defence support', () => {
-  it('grants 25% of supporter thugs as virtual bonus', () => {
-    expect(cartelDefenceThugBonus([{ thugs: 100 }, { thugs: 40 }])).toBe(35);
+  it('grants 10% of supporter thugs as virtual bonus', () => {
+    expect(cartelDefenceThugBonus([{ thugs: 100 }, { thugs: 40 }])).toBe(14);
     expect(cartelDefenceThugBonus([])).toBe(0);
   });
 

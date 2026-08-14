@@ -27,6 +27,51 @@ export function isPlayerInboxReport(metadata: unknown, category: string): boolea
   return false;
 }
 
+/** Prisma where clause for player inbox rows — applied before pagination. */
+export function inboxReportWhere(
+  playerId: string,
+  options?: { unreadOnly?: boolean },
+): {
+  playerId: string;
+  read?: false;
+  OR: Array<
+    | { category: 'COMBAT' }
+    | { category: 'SYSTEM' }
+    | { category: 'SCOUT'; metadata: { path: string[]; equals: string } }
+  >;
+} {
+  return {
+    playerId,
+    ...(options?.unreadOnly ? { read: false as const } : {}),
+    OR: [
+      { category: 'COMBAT' },
+      { category: 'SYSTEM' },
+      { category: 'SCOUT', metadata: { path: ['type'], equals: 'PLAYER_INTEL' } },
+      { category: 'SCOUT', metadata: { path: ['type'], equals: 'DEEP_INTEL' } },
+    ],
+  };
+}
+
+function mapReportRow(r: {
+  id: string;
+  category: string;
+  title: string;
+  summary: string;
+  read: boolean;
+  createdAt: Date;
+  metadata: unknown;
+}): ReportListItem {
+  return {
+    id: r.id,
+    category: r.category,
+    title: r.title,
+    summary: r.summary,
+    read: r.read,
+    createdAt: r.createdAt,
+    subject: extractSubject(r.metadata),
+  };
+}
+
 export type ReportType = ReportCategory;
 
 export interface PlayerIntelReportSnapshot {
@@ -70,6 +115,9 @@ export interface CombatReportSnapshot {
   outcomeLabel: string;
   scoutConfidence: number;
   cartelParticipated: boolean;
+  cartelResponseDeployed?: number;
+  cartelResponseLosses?: number;
+  cartelLocalSupport?: number;
   turnsSpent: number;
   resolvedAt: string;
 }
@@ -115,6 +163,21 @@ async function incrementUnread(playerId: string, delta: number) {
   });
 }
 
+export type ValidPlayerIntelReport = {
+  reportId: string;
+  intel: PlayerIntelSnapshot;
+  bands: PlayerIntelReportSnapshot['bands'];
+  createdAt: Date;
+  expired: boolean;
+};
+
+export type ValidDeepIntelReport = {
+  reportId: string;
+  deepIntel: DeepIntelSnapshot;
+  createdAt: Date;
+  expired: boolean;
+};
+
 export const ReportService = {
   async create(
     playerId: string,
@@ -133,7 +196,9 @@ export const ReportService = {
         metadata: options?.metadata ? (options.metadata as object) : undefined,
       },
     });
-    await incrementUnread(playerId, 1);
+    if (isPlayerInboxReport(options?.metadata ?? null, category)) {
+      await incrementUnread(playerId, 1);
+    }
     return report.id;
   },
 
@@ -296,15 +361,59 @@ export const ReportService = {
     return { attackerReportId, defenderReportId };
   },
 
-  async listValidPlayerIntelReports(playerId: string): Promise<
-    Array<{
-      reportId: string;
-      intel: PlayerIntelSnapshot;
-      bands: PlayerIntelReportSnapshot['bands'];
-      createdAt: Date;
-      expired: boolean;
-    }>
-  > {
+  async listScoutTargetIntelReports(playerId: string): Promise<{
+    basicIntelReports: ValidPlayerIntelReport[];
+    deepIntelReports: ValidDeepIntelReport[];
+  }> {
+    const rows = await prisma.report.findMany({
+      where: { playerId, category: 'SCOUT' },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    const now = Date.now();
+    const basicIntelReports: ValidPlayerIntelReport[] = [];
+    const deepIntelReports: ValidDeepIntelReport[] = [];
+
+    for (const r of rows) {
+      const meta = r.metadata as {
+        type?: string;
+        intel?: PlayerIntelSnapshot;
+        snapshot?: PlayerIntelReportSnapshot;
+        deepIntel?: DeepIntelSnapshot;
+      } | null;
+
+      if (meta?.type === 'PLAYER_INTEL' && meta.intel) {
+        const expired = new Date(meta.intel.expiresAt).getTime() <= now;
+        basicIntelReports.push({
+          reportId: r.id,
+          intel: meta.intel,
+          bands: meta.snapshot?.bands ?? {
+            thugs: thugBand(meta.intel.estimatedThugs),
+            weapons: weaponStrengthBand(meta.intel.estimatedWeaponStrength, meta.intel.estimatedThugs),
+            cash: exposureBand(meta.intel.estimatedCash),
+            drugs: exposureBand(meta.intel.estimatedDrugs),
+            cartel: cartelProtectionBand(meta.intel.cartelId, ATTACK_RULES.cartelDefenceActive),
+            confidence: meta.intel.confidencePercent,
+          },
+          createdAt: r.createdAt,
+          expired,
+        });
+      } else if (meta?.type === 'DEEP_INTEL' && meta.deepIntel) {
+        const expired = new Date(meta.deepIntel.expiresAt).getTime() <= now;
+        deepIntelReports.push({
+          reportId: r.id,
+          deepIntel: meta.deepIntel,
+          createdAt: r.createdAt,
+          expired,
+        });
+      }
+    }
+
+    return { basicIntelReports, deepIntelReports };
+  },
+
+  async listValidPlayerIntelReports(playerId: string): Promise<ValidPlayerIntelReport[]> {
     const rows = await prisma.report.findMany({
       where: { playerId, category: 'SCOUT' },
       orderBy: { createdAt: 'desc' },
@@ -335,14 +444,7 @@ export const ReportService = {
       .filter((x): x is NonNullable<typeof x> => x !== null);
   },
 
-  async listValidDeepIntelReports(playerId: string): Promise<
-    Array<{
-      reportId: string;
-      deepIntel: DeepIntelSnapshot;
-      createdAt: Date;
-      expired: boolean;
-    }>
-  > {
+  async listValidDeepIntelReports(playerId: string): Promise<ValidDeepIntelReport[]> {
     const rows = await prisma.report.findMany({
       where: { playerId, category: 'SCOUT' },
       orderBy: { createdAt: 'desc' },
@@ -404,11 +506,22 @@ export const ReportService = {
   },
 
   async getUnreadCount(playerId: string): Promise<number> {
-    const rows = await prisma.report.findMany({
-      where: { playerId, read: false },
-      select: { category: true, metadata: true },
+    const trueCount = await prisma.report.count({
+      where: inboxReportWhere(playerId, { unreadOnly: true }),
     });
-    return rows.filter((r) => isPlayerInboxReport(r.metadata, r.category)).length;
+    const ext = await prisma.playerStatusExt.findUnique({
+      where: { playerId },
+      select: { unreadReports: true },
+    });
+    if (ext != null && ext.unreadReports !== trueCount) {
+      await prisma.playerStatusExt
+        .update({
+          where: { playerId },
+          data: { unreadReports: trueCount },
+        })
+        .catch(() => {});
+    }
+    return trueCount;
   },
 
   async getUnreadDefenceAlerts(playerId: string, limit = 5): Promise<
@@ -519,19 +632,27 @@ export const ReportService = {
     };
   },
 
-  async markRead(reportId: string, playerId: string): Promise<boolean> {
+  async markRead(reportId: string, playerId: string): Promise<number | null> {
     const report = await prisma.report.findFirst({
       where: { id: reportId, playerId },
     });
-    if (!report || report.read) return !!report;
+    if (!report || report.read) {
+      if (!report) return null;
+      return this.getUnreadCount(playerId);
+    }
+    const countsTowardBadge = isPlayerInboxReport(report.metadata, report.category);
     await prisma.$transaction([
       prisma.report.update({ where: { id: reportId }, data: { read: true } }),
-      prisma.playerStatusExt.updateMany({
-        where: { playerId, unreadReports: { gt: 0 } },
-        data: { unreadReports: { decrement: 1 } },
-      }),
+      ...(countsTowardBadge
+        ? [
+            prisma.playerStatusExt.updateMany({
+              where: { playerId, unreadReports: { gt: 0 } },
+              data: { unreadReports: { decrement: 1 } },
+            }),
+          ]
+        : []),
     ]);
-    return true;
+    return this.getUnreadCount(playerId);
   },
 
   async markAllRead(playerId: string): Promise<number> {
@@ -550,27 +671,21 @@ export const ReportService = {
   async listFiltered(
     playerId: string,
     filter: 'all' | 'unread',
-  ): Promise<ReportListItem[]> {
+    options?: { limit?: number; offset?: number },
+  ): Promise<{ items: ReportListItem[]; hasMore: boolean }> {
+    const limit = options?.limit ?? 25;
+    const offset = options?.offset ?? 0;
     const rows = await prisma.report.findMany({
-      where: {
-        playerId,
-        ...(filter === 'unread' ? { read: false } : {}),
-      },
+      where: inboxReportWhere(playerId, { unreadOnly: filter === 'unread' }),
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      skip: offset,
+      take: limit + 1,
     });
-    return rows
-      .filter((r) => isPlayerInboxReport(r.metadata, r.category))
-      .slice(0, 50)
-      .map((r) => ({
-        id: r.id,
-        category: r.category,
-        title: r.title,
-        summary: r.summary,
-        read: r.read,
-        createdAt: r.createdAt,
-        subject: extractSubject(r.metadata),
-      }));
+    const hasMore = rows.length > limit;
+    return {
+      items: rows.slice(0, limit).map(mapReportRow),
+      hasMore,
+    };
   },
 
   async getIntelReportForTarget(playerId: string, targetAliasNormalized: string) {

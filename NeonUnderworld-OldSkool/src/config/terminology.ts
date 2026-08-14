@@ -15,6 +15,7 @@ export const OS_TERMS = {
   bankCash: 'Bank',
   turns: 'Turns',
   rank: 'Rank',
+  districtRank: 'District Rank',
   cartel: 'Cartel',
   scout: 'Scout',
   report: 'Report',

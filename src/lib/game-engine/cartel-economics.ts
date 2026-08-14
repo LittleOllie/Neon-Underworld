@@ -1,5 +1,6 @@
 import { REDLITE_CARTEL } from '@/config/game/redlite-rules';
 import { CANONICAL_NET_WORTH_VALUATIONS } from '@/lib/game-engine/canonical-net-worth';
+import { CARTEL_LOCAL_SUPPORT_FRACTION } from '@/lib/game-engine/cartel-response-force';
 
 export const CARTEL_DONATION_OPTIONS = [0, 10, 20, 30, 40, 50, 60] as const;
 
@@ -10,6 +11,7 @@ export interface CartelAssetRecord {
   thugs?: number;
   glocks?: number;
   uzis?: number;
+  rides?: number;
 }
 
 /**
@@ -19,6 +21,7 @@ export interface CartelAssetRecord {
 export function calculateCartelNetWorth(assets: CartelAssetRecord): number {
   let total = assets.treasuryCash * CANONICAL_NET_WORTH_VALUATIONS.cash;
   total += (assets.thugs ?? 0) * CANONICAL_NET_WORTH_VALUATIONS.thug;
+  total += (assets.rides ?? 0) * CANONICAL_NET_WORTH_VALUATIONS.vehicle;
   return Math.floor(total);
 }
 
@@ -28,12 +31,14 @@ export function cartelAssetsFromRecord(cartel: {
   thugs?: number;
   glocks?: number;
   uzis?: number;
+  rides?: number;
 }): CartelAssetRecord {
   return {
     treasuryCash: cartel.treasuryCash,
     thugs: cartel.thugs ?? 0,
     glocks: cartel.glocks ?? 0,
     uzis: cartel.uzis ?? 0,
+    rides: cartel.rides ?? 0,
   };
 }
 
@@ -56,7 +61,7 @@ export function applyCartelContribution(
 /** Virtual thug support from eligible cartel mates (same city, not travelling). */
 export function cartelDefenceThugBonus(
   supporters: { thugs: number }[],
-  maxSupportFraction = 0.25,
+  maxSupportFraction = CARTEL_LOCAL_SUPPORT_FRACTION,
 ): number {
   if (supporters.length === 0) return 0;
   const total = supporters.reduce((sum, s) => sum + Math.max(0, s.thugs), 0);

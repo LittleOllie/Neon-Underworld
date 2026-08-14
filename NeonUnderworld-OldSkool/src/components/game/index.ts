@@ -13,6 +13,8 @@ export type { GameBackgroundKey } from '@local/config/backgrounds';
 export { AlertList } from './AlertList';
 export { StatusBar } from './StatusBar';
 export { NumericInput } from './NumericInput';
+export { TurnQuickAmounts } from './TurnQuickAmounts';
+export { PvpDiscoveryHint } from './PvpDiscoveryHint';
 export { PrimaryButton } from './PrimaryButton';
 export { ActionButton } from './ActionButton';
 export { ActionResult } from './ActionResult';

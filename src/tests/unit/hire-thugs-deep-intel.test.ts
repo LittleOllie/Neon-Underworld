@@ -110,6 +110,8 @@ describe('buildDeepIntelSnapshot', () => {
     heroin: 0,
     cartelId: null,
     canonicalNetWorth: 10_000_000,
+    condoms: 100,
+    prostitutePayoutPercent: 50,
   };
 
   it('does not expose exact secret counts in payload', () => {

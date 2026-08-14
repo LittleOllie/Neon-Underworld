@@ -56,7 +56,7 @@ describe('NetWorthService — business-aware pipeline (sync paths)', () => {
     });
     const nw = authoritativeNw([nightclubBusiness]);
     const withoutUpgrade = authoritativeNw([
-      { ...nightclubBusiness, upgradeTargetLevel: null },
+      { ...nightclubBusiness, upgradeTargetLevel: null as unknown as number },
     ]);
     expect(nw - withoutUpgrade).toBe(
       asset -

@@ -11,6 +11,13 @@ export interface PlayerShellSnapshot {
   workers?: number;
   /** Street thugs — updated after combat. */
   thugs?: number;
+  /** Rides — updated after combat/travel/shop. */
+  rides?: number;
+  glocks?: number;
+  uzis?: number;
+  aks?: number;
+  /** Bank balance — returned from bank mutations when relevant. */
+  bankCash?: number;
 }
 
 export type WithPlayerShell<T> = T & { shell: PlayerShellSnapshot };

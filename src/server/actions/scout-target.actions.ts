@@ -11,13 +11,14 @@ import {
 } from '@/lib/game-engine/turns';
 import { buildPlayerIntelSnapshot, deriveIntelSeed } from '@/lib/game-engine/combat/build-intel-snapshot';
 import type { PlayerIntelSnapshot } from '@/lib/game-engine/combat/eligibility';
+import { isWithinAttackRange } from '@/config/game/redlite-rules';
 import {
   calculatePlayerCanonicalNetWorthWithBusinesses,
   loadBusinessNwRowsInTx,
 } from '@/lib/game-engine/business/net-worth';
 import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
-import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
+import { GameplayError, GAMEPLAY_CONTEXT_MESSAGES, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { ActionResult } from './auth.actions';
 
 export interface ScoutTargetResultData {
@@ -71,6 +72,22 @@ export async function scoutTargetAction(
         );
       }
 
+      const businessRows = await loadBusinessNwRowsInTx(tx, [playerId, target.id]);
+      const attackerNw = calculatePlayerCanonicalNetWorthWithBusinesses(
+        scout,
+        businessRows.get(playerId) ?? [],
+      );
+      const targetNw = calculatePlayerCanonicalNetWorthWithBusinesses(
+        target,
+        businessRows.get(target.id) ?? [],
+      );
+      if (!isWithinAttackRange(attackerNw, targetNw)) {
+        throw new GameplayError(
+          'TARGET_OUT_OF_RANGE',
+          GAMEPLAY_CONTEXT_MESSAGES.intelTargetOutOfRange,
+        );
+      }
+
       const settled = settleTurnRegeneration(
         resolveCanonicalTurnState({
           currentTurns: scout.turnState.currentTurns,
@@ -87,11 +104,6 @@ export async function scoutTargetAction(
 
       const { newState } = consumeTurns(settled, turnCost);
       const seed = deriveIntelSeed(playerId, target.id, idempotencyKey);
-      const businessRows = await loadBusinessNwRowsInTx(tx, [target.id]);
-      const nw = calculatePlayerCanonicalNetWorthWithBusinesses(
-        target,
-        businessRows.get(target.id) ?? [],
-      );
       const intel = buildPlayerIntelSnapshot(
         {
           id: target.id,
@@ -107,7 +119,7 @@ export async function scoutTargetAction(
           coke: target.coke,
           heroin: target.heroin,
           cartelId: target.cartelId,
-          canonicalNetWorth: nw,
+          canonicalNetWorth: targetNw,
         },
         seed,
       );

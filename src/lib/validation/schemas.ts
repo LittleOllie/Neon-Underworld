@@ -157,7 +157,7 @@ export const cartelDonationSchema = z.object({
 });
 
 export const cartelArmouryPurchaseSchema = z.object({
-  item: z.enum(['thug', 'glock', 'uzi']),
+  item: z.enum(['thug', 'glock', 'uzi', 'ride']),
   quantity: z.number().int().min(1).max(1000),
   idempotencyKey: z.string().uuid(),
 });

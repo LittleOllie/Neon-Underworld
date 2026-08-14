@@ -21,7 +21,9 @@ export type GameBackgroundKey =
   /** Reserved — wire to Travel page when feature ships (`/coming/travel` or `/travel`) */
   | 'travel'
   /** Reserved — wire to Cartel page when feature ships (`/coming/cartel` or `/cartel`) */
-  | 'cartel';
+  | 'cartel'
+  | 'businesses'
+  | 'settings';
 
 export const GAME_BACKGROUND_DIR = '/images/game-backgrounds';
 
@@ -66,6 +68,8 @@ export const GAME_BACKGROUND_REVISION: Partial<Record<GameBackgroundKey, number>
   market: 5,
   travel: 5,
   cartel: 5,
+  businesses: 1,
+  settings: 1,
 };
 
 export function gameBackgroundUrl(path: string, key: GameBackgroundKey): string {
@@ -91,6 +95,8 @@ export const GAME_BACKGROUND_POSITION: Partial<Record<GameBackgroundKey, string>
   market: 'center center',
   travel: 'center center',
   cartel: 'center center',
+  businesses: 'center center',
+  settings: 'center center',
 };
 
 export function gameBackgroundSrc(key: GameBackgroundKey): string {

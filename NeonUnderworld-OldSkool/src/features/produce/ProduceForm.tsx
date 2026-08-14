@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useOptionalPlayerShell } from '@local/components/game/PlayerShellProvider';
 import { produceAction, type OldSkoolProduceResult } from '@local/server/actions/produce.actions';
 import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
+import { estimateProducePreview } from '@core/lib/game-engine/produce-economy';
+import { TurnQuickAmounts } from '@local/components/game/TurnQuickAmounts';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { OptionGrid } from '@local/components/game/OptionGrid';
@@ -15,7 +18,6 @@ import { validateTurnAmount } from '@local/lib/numeric-input';
 import { workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
-import { isHashProduceLikelyNetNegative } from '@core/lib/game-engine/produce-economy';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 interface ProduceFormProps {
@@ -28,11 +30,15 @@ interface ProduceFormProps {
 }
 
 const DRUGS: { key: ProductionDrug; label: string; hint: string }[] = [
-  { key: 'hash', label: 'Hash', hint: 'High output · Worker supply' },
+  { key: 'hash', label: 'Hash', hint: 'High output · No hash upkeep during production' },
   { key: 'shrooms', label: 'Shrooms', hint: 'Reliable yield' },
   { key: 'coke', label: 'Coke', hint: 'High street value' },
   { key: 'heroin', label: 'Heroin', hint: 'Premium street value · Lower output' },
 ];
+
+function formatDrugLabel(drugType: ProductionDrug): string {
+  return DRUGS.find((d) => d.key === drugType)?.label ?? drugType;
+}
 
 export function ProduceForm({
   initialTurns,
@@ -43,13 +49,43 @@ export function ProduceForm({
   drugLabBonus = 0,
 }: ProduceFormProps) {
   const reconcile = useGameplayReconcile();
+  const shellCtx = useOptionalPlayerShell();
+  const effectiveThugs = shellCtx?.stats.thugs ?? thugCount;
+  const effectiveWorkers = shellCtx?.stats.workers ?? prostituteCount;
   const [turns, setTurns] = useState(initialTurns);
-  const [amountRaw, setAmountRaw] = useState('100');
-  const [amount, setAmount] = useState(100);
+  const [amountRaw, setAmountRaw] = useState('25');
+  const [amount, setAmount] = useState(25);
   const [drugType, setDrugType] = useState<ProductionDrug>('hash');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OldSkoolProduceResult | null>(null);
+
+  const preview = useMemo(() => {
+    if (amount <= 0 || effectiveThugs <= 0) return null;
+    return estimateProducePreview({
+      turnsSpent: amount,
+      thugCount: effectiveThugs,
+      prostituteCount: effectiveWorkers,
+      drugType,
+      thugHappiness,
+      workerHappiness: prostituteHappiness,
+      drugProductionBonus: drugLabBonus,
+    });
+  }, [
+    amount,
+    effectiveThugs,
+    effectiveWorkers,
+    drugType,
+    thugHappiness,
+    prostituteHappiness,
+    drugLabBonus,
+  ]);
+
+  function selectQuickAmount(next: number) {
+    setAmountRaw(String(next));
+    setAmount(next);
+    setError('');
+  }
 
   function handleAmountChange(raw: string, parsed: number | null) {
     setAmountRaw(raw);
@@ -63,7 +99,7 @@ export function ProduceForm({
       setError(validationError);
       return;
     }
-    if (thugCount === 0) {
+    if (effectiveThugs === 0) {
       setError('You need thugs to produce. Scout to recruit personnel.');
       return;
     }
@@ -141,23 +177,14 @@ export function ProduceForm({
     prostituteHappiness,
     thugHappiness,
     prostituteCount,
-    thugCount,
+    effectiveThugs,
   );
 
-  const hashNetWarning =
-    drugType === 'hash' &&
-    amount > 0 &&
-    thugCount > 0 &&
-    isHashProduceLikelyNetNegative({
-      prostitutes: prostituteCount,
-      thugs: thugCount,
-      turnsSpent: amount,
-      thugHappiness,
-    });
+  const drugLabel = formatDrugLabel(drugType);
 
   return (
     <>
-      {thugCount === 0 && (
+      {effectiveThugs === 0 && (
         <p className="g-note">
           Need thugs? <Link href="/scout">Scout to recruit</Link>
         </p>
@@ -189,6 +216,23 @@ export function ProduceForm({
         suffix="turns"
       />
 
+      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} />
+
+      <p className="g-note">Supplies help keep your crew loyal and effective.</p>
+
+      {preview && preview.drugMax > 0 && (
+        <p className="g-note">
+          Estimated output: {preview.drugMin.toLocaleString()}–{preview.drugMax.toLocaleString()}{' '}
+          {drugLabel}
+          {preview.playerCash > 0 && (
+            <>
+              {' '}
+              · ~${preview.playerCash.toLocaleString()} cash
+            </>
+          )}
+        </p>
+      )}
+
       {error && <p className="g-error">{error}</p>}
 
       {walkout.level !== 'none' && (
@@ -198,17 +242,11 @@ export function ProduceForm({
         </p>
       )}
 
-      {hashNetWarning && (
-        <p className="g-note" role="alert">
-          Your Worker/Thug ratio may consume more Hash than this run produces at current morale.
-        </p>
-      )}
-
       <PrimaryButton
         className="g-btn-full"
         icon="produce"
         onClick={handleProduce}
-        disabled={loading || thugCount === 0}
+        disabled={loading || effectiveThugs === 0}
         pending={loading}
       >
         {loading ? ACTION_PENDING.produce : 'Produce'}

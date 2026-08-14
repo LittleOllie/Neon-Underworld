@@ -6,7 +6,7 @@ import { devPerf } from '@local/lib/dev-perf';
 
 export default async function CartelsPage() {
   const { ctx } = await requireGameSession();
-  const data = await devPerf('/cartels data', () => getCartelPageData(ctx.id));
+  const data = await devPerf('/cartels data', () => getCartelPageData());
 
   return (
     <>

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   updatePayoutAction,
   previewPayoutAction,
 } from '@local/server/actions/empire.actions';
+import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import { EMPIRE_PAYOUT_RULES } from '@local/config/empire-rules';
 import { payoutTradeOffDescription } from '@core/lib/game-engine/supply-status';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
@@ -15,7 +15,7 @@ interface PayoutFormProps {
 }
 
 export function PayoutForm({ initialPayout }: PayoutFormProps) {
-  const router = useRouter();
+  const reconcile = useGameplayReconcile();
   const [payout, setPayout] = useState(initialPayout);
   const [preview, setPreview] = useState<{ effects: string[] } | null>(null);
   const [previewError, setPreviewError] = useState('');
@@ -56,7 +56,8 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
       return;
     }
     setMessage(`Payout updated to ${result.data.payoutPercent}%.`);
-    router.refresh();
+    setPayout(result.data.payoutPercent);
+    if (result.data.shell) reconcile(result.data.shell);
   }
 
   return (

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { DESKTOP_NAV, MOBILE_NAV, navIsActive } from '@local/config/navigation';
+import { shouldPrefetchRoute } from '@local/config/prefetch-policy';
 import type { GlobalStats } from './GlobalStatus';
 import { GameIcon } from './GameIcon';
 import { MoreMenu } from './MoreMenu';
@@ -51,6 +52,7 @@ export function GameNav({ stats }: { stats?: GlobalStats }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={shouldPrefetchRoute(item.href) ? undefined : false}
               className={navIsActive(pathname, item.href) ? 'g-nav-active' : undefined}
             >
               <NavLabel label={item.label} icon={item.icon} />
@@ -74,6 +76,7 @@ export function GameNav({ stats }: { stats?: GlobalStats }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={shouldPrefetchRoute(item.href) ? undefined : false}
                 className={navIsActive(pathname, item.href) ? 'g-nav-active' : undefined}
               >
                 <NavLabel label={item.label} icon={item.icon} />

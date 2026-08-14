@@ -2,6 +2,7 @@ import type { CombatResolutionResult } from '@/lib/game-engine/combat/resolve-co
 import type { DrugStock } from '@/lib/game-engine/combat/theft';
 import {
   OFFLINE_ATTACK_LIMIT_STANDARD,
+  OFFLINE_PROTECTION_RESET_ONLINE_MS,
   isPlayerOffline,
 } from '@/config/game/offline-protection';
 
@@ -27,6 +28,37 @@ export interface OfflineProtectionState {
   offlineDamagingHits: number;
   offlineProtectionActive: boolean;
   lastSeenAt: Date | null;
+  onlineSessionStartedAt?: Date | null;
+}
+
+export function resolveOnlineSessionStart(
+  lastSeenAt: Date | null | undefined,
+  previousSessionStart: Date | null | undefined,
+  atMs = Date.now(),
+): Date {
+  if (isPlayerOffline(lastSeenAt, atMs)) {
+    return new Date(atMs);
+  }
+  return previousSessionStart ?? new Date(atMs);
+}
+
+export function shouldResetOfflineProtectionCycle(
+  state: Pick<
+    OfflineProtectionState,
+    'onlineSessionStartedAt' | 'offlineDamagingHits' | 'offlineProtectionActive' | 'lastSeenAt'
+  >,
+  atMs = Date.now(),
+): boolean {
+  if (state.offlineDamagingHits <= 0 && !state.offlineProtectionActive) {
+    return false;
+  }
+  if (isPlayerOffline(state.lastSeenAt, atMs)) {
+    return false;
+  }
+  if (!state.onlineSessionStartedAt) {
+    return false;
+  }
+  return atMs - state.onlineSessionStartedAt.getTime() >= OFFLINE_PROTECTION_RESET_ONLINE_MS;
 }
 
 export function shouldBlockOfflineProtectedDefender(

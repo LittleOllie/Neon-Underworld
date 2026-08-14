@@ -34,12 +34,6 @@ export function buildSupplyImpactLines(input: {
       text: `Net Hash: ${sign}${input.hashNetChange.toLocaleString()}`,
       tone: input.hashNetChange >= 0 ? 'positive' : 'negative',
     });
-    if (input.hashNetChange < 0) {
-      lines.push({
-        text: 'Your Workers used more Hash in supplies than your Thugs produced this run.',
-        tone: 'negative',
-      });
-    }
   }
 
   if (

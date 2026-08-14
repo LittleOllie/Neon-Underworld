@@ -1,5 +1,6 @@
 import { formatTurnsExact } from '@local/server/domain/status-presentation';
 import { formatRank } from '@local/lib/format-rank';
+import { REDLITE_TURNS } from '@core/config/game/redlite-rules';
 import { GameLabel, GameValue } from './GameValue';
 
 export interface ShellAttentionCounts {
@@ -40,21 +41,27 @@ export function GlobalStatus({ stats }: { stats: GlobalStats }) {
   ];
 
   return (
-    <div className="g-status" aria-label="Player status">
-      {items.map((item) => (
-        <span
-          key={item.label}
-          className={`g-status-item${item.className ? ` ${item.className}` : ''}`}
-        >
-          <GameLabel>
-            <span className="g-label-long">{item.label}</span>
-            {'shortLabel' in item && item.shortLabel ? (
-              <span className="g-label-short">{item.shortLabel}</span>
-            ) : null}
-          </GameLabel>{' '}
-          <GameValue>{item.value}</GameValue>
-        </span>
-      ))}
+    <div className="g-status-wrap">
+      <div className="g-status" aria-label="Player status">
+        {items.map((item) => (
+          <span
+            key={item.label}
+            className={`g-status-item${item.className ? ` ${item.className}` : ''}`}
+          >
+            <GameLabel>
+              <span className="g-label-long">{item.label}</span>
+              {'shortLabel' in item && item.shortLabel ? (
+                <span className="g-label-short">{item.shortLabel}</span>
+              ) : null}
+            </GameLabel>{' '}
+            <GameValue>{item.value}</GameValue>
+          </span>
+        ))}
+      </div>
+      <p className="g-status-hint">
+        +{REDLITE_TURNS.turnsPerInterval} every {REDLITE_TURNS.intervalMinutes} min · Cap{' '}
+        {REDLITE_TURNS.turnCap.toLocaleString()}
+      </p>
     </div>
   );
 }

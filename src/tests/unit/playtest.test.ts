@@ -1,11 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { isPlaytestTurnsEnabled, isPlaytestTurnsNavVisible } from '@/config/game/playtest';
 
 describe('playtest turns safety', () => {
   const originalServer = process.env.PLAYTEST_TURNS;
   const originalPublic = process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
 
+  beforeEach(() => {
+    vi.stubEnv('NODE_ENV', 'development');
+  });
+
   afterEach(() => {
+    vi.unstubAllEnvs();
     if (originalServer === undefined) delete process.env.PLAYTEST_TURNS;
     else process.env.PLAYTEST_TURNS = originalServer;
     if (originalPublic === undefined) delete process.env.NEXT_PUBLIC_PLAYTEST_TURNS;
@@ -39,6 +44,18 @@ describe('playtest turns safety', () => {
 
   it('hides nav when public env is false', () => {
     process.env.NEXT_PUBLIC_PLAYTEST_TURNS = 'false';
+    expect(isPlaytestTurnsNavVisible()).toBe(false);
+  });
+
+  it('hard-disables server grants in production even when env is true', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.PLAYTEST_TURNS = 'true';
+    expect(isPlaytestTurnsEnabled()).toBe(false);
+  });
+
+  it('hard-disables nav in production even when public env is true', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.NEXT_PUBLIC_PLAYTEST_TURNS = 'true';
     expect(isPlaytestTurnsNavVisible()).toBe(false);
   });
 });

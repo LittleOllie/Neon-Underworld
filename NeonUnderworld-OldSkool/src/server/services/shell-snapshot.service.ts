@@ -14,6 +14,11 @@ type PlayerRow = PlayerNetWorthRecord & {
   seasonId: string;
   prostitutes?: number;
   thugs?: number;
+  rides?: number;
+  glocks?: number;
+  uzis?: number;
+  aks?: number;
+  bankCash?: number;
   district?: { name: string; slug: string } | null;
   turnState?: {
     currentTurns: number;
@@ -77,6 +82,11 @@ export async function buildShellSnapshotFromPlayer(
     unreadReports: overrides.unreadReports ?? unreadReports,
     workers: overrides.workers ?? player.prostitutes,
     thugs: overrides.thugs ?? player.thugs,
+    rides: overrides.rides ?? player.rides,
+    glocks: overrides.glocks ?? player.glocks,
+    uzis: overrides.uzis ?? player.uzis,
+    aks: overrides.aks ?? player.aks,
+    bankCash: overrides.bankCash ?? player.bankCash,
   };
 }
 

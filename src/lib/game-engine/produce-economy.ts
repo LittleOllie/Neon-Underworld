@@ -1,11 +1,15 @@
 import { getDrugProductionRate } from '@/config/game/drug-production-rates';
-import type { PlayerResources } from '@/config/game/balance';
+import { PRODUCTION_CONFIG, type PlayerResources } from '@/config/game/balance';
 import {
   planSupplyConsumption,
   type SupplyInventory,
 } from '@/config/game/supply-economy';
 import { happinessEfficiencyModifier } from '@/lib/game-engine/happiness';
 import type { ProductionDrug } from '@/lib/game-engine/production';
+import { grossWorkerCash, playerCashFromGross } from '@/lib/game-engine/worker-economics';
+
+const PRODUCTION_VARIANCE_MIN = 0.85;
+const PRODUCTION_VARIANCE_MAX = 1.15;
 
 /** Expected drug units at average RNG (variance midpoint 1.0). */
 export function estimateDrugUnitsProduced(input: {
@@ -13,13 +17,16 @@ export function estimateDrugUnitsProduced(input: {
   thugCount: number;
   drugType: ProductionDrug;
   thugHappiness?: number;
+  drugProductionBonus?: number;
 }): number {
   const efficiency = happinessEfficiencyModifier(input.thugHappiness ?? 80);
+  const bonus = 1 + Math.max(0, input.drugProductionBonus ?? 0);
   const raw =
     input.turnsSpent *
     input.thugCount *
     getDrugProductionRate(input.drugType) *
-    efficiency;
+    efficiency *
+    bonus;
   return Math.max(0, Math.floor(raw));
 }
 
@@ -29,6 +36,7 @@ export function estimateSplitDrugUnitsProduced(input: {
   thugCount: number;
   drugType: ProductionDrug;
   thugHappiness?: number;
+  drugProductionBonus?: number;
 }): number {
   return input.turnChunks.reduce(
     (sum, turnsSpent) =>
@@ -38,17 +46,74 @@ export function estimateSplitDrugUnitsProduced(input: {
         thugCount: input.thugCount,
         drugType: input.drugType,
         thugHappiness: input.thugHappiness,
+        drugProductionBonus: input.drugProductionBonus,
       }),
     0,
   );
 }
 
-/** Expected hash net when producing hash (produced − worker hash supply). */
+export interface ProducePreview {
+  drugMin: number;
+  drugMax: number;
+  playerCash: number;
+  /** Hash inventory delta range when producing hash (no worker hash upkeep). */
+  hashNetMin?: number;
+  hashNetMax?: number;
+}
+
+/** Produce preview aligned with resolveProduction rules (variance, lab bonus, supply exemption). */
+export function estimateProducePreview(input: {
+  turnsSpent: number;
+  thugCount: number;
+  prostituteCount: number;
+  drugType: ProductionDrug;
+  thugHappiness?: number;
+  workerHappiness?: number;
+  payoutPercent?: number;
+  drugProductionBonus?: number;
+}): ProducePreview {
+  if (input.turnsSpent <= 0 || input.thugCount <= 0) {
+    return { drugMin: 0, drugMax: 0, playerCash: 0 };
+  }
+
+  const thugEfficiency = happinessEfficiencyModifier(input.thugHappiness ?? 80);
+  const workerEfficiency = happinessEfficiencyModifier(input.workerHappiness ?? 80);
+  const rate = getDrugProductionRate(input.drugType);
+  const bonusMultiplier = 1 + Math.max(0, input.drugProductionBonus ?? 0);
+  const base = input.turnsSpent * input.thugCount * rate * thugEfficiency;
+
+  const drugMin = Math.max(0, Math.floor(base * PRODUCTION_VARIANCE_MIN * bonusMultiplier));
+  const drugMax = Math.max(0, Math.floor(base * PRODUCTION_VARIANCE_MAX * bonusMultiplier));
+
+  const grossCash = grossWorkerCash(
+    input.prostituteCount,
+    input.turnsSpent,
+    PRODUCTION_CONFIG.cashPerProstitutePerTurn,
+  );
+  const playerCash = Math.floor(
+    playerCashFromGross(grossCash, input.payoutPercent ?? 50) * workerEfficiency,
+  );
+
+  if (input.drugType === 'hash') {
+    return {
+      drugMin,
+      drugMax,
+      playerCash,
+      hashNetMin: drugMin,
+      hashNetMax: drugMax,
+    };
+  }
+
+  return { drugMin, drugMax, playerCash };
+}
+
+/** Expected hash net when producing hash (produced only — worker hash upkeep exempt). */
 export function estimateHashProduceNet(input: {
   prostitutes: number;
   thugs: number;
   turnsSpent: number;
   thugHappiness?: number;
+  drugProductionBonus?: number;
 }): {
   hashProduced: number;
   hashConsumed: number;
@@ -59,36 +124,21 @@ export function estimateHashProduceNet(input: {
     input.thugs,
     input.turnsSpent,
     { condoms: Number.MAX_SAFE_INTEGER, hash: Number.MAX_SAFE_INTEGER, beer: Number.MAX_SAFE_INTEGER },
+    { exemptWorkerHash: true },
   );
   const hashProduced = estimateDrugUnitsProduced({
     turnsSpent: input.turnsSpent,
     thugCount: input.thugs,
     drugType: 'hash',
     thugHappiness: input.thugHappiness,
+    drugProductionBonus: input.drugProductionBonus,
   });
-  const hashConsumed = plan.required.hash ?? 0;
+  const hashConsumed = plan.consumed.hash ?? 0;
   return {
     hashProduced,
     hashConsumed,
     netHash: hashProduced - hashConsumed,
   };
-}
-
-/** Approximate break-even thug:worker ratio for hash self-supply (continuous, no rounding). */
-export function hashProduceBreakEvenThugRatio(): number {
-  const perThugPerTurn = getDrugProductionRate('hash');
-  const perWorkerPerTurn = 1 / 150;
-  return perWorkerPerTurn / perThugPerTurn;
-}
-
-export function isHashProduceLikelyNetNegative(input: {
-  prostitutes: number;
-  thugs: number;
-  turnsSpent: number;
-  thugHappiness?: number;
-}): boolean {
-  if (input.thugs < 1 || input.turnsSpent < 1) return false;
-  return estimateHashProduceNet(input).netHash < 0;
 }
 
 export function resolvePostProduceDrugCounts(input: {

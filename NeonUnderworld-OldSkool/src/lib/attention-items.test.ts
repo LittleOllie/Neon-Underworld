@@ -56,6 +56,16 @@ describe('collectAttentionItems', () => {
     const production = items.find((i) => i.id === 'production-turns');
     expect(production?.href).toBe('/produce');
   });
+
+  it('links low worker hash alert to supplies tab with hash item', () => {
+    const items = collectAttentionItems({
+      ctx: { ...baseCtx, hash: 0, condoms: 100, prostitutes: 5 },
+      brief: { armedThugs: 5, unarmedThugs: 0, bankCash: 0, readinessWarningCount: 0 },
+      unreadCount: 0,
+    });
+    const hashAlert = items.find((i) => i.id === 'worker-hash');
+    expect(hashAlert?.href).toBe('/shop?tab=supplies&item=hash');
+  });
 });
 
 describe('navigation shell config', () => {
