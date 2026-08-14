@@ -18,6 +18,7 @@ import {
   avatarThemeCssVars,
   resolvePlayerAvatarConfig,
 } from '@core/lib/game-engine/resolve-player-avatar';
+import { WireControl } from '@local/features/wire/WireControl';
 
 export type { GlobalStats };
 
@@ -25,11 +26,13 @@ function GameShellFrame({
   background,
   avatarId,
   avatarPending,
+  wireEnabled,
   children,
 }: {
   background?: GameBackgroundKey;
   avatarId: string;
   avatarPending: boolean;
+  wireEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -78,6 +81,7 @@ function GameShellFrame({
             </Suspense>
           </main>
           {!onIdentityRoute && <PlayerShellRefresh />}
+          {!onIdentityRoute && wireEnabled && <WireControl />}
           <footer className="g-footer">Neon Underworld · OldSkool Edition</footer>
       </div>
     </IdentityGate>
@@ -89,6 +93,7 @@ export function GameShell({
   background,
   avatarId = 'viper',
   avatarPending = false,
+  wireEnabled = false,
   children,
 }: {
   stats?: GlobalStats;
@@ -96,6 +101,7 @@ export function GameShell({
   background?: GameBackgroundKey;
   avatarId?: string;
   avatarPending?: boolean;
+  wireEnabled?: boolean;
   children: React.ReactNode;
 }) {
   if (!stats) {
@@ -112,6 +118,7 @@ export function GameShell({
         background={background}
         avatarId={avatarId}
         avatarPending={avatarPending}
+        wireEnabled={wireEnabled}
       >
         {children}
       </GameShellFrame>

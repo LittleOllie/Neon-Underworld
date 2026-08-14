@@ -141,6 +141,7 @@ model Player {
   thugHappiness           Int      @default(70)
   isSystemPlayer          Boolean  @default(false)
   avatar                  String?
+  wireEnabled             Boolean  @default(false)
   cartelId                String?
   cartelDonationPercent   Int      @default(0)
   bankCash                Int      @default(0)

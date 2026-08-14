@@ -17,7 +17,12 @@ export default async function GameLayout({ children }: { children: React.ReactNo
   const avatarPending = needsAvatarSelection(ctx.avatar);
 
   return (
-    <GameShell stats={stats} avatarId={avatarId} avatarPending={avatarPending}>
+    <GameShell
+      stats={stats}
+      avatarId={avatarId}
+      avatarPending={avatarPending}
+      wireEnabled={ctx.wireEnabled}
+    >
       {children}
     </GameShell>
   );

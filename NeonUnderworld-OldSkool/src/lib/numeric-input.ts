@@ -26,6 +26,17 @@ export function shopPreviewTotal(unitPrice: number, quantity: number): number {
   return unitPrice * quantity;
 }
 
+/** Preview-only max affordable quantity — server Shop action remains authoritative. */
+export function maxAffordableQuantity(cash: number, unitPrice: number): number {
+  if (!Number.isFinite(cash) || !Number.isFinite(unitPrice) || cash < 0 || unitPrice <= 0) {
+    return 0;
+  }
+  if (!Number.isSafeInteger(cash)) {
+    return 0;
+  }
+  return Math.floor(cash / unitPrice);
+}
+
 export function shopInventoryKey(
   itemKey: string,
 ): keyof import('@local/server/actions/shop.actions').ShopPageData['inventory'] | null {

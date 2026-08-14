@@ -56,6 +56,7 @@ export interface CanonicalPlayerContext {
   cartelName: string | null;
   cartelTag: string | null;
   avatar: string | null;
+  wireEnabled: boolean;
   health: number;
   lifeStatus: string;
   travelling: boolean;
@@ -163,6 +164,7 @@ function buildCanonicalContext(
     cartelName: player.cartel?.name ?? null,
     cartelTag: player.cartel?.tag ?? null,
     avatar: player.avatar,
+    wireEnabled: player.wireEnabled,
     health: player.health,
     lifeStatus: player.lifeStatus,
     travelling: player.travelling,

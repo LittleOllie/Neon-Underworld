@@ -4,6 +4,7 @@ import {
   validateTurnAmount,
   validateQuantity,
   shopPreviewTotal,
+  maxAffordableQuantity,
   shopInventoryKey,
 } from './numeric-input';
 
@@ -54,6 +55,22 @@ describe('shopPreviewTotal', () => {
   it('multiplies unit price by quantity', () => {
     expect(shopPreviewTotal(3800, 100)).toBe(380_000);
     expect(shopPreviewTotal(500, 1)).toBe(500);
+  });
+});
+
+describe('maxAffordableQuantity', () => {
+  it('floors cash divided by unit price', () => {
+    expect(maxAffordableQuantity(10_000, 3800)).toBe(2);
+    expect(maxAffordableQuantity(3799, 3800)).toBe(0);
+    expect(maxAffordableQuantity(3800, 3800)).toBe(1);
+  });
+
+  it('returns 0 for invalid inputs', () => {
+    expect(maxAffordableQuantity(-100, 3800)).toBe(0);
+    expect(maxAffordableQuantity(10_000, 0)).toBe(0);
+    expect(maxAffordableQuantity(10_000, -5)).toBe(0);
+    expect(maxAffordableQuantity(Number.NaN, 3800)).toBe(0);
+    expect(maxAffordableQuantity(10_000, Number.NaN)).toBe(0);
   });
 });
 

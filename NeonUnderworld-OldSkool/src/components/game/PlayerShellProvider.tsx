@@ -25,6 +25,8 @@ function shellToGlobalStats(
     netWorth: shell.netWorth ?? base.netWorth,
     rank: shell.rank ?? base.rank,
     district: shell.district ?? base.district,
+    workers: shell.workers ?? base.workers,
+    thugs: shell.thugs ?? base.thugs,
     attention: {
       unreadReports,
       total: unreadReports,

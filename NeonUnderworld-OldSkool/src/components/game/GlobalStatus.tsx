@@ -19,6 +19,8 @@ export interface GlobalStats {
   alias?: string;
   district?: string;
   avatarId?: string;
+  workers?: number;
+  thugs?: number;
   attention?: ShellAttentionCounts;
 }
 

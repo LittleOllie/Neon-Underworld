@@ -2369,6 +2369,337 @@
   opacity: 0.85;
 }
 
+.g-settings-wire-desc {
+  margin-bottom: 10px;
+}
+
+.g-settings-wire-toggle {
+  max-width: 280px;
+}
+
+/* THE WIRE — typed command panel */
+.g-wire-fab {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 250;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--os-gold-dark);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.82);
+  color: var(--os-gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.g-wire-fab-label {
+  line-height: 1;
+}
+
+.g-wire-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  background: rgba(0, 0, 0, 0.72);
+  border: none;
+  cursor: pointer;
+}
+
+.g-wire-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 321;
+  max-height: min(85vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--os-bg-header);
+  border-top: 1px solid var(--os-gold-dark);
+  padding: 16px 16px calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.g-wire-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.g-wire-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--os-gold);
+}
+
+.g-wire-status {
+  margin: 4px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--os-text-dim);
+}
+
+.g-wire-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--os-text-dim);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.g-wire-body {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.g-wire-body--idle {
+  color: var(--os-text-dim);
+}
+
+.g-wire-body--success {
+  border-color: rgba(80, 200, 120, 0.35);
+}
+
+.g-wire-body--error {
+  border-color: rgba(220, 80, 80, 0.35);
+}
+
+.g-wire-hint {
+  margin: 0 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--os-text-muted);
+}
+
+.g-wire-examples {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.g-wire-examples code {
+  font-size: 13px;
+  color: var(--os-text);
+}
+
+.g-wire-result-label {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--os-gold);
+}
+
+.g-wire-result-value {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--os-text);
+}
+
+.g-wire-result-message {
+  margin: 0 0 8px;
+  font-size: var(--game-fs-secondary);
+  color: var(--os-text-dim);
+  line-height: 1.45;
+}
+
+.g-wire-command-echo {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--os-text-muted);
+}
+
+.g-wire-order-line {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.g-wire-order-details {
+  margin: 0 0 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.g-wire-order-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--game-fs-secondary);
+}
+
+.g-wire-order-details dt {
+  color: var(--os-text-dim);
+}
+
+.g-wire-order-details dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.g-wire-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.g-wire-form {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.g-wire-mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--os-text-dim);
+  cursor: pointer;
+}
+
+.g-wire-mic:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.g-wire-mic--active {
+  border-color: var(--os-gold-dark);
+  color: var(--os-gold);
+  animation: g-wire-mic-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes g-wire-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(212, 175, 55, 0); }
+}
+
+.g-wire-panel--listening .g-wire-status {
+  color: var(--os-gold);
+}
+
+.g-wire-heard {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.g-wire-heard code {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--os-text);
+  word-break: break-word;
+}
+
+.g-wire-voice-error {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #f0a0a0;
+  border: 1px solid rgba(220, 80, 80, 0.35);
+  background: rgba(80, 0, 0, 0.2);
+}
+
+.g-wire-voice-error-note {
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--os-text-dim);
+}
+
+.g-wire-voice-unavailable {
+  margin: 0 0 10px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--os-text-muted);
+}
+
+.g-wire-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.g-wire-prompt {
+  color: var(--os-gold);
+  font-weight: 700;
+}
+
+.g-wire-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--os-text);
+  font-size: 16px;
+  outline: none;
+}
+
+.g-wire-send {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+@media (min-width: 769px) {
+  .g-wire-panel {
+    left: auto;
+    right: 16px;
+    bottom: 16px;
+    width: min(420px, calc(100vw - 32px));
+    max-height: min(70vh, 560px);
+    border: 1px solid var(--os-gold-dark);
+    border-radius: 8px;
+  }
+
+  .g-wire-fab {
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .g-wire-fab {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+}
+
 .g-report-identity-row {
   display: flex;
   flex-direction: column;

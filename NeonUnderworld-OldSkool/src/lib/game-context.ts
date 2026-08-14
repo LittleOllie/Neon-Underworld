@@ -87,6 +87,8 @@ export async function globalStatsFromContext(
     alias: ctx.alias,
     district: ctx.district.name,
     avatarId: resolvePlayerAvatarId(ctx.avatar),
+    workers: ctx.prostitutes,
+    thugs: ctx.thugs,
     attention: {
       unreadReports,
       total: unreadReports,

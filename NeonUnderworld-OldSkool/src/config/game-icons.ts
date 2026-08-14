@@ -27,6 +27,8 @@ import {
   MoreHorizontal,
   Car,
   Search,
+  Radio,
+  Mic,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -64,6 +66,8 @@ export const GAME_ICONS = {
   success: CircleCheck,
   failure: CircleX,
   search: Search,
+  wire: Radio,
+  mic: Mic,
 } as const satisfies Record<string, LucideIcon>;
 
 export type GameIconName = keyof typeof GAME_ICONS;

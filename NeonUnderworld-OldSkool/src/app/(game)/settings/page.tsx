@@ -5,6 +5,7 @@ import { requireGameSession } from '@local/lib/game-context';
 import { resolvePlayerAvatarConfig } from '@core/lib/game-engine/resolve-player-avatar';
 import { auth } from '@local/lib/auth/config';
 import { LogoutLink } from '@local/components/oldskool/LogoutLink';
+import { WireToggleForm } from '@local/features/settings/WireToggleForm';
 
 export default async function SettingsPage() {
   const { ctx } = await requireGameSession();
@@ -50,12 +51,10 @@ export default async function SettingsPage() {
 
       <section className="g-settings-section" aria-labelledby="settings-display">
         <h2 id="settings-display" className="g-settings-heading">
-          Gameplay / Display
+          THE WIRE
         </h2>
-        <p className="g-note">
-          Avatar accent colours apply across the interface. Semantic colours for danger, success, and
-          critical states are unchanged.
-        </p>
+        <p className="g-note g-settings-label">Voice Commands</p>
+        <WireToggleForm initialEnabled={ctx.wireEnabled} />
       </section>
 
       <section className="g-settings-section" aria-labelledby="settings-account">
