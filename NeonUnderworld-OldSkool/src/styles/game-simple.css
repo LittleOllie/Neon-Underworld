@@ -1331,6 +1331,71 @@
   color: var(--game-text-primary);
 }
 
+.g-guide-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.g-guide-toc-link {
+  display: inline-block;
+  padding: 6px 12px;
+  font-size: var(--game-fs-secondary);
+  line-height: 1.3;
+  color: var(--os-gold);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.g-guide-toc-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+}
+
+.g-guide-section {
+  scroll-margin-top: 148px;
+  margin: 20px 0;
+  padding: 14px 16px;
+  background: rgba(8, 8, 12, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.g-guide-section .g-section-label {
+  margin-top: 0;
+}
+
+.g-shell--bg .g-guide-section {
+  backdrop-filter: blur(4px);
+}
+
+.g-guide-list {
+  margin: 8px 0 16px;
+  padding-left: 1.25rem;
+  color: var(--game-text-primary);
+  font-size: var(--game-fs-body);
+  line-height: var(--game-lh-guide);
+}
+
+.g-guide-list li {
+  margin-bottom: 8px;
+}
+
+.g-guide-list li:last-child {
+  margin-bottom: 0;
+}
+
+.g-guide-screen + .g-guide-screen {
+  margin-top: 2px;
+}
+
+.g-guide-footer {
+  margin-top: 16px;
+}
+
 .g-error {
   font-size: var(--game-fs-body);
   color: var(--os-red);
