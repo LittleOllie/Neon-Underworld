@@ -18,6 +18,10 @@ import {
   type BusinessDrugKey,
 } from '@/config/game/business-rules';
 import { MAX_BUSINESS_LEVEL, type BusinessLevelStats } from '@/config/game/business-levels';
+import {
+  calculateBusinessNetworkBonus,
+  getBusinessTierRecruitmentContribution,
+} from '@/config/game/business-recruitment-rules';
 import { evaluateBusinessHeat, overallHeatBand } from '@/lib/game-engine/business/heat';
 import { resolveBusinessRaidCheck } from '@/lib/game-engine/business/raids';
 import { settleBusinessIncome } from '@/lib/game-engine/business/settlement';
@@ -86,6 +90,8 @@ export interface BusinessViewModel {
   nextUpgradeDurationLabel?: string;
   nextUpgradeLevel?: number;
   nextUpgradeCost?: number;
+  workerRecruitmentContribution: number;
+  thugRecruitmentContribution: number;
   createdAt: string;
 }
 
@@ -98,6 +104,9 @@ export interface BusinessPortfolioSummary {
   totalInvested: number;
   overallHeatBand: string;
   businessStreetAssets: number;
+  totalWorkerCapacity: number;
+  workerRecruitmentBonusPercent: number;
+  thugRecruitmentBonusPercent: number;
 }
 
 export interface BusinessUpgradePreview {
@@ -106,6 +115,10 @@ export interface BusinessUpgradePreview {
   cost: number;
   currentStats: BusinessLevelStats;
   stats: BusinessLevelStats;
+  currentWorkerRecruitment: number;
+  currentThugRecruitment: number;
+  nextWorkerRecruitment: number;
+  nextThugRecruitment: number;
 }
 
 export function businessStoredDrugs(row: Pick<Business, BusinessDrugKey>): BusinessDrugInventory {
@@ -420,6 +433,7 @@ export function toBusinessViewModel(
     upgradeTargetLevel: row.upgradeTargetLevel,
   };
   const investedValue = getBusinessInvestedValueForState(investmentState);
+  const recruitmentTier = getBusinessTierRecruitmentContribution(row.businessType, functionalLevel);
   const upgradeRemainingMs =
     upgrading && row.upgradeCompletesAt
       ? Math.max(0, row.upgradeCompletesAt.getTime() - now.getTime())
@@ -456,6 +470,8 @@ export function toBusinessViewModel(
     heatLabel: heat.label,
     isUpgrading: upgrading,
     upgradeTargetLevel: row.upgradeTargetLevel,
+    workerRecruitmentContribution: recruitmentTier.workerPercent,
+    thugRecruitmentContribution: recruitmentTier.thugPercent,
     createdAt: row.createdAt.toISOString(),
   };
 
@@ -491,6 +507,10 @@ export function buildPortfolioSummary(
     })),
   );
 
+  const network = calculateBusinessNetworkBonus(
+    businesses.map((b) => ({ businessType: b.businessType, level: b.level })),
+  );
+
   return {
     ownedCount: businesses.length,
     streetWorkers,
@@ -500,6 +520,9 @@ export function buildPortfolioSummary(
     totalInvested: businesses.reduce((sum, b) => sum + b.investedValue, 0),
     overallHeatBand: overallHeatBand(heatScores),
     businessStreetAssets: nw.businessStreetAssets,
+    totalWorkerCapacity: network.totalWorkerCapacity,
+    workerRecruitmentBonusPercent: network.workerBonusPercent,
+    thugRecruitmentBonusPercent: network.thugBonusPercent,
   };
 }
 
@@ -509,12 +532,18 @@ export function buildUpgradePreview(
 ): BusinessUpgradePreview | null {
   if (fromLevel >= MAX_BUSINESS_LEVEL) return null;
   const toLevel = fromLevel + 1;
+  const currentRecruitment = getBusinessTierRecruitmentContribution(type, fromLevel);
+  const nextRecruitment = getBusinessTierRecruitmentContribution(type, toLevel);
   return {
     fromLevel,
     toLevel,
     cost: getBusinessUpgradeCost(type, toLevel),
     currentStats: getBusinessLevelStats(type, fromLevel),
     stats: getBusinessLevelStats(type, toLevel),
+    currentWorkerRecruitment: currentRecruitment.workerPercent,
+    currentThugRecruitment: currentRecruitment.thugPercent,
+    nextWorkerRecruitment: nextRecruitment.workerPercent,
+    nextThugRecruitment: nextRecruitment.thugPercent,
   };
 }
 

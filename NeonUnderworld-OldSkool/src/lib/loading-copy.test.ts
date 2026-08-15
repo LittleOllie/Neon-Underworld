@@ -12,6 +12,7 @@ describe('loading-copy', () => {
     expect(ACTION_PENDING.scout).toBe('Scouting…');
     expect(ACTION_PENDING.produce).toBe('Producing…');
     expect(ACTION_PENDING.shopPurchase).toBe('Buying…');
+    expect(ACTION_PENDING.businessCollect).toBe('Collecting cash…');
     expect(ACTION_PENDING.travel('Docklands')).toBe('Travelling to Docklands…');
   });
 });

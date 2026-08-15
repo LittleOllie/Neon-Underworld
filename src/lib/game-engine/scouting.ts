@@ -18,6 +18,13 @@ export interface ScoutAreaModifiers {
   descriptionTag?: string;
 }
 
+export interface BusinessNetworkMultipliers {
+  workerMultiplier?: number;
+  thugMultiplier?: number;
+  workerBonusPercent?: number;
+  thugBonusPercent?: number;
+}
+
 export interface ScoutInput {
   turnsSpent: number;
   districtModifiers: DistrictModifiers;
@@ -29,6 +36,8 @@ export interface ScoutInput {
   thugCount: number;
   prostitutePayoutPercent: number;
   seed: number;
+  /** Business Network recruitment bonus — does not affect Scout cash. */
+  businessNetwork?: BusinessNetworkMultipliers;
 }
 
 export interface ScoutOutcome {
@@ -38,6 +47,8 @@ export interface ScoutOutcome {
   prostitutesLost: number;
   thugsLost: number;
   summary: string;
+  businessNetworkWorkerBonusPercent: number;
+  businessNetworkThugBonusPercent: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -60,17 +71,24 @@ export function resolveScouting(input: ScoutInput): ScoutOutcome {
 
   const consistencyMod = input.districtModifiers.resultConsistency * area.resultConsistency;
 
+  const workerNetworkMod = input.businessNetwork?.workerMultiplier ?? 1;
+  const thugNetworkMod = input.businessNetwork?.thugMultiplier ?? 1;
+  const businessNetworkWorkerBonusPercent = input.businessNetwork?.workerBonusPercent ?? 0;
+  const businessNetworkThugBonusPercent = input.businessNetwork?.thugBonusPercent ?? 0;
+
   const workerChanceBase =
     SCOUTING_CONFIG.baseProstitutesPerTurn *
     input.districtModifiers.prostituteRecruitment *
     area.prostituteRecruitment *
-    happinessMod;
+    happinessMod *
+    workerNetworkMod;
 
   const thugChanceBase =
     SCOUTING_CONFIG.baseThugsPerTurn *
     input.districtModifiers.thugRecruitment *
     area.thugRecruitment *
-    happinessMod;
+    happinessMod *
+    thugNetworkMod;
 
   let prostitutesFound = 0;
   let thugsFound = 0;
@@ -121,6 +139,8 @@ export function resolveScouting(input: ScoutInput): ScoutOutcome {
     prostitutesLost,
     thugsLost,
     summary,
+    businessNetworkWorkerBonusPercent,
+    businessNetworkThugBonusPercent,
   };
 }
 

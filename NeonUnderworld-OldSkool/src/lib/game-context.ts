@@ -13,6 +13,16 @@ import { collectAttentionItems, prioritizeAttentionItems } from '@local/lib/atte
 import { getBusinessEmpireSummary } from '@core/server/services/business-portfolio.service';
 import { getPendingCartelInvites } from '@local/server/services/cartel-attention.service';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
+import { prisma } from '@core/lib/db/prisma';
+import { calculateBusinessNetworkBonus } from '@core/config/game/business-recruitment-rules';
+
+export const loadBusinessNetworkBonus = cache(async (playerId: string) => {
+  const businesses = await prisma.business.findMany({
+    where: { playerId },
+    select: { businessType: true, level: true },
+  });
+  return calculateBusinessNetworkBonus(businesses);
+});
 
 export const requireGameSession = cache(async (): Promise<{
   playerId: string;

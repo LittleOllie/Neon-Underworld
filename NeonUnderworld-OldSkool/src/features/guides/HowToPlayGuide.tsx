@@ -487,6 +487,12 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
             <strong>Upgrades</strong> — Levels 1–5: more capacity, bigger Safe, more storage. Cost
             cash + real time. Report when done.
           </li>
+          <li>
+            <strong>Business Network</strong> — Owning and upgrading expands your city connections,
+            improving Worker and/or Thug recruitment while Scouting. Warehouse favours Workers,
+            Nightclub helps both, Drug Lab favours Thugs. Recruitment bonuses do not increase Scout
+            cash.
+          </li>
         </GuideList>
       </GuideSection>
 

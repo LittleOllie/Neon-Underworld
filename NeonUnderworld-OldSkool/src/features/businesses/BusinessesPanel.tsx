@@ -22,15 +22,43 @@ import {
   withdrawBusinessDrugsAction,
   type BusinessesPageData,
 } from '@local/server/actions/business.actions';
+import {
+  formatRecruitmentBonusDisplay,
+  getBusinessTierRecruitmentContribution,
+} from '@core/config/game/business-recruitment-rules';
 import { StatusBadge, heatBadgeTone } from '@local/components/game/StatusBadge';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { StatRow } from '@local/components/game/StatRow';
 import { Divider } from '@local/components/game/Divider';
 import { parsePositiveInteger, validateQuantity } from '@local/lib/numeric-input';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 
 function fmtCash(n: number): string {
   return `$${n.toLocaleString()}`;
+}
+
+function renderRecruitmentStatRows(biz: BusinessesPageData['businesses'][number]) {
+  const rows: ReactNode[] = [];
+  if (biz.workerRecruitmentContribution > 0) {
+    rows.push(
+      <StatRow
+        key="worker-recruitment"
+        label="Worker Recruitment"
+        value={formatRecruitmentBonusDisplay(biz.workerRecruitmentContribution)}
+      />,
+    );
+  }
+  if (biz.thugRecruitmentContribution > 0) {
+    rows.push(
+      <StatRow
+        key="thug-recruitment"
+        label="Thug Recruitment"
+        value={formatRecruitmentBonusDisplay(biz.thugRecruitmentContribution)}
+      />,
+    );
+  }
+  return rows;
 }
 
 type Props = {
@@ -520,6 +548,36 @@ export function BusinessesPanel({ initialData }: Props) {
           label="Security"
           value={`${current.securityCapacity} → ${next.securityCapacity}`}
         />
+        {(() => {
+          const currentRecruitment = getBusinessTierRecruitmentContribution(
+            biz.businessType,
+            biz.level,
+          );
+          const nextRecruitment = getBusinessTierRecruitmentContribution(
+            biz.businessType,
+            biz.nextUpgradeLevel,
+          );
+          const rows: ReactNode[] = [];
+          if (currentRecruitment.workerPercent > 0 || nextRecruitment.workerPercent > 0) {
+            rows.push(
+              <StatRow
+                key="worker-network"
+                label="Worker Recruitment"
+                value={`${formatRecruitmentBonusDisplay(currentRecruitment.workerPercent)} → ${formatRecruitmentBonusDisplay(nextRecruitment.workerPercent)}`}
+              />,
+            );
+          }
+          if (currentRecruitment.thugPercent > 0 || nextRecruitment.thugPercent > 0) {
+            rows.push(
+              <StatRow
+                key="thug-network"
+                label="Thug Recruitment"
+                value={`${formatRecruitmentBonusDisplay(currentRecruitment.thugPercent)} → ${formatRecruitmentBonusDisplay(nextRecruitment.thugPercent)}`}
+              />,
+            );
+          }
+          return rows;
+        })()}
         <PrimaryButton
           type="button"
           pending={loading === `upgrade-${biz.id}`}
@@ -568,6 +626,7 @@ export function BusinessesPanel({ initialData }: Props) {
             value={`${biz.storedDrugUnits.toLocaleString()} / ${biz.drugStorageCapacity.toLocaleString()}`}
           />
           <StatRow label="Income" value={`${fmtCash(biz.hourlyIncome)}/hr`} />
+          {renderRecruitmentStatRows(biz)}
           <StatRow
             label="Heat"
             value={<StatusBadge tone={heatBadgeTone(biz.heatBand)}>{biz.heatLabel}</StatusBadge>}
@@ -659,7 +718,9 @@ export function BusinessesPanel({ initialData }: Props) {
               disabled={panelLocked || biz.safeCash <= 0}
               onClick={() => runCollect(biz.id)}
             >
-              Collect {biz.safeCash > 0 ? fmtCash(biz.safeCash) : 'Safe'}
+              {loading === `collect-${biz.id}`
+                ? ACTION_PENDING.businessCollect
+                : `Collect ${biz.safeCash > 0 ? fmtCash(biz.safeCash) : 'Safe'}`}
             </PrimaryButton>
           </BusinessSection>
 
@@ -793,6 +854,56 @@ export function BusinessesPanel({ initialData }: Props) {
 
   return (
     <div aria-busy={panelLocked || undefined}>
+      <BusinessSection
+        title="Business Network"
+        badge={
+          data.summary.workerRecruitmentBonusPercent > 0 ||
+          data.summary.thugRecruitmentBonusPercent > 0
+            ? 'Active'
+            : 'None'
+        }
+      >
+        <StatRow
+          label="Worker Capacity"
+          value={data.summary.totalWorkerCapacity.toLocaleString()}
+        />
+        <StatRow
+          label="Worker Recruitment"
+          value={formatRecruitmentBonusDisplay(data.summary.workerRecruitmentBonusPercent)}
+        />
+        <StatRow
+          label="Thug Recruitment"
+          value={formatRecruitmentBonusDisplay(data.summary.thugRecruitmentBonusPercent)}
+        />
+        <details className="g-business-network-info">
+          <summary className="g-business-network-info-summary">How Businesses Work</summary>
+          <div className="g-business-network-info-body">
+            <p className="g-note g-business-limits--compact">
+              Businesses earn money, hold crew, and expand your connections across the city.
+            </p>
+            <p className="g-note g-business-limits--compact">
+              <strong>Worker Capacity</strong> — assign Workers to earn passively. Upgrades increase
+              capacity.
+            </p>
+            <p className="g-note g-business-limits--compact">
+              <strong>Business Network</strong> — owning and upgrading improves Worker and/or Thug
+              recruitment while Scouting. Bonuses affect people recruited only — not Scout cash.
+            </p>
+            <p className="g-note g-business-limits--compact">
+              <strong>Warehouse</strong> — stronger Worker recruitment.
+            </p>
+            <p className="g-note g-business-limits--compact">
+              <strong>Nightclub</strong> — improves Worker and Thug recruitment.
+            </p>
+            <p className="g-note g-business-limits--compact">
+              <strong>Drug Lab</strong> — stronger Thug recruitment; keeps its production benefits.
+            </p>
+          </div>
+        </details>
+      </BusinessSection>
+
+      <Divider />
+
       <BusinessSection
         title="Summary"
         badge={`${data.summary.ownedCount} owned · ${data.summary.overallHeatBand} heat`}

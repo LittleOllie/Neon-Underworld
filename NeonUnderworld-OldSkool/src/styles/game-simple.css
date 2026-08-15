@@ -2256,6 +2256,52 @@
   border-radius: 4px;
 }
 
+.g-business-network-info {
+  margin-top: 8px;
+  border: 1px solid var(--game-border);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.g-business-network-info-summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--game-fs-secondary);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--game-gold);
+}
+
+.g-business-network-info-summary::-webkit-details-marker {
+  display: none;
+}
+
+.g-business-network-info-body {
+  padding: 0 12px 12px;
+}
+
+.g-scout-network {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--game-border);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  font-size: var(--game-fs-secondary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.g-link-inline {
+  color: var(--game-gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .g-business-panel {
   margin-bottom: 12px;
   padding: 14px 16px;

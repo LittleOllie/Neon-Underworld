@@ -18,6 +18,7 @@ export const ACTION_PENDING = {
   cartelAction: 'Working…',
   businessPurchase: 'Purchasing…',
   businessUpgrade: 'Upgrading…',
+  businessCollect: 'Collecting cash…',
   businessAction: 'Updating…',
   payout: 'Saving…',
   travel: (destination: string) => `Travelling to ${destination}…`,

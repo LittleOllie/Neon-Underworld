@@ -16,6 +16,7 @@ import {
   calculateProstituteHappiness,
   calculateThugHappiness,
 } from '@/lib/game-engine/happiness';
+import { calculateBusinessNetworkBonus } from '@/config/game/business-recruitment-rules';
 import { deriveScoutSeed } from '@/lib/game-engine/rng';
 import { netWorthDelta } from '@/lib/game-engine/net-worth';
 import {
@@ -61,6 +62,8 @@ export interface ScoutResultData {
   workerMoraleAfter?: number;
   thugMoraleBefore?: number;
   thugMoraleAfter?: number;
+  businessNetworkWorkerBonusPercent?: number;
+  businessNetworkThugBonusPercent?: number;
 }
 
 export async function scoutAction(
@@ -163,6 +166,12 @@ export async function scoutAction(
       const districtModifiers = player.district.modifiers as unknown as DistrictModifiers;
       const seed = deriveScoutSeed(playerId, idempotencyKey);
 
+      const ownedBusinesses = await tx.business.findMany({
+        where: { playerId },
+        select: { businessType: true, level: true },
+      });
+      const businessNetwork = calculateBusinessNetworkBonus(ownedBusinesses);
+
       const scoutOutcome = resolveScouting({
         turnsSpent: parsed.data.turns,
         districtModifiers,
@@ -174,6 +183,12 @@ export async function scoutAction(
         thugCount: player.thugs,
         prostitutePayoutPercent: player.prostitutePayoutPercent,
         seed,
+        businessNetwork: {
+          workerMultiplier: businessNetwork.workerMultiplier,
+          thugMultiplier: businessNetwork.thugMultiplier,
+          workerBonusPercent: businessNetwork.workerBonusPercent,
+          thugBonusPercent: businessNetwork.thugBonusPercent,
+        },
       });
 
       const { newState } = consumeTurns(settled, parsed.data.turns, now);
@@ -282,6 +297,8 @@ export async function scoutAction(
         workerMoraleAfter: newProstituteHappiness,
         thugMoraleBefore,
         thugMoraleAfter: newThugHappiness,
+        businessNetworkWorkerBonusPercent: scoutOutcome.businessNetworkWorkerBonusPercent,
+        businessNetworkThugBonusPercent: scoutOutcome.businessNetworkThugBonusPercent,
       };
 
       await tx.gameAction.create({

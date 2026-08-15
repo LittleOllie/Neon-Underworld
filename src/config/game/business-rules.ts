@@ -248,6 +248,15 @@ export function businessWeightedDrugUnits(
 
 export { BUSINESS_LEVEL_TABLES, getBusinessLevelStats, clampBusinessLevel } from './business-levels';
 export {
+  calculateBusinessNetworkBonus,
+  formatRecruitmentBonusDisplay,
+  getBusinessTierRecruitmentContribution,
+  MAX_THUG_RECRUITMENT_BONUS_PERCENT,
+  MAX_WORKER_RECRUITMENT_BONUS_PERCENT,
+  RECRUITMENT_STACK_WEIGHTS,
+  stackRecruitmentContributions,
+} from './business-recruitment-rules';
+export {
   getBusinessDrugProductionBonus,
   MAX_DRUG_LAB_PRODUCE_BONUS,
   getBusinessUpgradeDurationMs,

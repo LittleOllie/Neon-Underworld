@@ -1,6 +1,6 @@
 import { PageTitle } from '@local/components/game';
 import { RoutePrefetch } from '@local/components/game/RoutePrefetch';
-import { requireGameSession } from '@local/lib/game-context';
+import { requireGameSession, loadBusinessNetworkBonus } from '@local/lib/game-context';
 import { ScoutForm } from '@local/features/scout/ScoutForm';
 import {
   REDLITE_SCOUT_AREAS,
@@ -19,6 +19,8 @@ export default async function ScoutPage({ searchParams }: Props) {
 
   const prefilledTurns = parsePositiveInt(params.turns);
   const prefilledArea = parseArea(params.area);
+  const businessNetwork =
+    ctx.businesses > 0 ? await loadBusinessNetworkBonus(ctx.id) : null;
 
   return (
     <>
@@ -33,6 +35,7 @@ export default async function ScoutPage({ searchParams }: Props) {
         thugCount={ctx.thugs}
         prefilledTurns={prefilledTurns}
         prefilledArea={prefilledArea}
+        businessNetwork={businessNetwork}
       />
     </>
   );

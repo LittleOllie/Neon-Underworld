@@ -19,6 +19,8 @@ import { workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
 import { SCOUT_RESULT_SECONDARY_ACTIONS } from '@local/lib/scout-result-actions';
+import { formatRecruitmentBonusDisplay } from '@core/config/game/business-recruitment-rules';
+import type { BusinessNetworkBonus } from '@core/config/game/business-recruitment-rules';
 import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
 
 interface ScoutFormProps {
@@ -30,6 +32,7 @@ interface ScoutFormProps {
   thugCount: number;
   prefilledTurns?: number;
   prefilledArea?: RedliteScoutAreaSlug;
+  businessNetwork?: BusinessNetworkBonus | null;
 }
 
 export function ScoutForm({
@@ -41,6 +44,7 @@ export function ScoutForm({
   thugCount,
   prefilledTurns,
   prefilledArea,
+  businessNetwork,
 }: ScoutFormProps) {
   const reconcile = useGameplayReconcile();
   const { locked: pending, run } = useMutationLock();
@@ -119,6 +123,18 @@ export function ScoutForm({
         tone: 'negative',
       });
     }
+    if ((result.businessNetworkWorkerBonusPercent ?? 0) > 0) {
+      lines.push({
+        text: `Business Network: ${formatRecruitmentBonusDisplay(result.businessNetworkWorkerBonusPercent!)} Workers`,
+        tone: 'positive',
+      });
+    }
+    if ((result.businessNetworkThugBonusPercent ?? 0) > 0) {
+      lines.push({
+        text: `Business Network: ${formatRecruitmentBonusDisplay(result.businessNetworkThugBonusPercent!)} Thugs`,
+        tone: 'positive',
+      });
+    }
     lines.push({ text: `${result.turnsSpent} turns used` });
 
     return (
@@ -167,6 +183,22 @@ export function ScoutForm({
       />
 
       <p className="g-note">Supplies help keep your crew loyal and effective.</p>
+
+      {businessNetwork &&
+      (businessNetwork.workerBonusPercent > 0 || businessNetwork.thugBonusPercent > 0) ? (
+        <p className="g-scout-network g-note">
+          <strong>Business Network</strong> — Workers{' '}
+          {formatRecruitmentBonusDisplay(businessNetwork.workerBonusPercent)} · Thugs{' '}
+          {formatRecruitmentBonusDisplay(businessNetwork.thugBonusPercent)}
+        </p>
+      ) : businessNetwork ? (
+        <p className="g-scout-network g-note">
+          <strong>Business Network:</strong> None —{' '}
+          <a href="/businesses" className="g-link-inline">
+            expand your empire
+          </a>
+        </p>
+      ) : null}
 
       {error && <p className="g-error">{error}</p>}
 
