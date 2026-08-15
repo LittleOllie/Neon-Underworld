@@ -10,6 +10,7 @@ export function NumericInput({
   max,
   label,
   className,
+  disabled = false,
 }: {
   id: string;
   value: string;
@@ -18,6 +19,7 @@ export function NumericInput({
   label?: string;
   className?: string;
   max?: number;
+  disabled?: boolean;
 }) {
   return (
     <div className={`g-numeric-input${className ? ` ${className}` : ''}`}>
@@ -35,6 +37,7 @@ export function NumericInput({
         max={max}
         step={1}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value, parsePositiveInteger(e.target.value))}
       />
       {suffix && <span className="g-numeric-input-suffix">{suffix}</span>}

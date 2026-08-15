@@ -74,10 +74,208 @@
 .g-main-transition {
   position: relative;
   transition: opacity 120ms ease;
+  min-height: 0;
 }
 
 .g-main-transition.is-pending {
   opacity: 0.38;
+}
+
+.g-main-transition.is-network-pending {
+  opacity: 0.32;
+}
+
+.g-nav-subtle-indicator {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 169, 98, 0.18);
+  background: rgba(8, 8, 12, 0.72);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* ── In-app navigation network overlay (700ms+ transitions) ── */
+.g-nav-network-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.g-nav-network-overlay__veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 8, 0.52);
+  backdrop-filter: blur(1px);
+}
+
+.g-nav-network-overlay__core {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  max-width: min(92vw, 360px);
+  text-align: center;
+}
+
+.g-nav-network-loader {
+  position: relative;
+  width: clamp(60px, 18vw, 88px);
+  height: clamp(60px, 18vw, 88px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.g-nav-network-loader__ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 169, 98, 0.22);
+  border-top-color: rgba(201, 169, 98, 0.72);
+  box-shadow: 0 0 14px rgba(201, 169, 98, 0.12);
+  animation: g-nav-network-ring 2.8s linear infinite;
+}
+
+.g-nav-network-loader__logo-wrap {
+  position: relative;
+  width: clamp(60px, 16vw, 84px);
+  height: clamp(60px, 16vw, 84px);
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(201, 169, 98, 0.45);
+  background: rgba(0, 0, 0, 0.35);
+  animation: g-nav-network-logo-pulse 1.8s ease-in-out infinite;
+}
+
+.g-nav-network-loader__logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.g-nav-network-loader__scan {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  height: 2px;
+  top: 18%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(201, 169, 98, 0.15),
+    rgba(201, 169, 98, 0.55),
+    rgba(201, 169, 98, 0.15),
+    transparent
+  );
+  opacity: 0.65;
+  animation: g-nav-network-scan 2.2s ease-in-out infinite;
+}
+
+.g-nav-network-overlay__message {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  line-height: 1.45;
+  color: var(--os-text-dim, #9a9892);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
+}
+
+@keyframes g-nav-network-ring {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes g-nav-network-logo-pulse {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(201, 169, 98, 0.1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+    box-shadow: 0 0 18px rgba(201, 169, 98, 0.24);
+  }
+}
+
+@keyframes g-nav-network-scan {
+  0% {
+    top: 12%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.7;
+  }
+  80% {
+    opacity: 0.7;
+  }
+  100% {
+    top: 82%;
+    opacity: 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .g-nav-network-loader {
+    width: clamp(72px, 8vw, 96px);
+    height: clamp(72px, 8vw, 96px);
+  }
+
+  .g-nav-network-loader__logo-wrap {
+    width: clamp(72px, 7vw, 92px);
+    height: clamp(72px, 7vw, 92px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g-main-transition.is-network-pending {
+    opacity: 0.38;
+  }
+
+  .g-nav-network-loader__ring {
+    animation: none;
+    border-top-color: rgba(201, 169, 98, 0.35);
+  }
+
+  .g-nav-network-loader__logo-wrap {
+    animation: g-nav-network-logo-fade 2s ease-in-out infinite;
+  }
+
+  .g-nav-network-loader__scan {
+    animation: none;
+    opacity: 0.25;
+    top: 50%;
+  }
+
+  @keyframes g-nav-network-logo-fade {
+    0%,
+    100% {
+      opacity: 0.75;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
 }
 
 .g-route-enter {

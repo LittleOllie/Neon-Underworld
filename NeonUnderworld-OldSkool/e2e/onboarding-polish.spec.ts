@@ -16,7 +16,7 @@ test.describe('Onboarding polish — desktop', () => {
     await login(page);
     await dismissBootScreen(page);
 
-    await expect(page.getByText(/Cap 5,000/i)).toBeVisible();
+    await expect(page.locator('.g-status-item').filter({ hasText: 'District Rank' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
 
     const turnsBefore = parseTurnsUsed(await headerTurnsLocator(page).textContent());

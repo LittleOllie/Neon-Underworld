@@ -4,7 +4,7 @@ import { routeLoadingMessage } from '@local/lib/loading-copy';
 describe('route loading UX', () => {
   it('does not include artificial delay markers in copy', () => {
     const message = routeLoadingMessage('/shop');
-    expect(message).toMatch(/Opening Shop/);
+    expect(message).toMatch(/Contacting suppliers/i);
     expect(message).not.toMatch(/please wait|loading\.\.\./i);
   });
 

@@ -1,6 +1,5 @@
 import { formatTurnsExact } from '@local/server/domain/status-presentation';
 import { formatRank } from '@local/lib/format-rank';
-import { REDLITE_TURNS } from '@core/config/game/redlite-rules';
 import { GameLabel, GameValue } from './GameValue';
 
 export interface ShellAttentionCounts {
@@ -58,10 +57,6 @@ export function GlobalStatus({ stats }: { stats: GlobalStats }) {
           </span>
         ))}
       </div>
-      <p className="g-status-hint">
-        +{REDLITE_TURNS.turnsPerInterval} every {REDLITE_TURNS.intervalMinutes} min · Cap{' '}
-        {REDLITE_TURNS.turnCap.toLocaleString()}
-      </p>
     </div>
   );
 }

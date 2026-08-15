@@ -1,11 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import { BOOT_SCREEN } from '@local/config/boot-screen';
+import { NAVIGATION_LOADER_LOGO } from '@local/config/navigation-transition';
 
 const LOGO_PX = { sm: 36, md: 52, lg: 72 } as const;
 
-/** Branded loader — rounded NUPFP logo with subtle pulse; respects reduced motion. */
+/** Branded loader — rounded NU logo with subtle pulse; respects reduced motion. */
 export function BrandedLoader({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const px = LOGO_PX[size];
 
@@ -17,7 +17,7 @@ export function BrandedLoader({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
     >
       <span className="nu-loader__logo" aria-hidden="true">
         <Image
-          src={BOOT_SCREEN.logoSrc}
+          src={NAVIGATION_LOADER_LOGO}
           alt=""
           width={px}
           height={px}

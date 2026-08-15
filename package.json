@@ -23,6 +23,7 @@
     "db:seed:fresh-e2e": "tsx scripts/seed-fresh-e2e-player.ts",
     "db:seed:e2e-reports": "tsx scripts/seed-e2e-report-fixtures.ts",
     "db:seed:playtest-npcs": "tsx scripts/seed-playtest-npcs.ts",
+    "db:backfill-npc-avatars": "tsx scripts/backfill-npc-avatars.ts",
     "db:check:legacy-bank-cash": "tsx scripts/check-legacy-bank-cash.ts",
     "db:backfill-turns": "tsx scripts/backfill-canonical-turn-state.ts",
     "db:studio": "prisma studio",

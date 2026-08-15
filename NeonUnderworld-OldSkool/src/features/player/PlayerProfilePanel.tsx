@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useMutationLock } from '@local/hooks/useMutationLock';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { ATTACK_RULES } from '@core/config/game/attack-rules';
 import {
   thugBand,
@@ -174,9 +176,8 @@ export function PlayerProfilePanel({
   attackEligibility,
 }: Props) {
   const reconcile = useGameplayReconcile();
+  const { locked: formLocked, pendingKey, run } = useMutationLock();
   const [turns, setTurns] = useState(initialTurns);
-  const [loading, setLoading] = useState(false);
-  const [deepLoading, setDeepLoading] = useState(false);
   const [error, setError] = useState('');
   const [intel, setIntel] = useState<PlayerIntelDisplay | null>(existingIntel);
   const [deepIntel, setDeepIntel] = useState<PlayerDeepIntelDisplay | null>(existingDeepIntel);
@@ -220,55 +221,55 @@ export function PlayerProfilePanel({
   }
 
   async function handleGatherIntel() {
-    setLoading(true);
-    setError('');
-    const response = await scoutTargetAction(targetAlias, uuidv4());
-    setLoading(false);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setTurns(response.data.newTurns);
-    setIntel({
-      reportId: response.data.reportId,
-      bands: bandsFromIntel(response.data.intel),
-      expiresAt: response.data.intel.expiresAt,
+    await run('intel', async () => {
+      setError('');
+      const response = await scoutTargetAction(targetAlias, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setTurns(response.data.newTurns);
+      setIntel({
+        reportId: response.data.reportId,
+        bands: bandsFromIntel(response.data.intel),
+        expiresAt: response.data.intel.expiresAt,
+      });
+      reconcile(response.data.shell);
     });
-    reconcile(response.data.shell);
   }
 
   async function handleGatherDeepIntel() {
-    setDeepLoading(true);
-    setError('');
-    const response = await deepIntelTargetAction(targetAlias, uuidv4());
-    setDeepLoading(false);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setTurns(response.data.newTurns);
-    setDeepIntel({
-      reportId: response.data.reportId,
-      estimatedThugMin: response.data.deepIntel.estimatedThugMin,
-      estimatedThugMax: response.data.deepIntel.estimatedThugMax,
-      estimatedWorkerMin: response.data.deepIntel.estimatedWorkerMin,
-      estimatedWorkerMax: response.data.deepIntel.estimatedWorkerMax,
-      weaponReadinessBand: response.data.deepIntel.weaponReadinessBand,
-      cashExposureBand: response.data.deepIntel.cashExposureBand,
-      drugExposureBand: response.data.deepIntel.drugExposureBand,
-      cartelPresence: response.data.deepIntel.cartelPresence,
-      workforceStabilityBand: response.data.deepIntel.workforceStabilityBand,
-      workforceProtectionBand: response.data.deepIntel.workforceProtectionBand,
-      poachingOutlook: response.data.deepIntel.poachingOutlook,
-      gatheredAt: response.data.deepIntel.scoutedAt,
+    await run('deep-intel', async () => {
+      setError('');
+      const response = await deepIntelTargetAction(targetAlias, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setTurns(response.data.newTurns);
+      setDeepIntel({
+        reportId: response.data.reportId,
+        estimatedThugMin: response.data.deepIntel.estimatedThugMin,
+        estimatedThugMax: response.data.deepIntel.estimatedThugMax,
+        estimatedWorkerMin: response.data.deepIntel.estimatedWorkerMin,
+        estimatedWorkerMax: response.data.deepIntel.estimatedWorkerMax,
+        weaponReadinessBand: response.data.deepIntel.weaponReadinessBand,
+        cashExposureBand: response.data.deepIntel.cashExposureBand,
+        drugExposureBand: response.data.deepIntel.drugExposureBand,
+        cartelPresence: response.data.deepIntel.cartelPresence,
+        workforceStabilityBand: response.data.deepIntel.workforceStabilityBand,
+        workforceProtectionBand: response.data.deepIntel.workforceProtectionBand,
+        poachingOutlook: response.data.deepIntel.poachingOutlook,
+        gatheredAt: response.data.deepIntel.scoutedAt,
+      });
+      setShowDeep(true);
+      reconcile(response.data.shell);
     });
-    setShowDeep(true);
-    reconcile(response.data.shell);
   }
 
   if (intel) {
     return (
-      <>
+      <div aria-busy={formLocked || undefined}>
         {showDeep && deepIntel ? (
           <DeepIntelReportStats deepIntel={deepIntel} />
         ) : (
@@ -279,6 +280,7 @@ export function PlayerProfilePanel({
             className="g-btn-full g-btn-secondary"
             variant="secondary"
             icon="intel"
+            disabled={formLocked}
             onClick={() => setShowDeep(true)}
           >
             View Deep Intel
@@ -288,6 +290,7 @@ export function PlayerProfilePanel({
           <PrimaryButton
             className="g-btn-full g-btn-secondary"
             variant="secondary"
+            disabled={formLocked}
             onClick={() => setShowDeep(false)}
           >
             View Basic Intel
@@ -298,10 +301,11 @@ export function PlayerProfilePanel({
             className="g-btn-full"
             icon="intel"
             onClick={handleGatherDeepIntel}
-            disabled={deepLoading || turns < deepIntelTurnCost}
+            disabled={formLocked || turns < deepIntelTurnCost}
+            pending={pendingKey === 'deep-intel'}
           >
-            {deepLoading
-              ? 'Gathering…'
+            {pendingKey === 'deep-intel'
+              ? ACTION_PENDING.deepIntel
               : `Gather Deep Intel — ${deepIntelTurnCost} Turns`}
           </PrimaryButton>
         )}
@@ -311,10 +315,11 @@ export function PlayerProfilePanel({
             variant="secondary"
             icon="intel"
             onClick={handleGatherDeepIntel}
-            disabled={deepLoading || turns < deepIntelTurnCost}
+            disabled={formLocked || turns < deepIntelTurnCost}
+            pending={pendingKey === 'deep-intel'}
           >
-            {deepLoading
-              ? 'Gathering…'
+            {pendingKey === 'deep-intel'
+              ? ACTION_PENDING.deepIntel
               : `Refresh Deep Intel — ${deepIntelTurnCost} Turns`}
           </PrimaryButton>
         )}
@@ -326,12 +331,12 @@ export function PlayerProfilePanel({
           View Intel / Attack
         </ActionButton>
         {error && <p className="g-error">{error}</p>}
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div aria-busy={formLocked || undefined}>
       <Divider />
       <p className="g-note">No current intel on this player.</p>
       <p className="g-note">
@@ -342,11 +347,13 @@ export function PlayerProfilePanel({
         className="g-btn-full"
         icon="intel"
         onClick={handleGatherIntel}
-        disabled={loading || turns < intelTurnCost}
+        disabled={formLocked || turns < intelTurnCost}
+        pending={pendingKey === 'intel'}
       >
-        {loading ? 'Gathering…' : `Gather Intel — ${intelTurnCost} Turns`}
+        {pendingKey === 'intel'
+          ? ACTION_PENDING.intel
+          : `Gather Intel — ${intelTurnCost} Turns`}
       </PrimaryButton>
-      {error && <p className="g-error">{error}</p>}
-    </>
+    </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useMutationLock } from '@local/hooks/useMutationLock';
 import { scoutAction, type OldSkoolScoutResult } from '@local/server/actions/scout.actions';
 import { getScoutAreaDisplays } from '@core/lib/game-engine/scout-display';
 import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
@@ -42,6 +43,7 @@ export function ScoutForm({
   prefilledArea,
 }: ScoutFormProps) {
   const reconcile = useGameplayReconcile();
+  const { locked: pending, run } = useMutationLock();
   const areaDisplays = getScoutAreaDisplays(districtSlug);
   const defaultTurns = prefilledTurns ?? 25;
   const defaultArea =
@@ -53,7 +55,6 @@ export function ScoutForm({
   const [amount, setAmount] = useState(defaultTurns);
   const [areaSlug, setAreaSlug] = useState<RedliteScoutAreaSlug>(defaultArea);
   const selectedArea = areaDisplays.find((area) => area.slug === areaSlug);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OldSkoolScoutResult | null>(null);
 
@@ -75,22 +76,22 @@ export function ScoutForm({
       setError(validationError);
       return;
     }
-    setLoading(true);
-    setError('');
-    const idempotencyKey = uuidv4();
-    let response = await scoutAction(amount, idempotencyKey, areaSlug);
-    if (!response.success && isRetryableGameplayConflict(response.error)) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      response = await scoutAction(amount, idempotencyKey, areaSlug);
-    }
-    setLoading(false);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setResult(response.data);
-    setTurns(response.data.newTurns);
-    reconcile(response.data.shell);
+    await run('scout', async () => {
+      setError('');
+      const idempotencyKey = uuidv4();
+      let response = await scoutAction(amount, idempotencyKey, areaSlug);
+      if (!response.success && isRetryableGameplayConflict(response.error)) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        response = await scoutAction(amount, idempotencyKey, areaSlug);
+      }
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setResult(response.data);
+      setTurns(response.data.newTurns);
+      reconcile(response.data.shell);
+    });
   }
 
   if (result) {
@@ -138,7 +139,7 @@ export function ScoutForm({
   }
 
   return (
-    <>
+    <div aria-busy={pending || undefined}>
       <div role="listbox" aria-label="Scout areas">
         {areaDisplays.map((area) => (
           <SelectableCard
@@ -146,14 +147,15 @@ export function ScoutForm({
             title={area.name}
             meta={`Workers: ${area.workers} · Thugs: ${area.thugs} · Risk: ${area.risk}`}
             selected={areaSlug === area.slug}
-            onClick={() => setAreaSlug(area.slug)}
+            disabled={pending}
+            onClick={() => setAreaSlug(area.slug as RedliteScoutAreaSlug)}
           >
             <p className="g-area-tagline">{area.tagline}</p>
           </SelectableCard>
         ))}
       </div>
 
-      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} />
+      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} disabled={pending} />
 
       <NumericInput
         id="scout-turns"
@@ -161,6 +163,7 @@ export function ScoutForm({
         value={amountRaw}
         onChange={handleAmountChange}
         suffix="turns"
+        disabled={pending}
       />
 
       <p className="g-note">Supplies help keep your crew loyal and effective.</p>
@@ -184,9 +187,15 @@ export function ScoutForm({
         );
       })()}
 
-      <PrimaryButton className="g-btn-full" icon="scout" onClick={handleScout} disabled={loading} pending={loading}>
-        {loading ? ACTION_PENDING.scout : `Scout ${selectedArea?.name ?? 'Area'}?`}
+      <PrimaryButton
+        className="g-btn-full"
+        icon="scout"
+        onClick={handleScout}
+        disabled={pending}
+        pending={pending}
+      >
+        {pending ? ACTION_PENDING.scout : `Scout ${selectedArea?.name ?? 'Area'}?`}
       </PrimaryButton>
-    </>
+    </div>
   );
 }

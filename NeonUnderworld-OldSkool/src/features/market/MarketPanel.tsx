@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useMutationLock } from '@local/hooks/useMutationLock';
 import {
   createMarketListingAction,
   placeMarketBidAction,
@@ -67,12 +68,14 @@ function mergeMarketPage(prev: MarketPageData, next: MarketPageData, shellCash?:
 
 export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   const reconcile = useGameplayReconcile();
+  const { locked, pendingKey, run } = useMutationLock();
   const [tab, setTab] = useState<Tab>('browse');
   const [filter, setFilter] = useState<MarketFilter>(initialFilter);
   const [data, setData] = useState(initial);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState<string | null>(null);
+
+  const loading = pendingKey;
 
   const [sellItem, setSellItem] = useState<string>(initial.tradableInventory[0]?.key ?? '');
   const [sellQty, setSellQty] = useState('1');
@@ -118,17 +121,17 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   }, [data.listings, filter]);
 
   async function handleBid(listingId: string, minNextBid: number) {
-    setLoading(listingId);
-    setError('');
-    setSuccess('');
-    const response = await placeMarketBidAction(listingId, minNextBid, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
-    reconcile(response.data.shell);
+    await run(listingId, async () => {
+      setError('');
+      setSuccess('');
+      const response = await placeMarketBidAction(listingId, minNextBid, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
+      reconcile(response.data.shell);
+    });
   }
 
   async function handleCreateListing() {
@@ -151,37 +154,37 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       setError(`Minimum starting price is $${data.minStartingPrice}.`);
       return;
     }
-    setLoading('sell');
-    setError('');
-    setSuccess('');
-    const response = await createMarketListingAction(
-      sellItem,
-      qty,
-      price,
-      duration,
-      uuidv4(),
-    );
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setSuccess(`Listed ${qty}× ${selectedInventory?.name ?? sellItem} on the Market.`);
-    setSellQty('1');
-    setTab('mine');
-    setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
-    reconcile(response.data.shell);
+    await run('sell', async () => {
+      setError('');
+      setSuccess('');
+      const response = await createMarketListingAction(
+        sellItem,
+        qty,
+        price,
+        duration,
+        uuidv4(),
+      );
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setSuccess(`Listed ${qty}× ${selectedInventory?.name ?? sellItem} on the Market.`);
+      setSellQty('1');
+      setTab('mine');
+      setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
+      reconcile(response.data.shell);
+    });
   }
 
   return (
-    <>
+    <div aria-busy={locked || undefined}>
       <p className="g-note">
         Player auctions only — list items for a set time; other players bid and the highest bid when
         the clock runs out wins. There are no instant-buy listings.
       </p>
       <StatRow label="Cash on hand" value={`$${data.cash.toLocaleString()}`} />
 
-      <SimpleTabs tabs={TABS} active={tab} onChange={setTab} />
+      <SimpleTabs tabs={TABS} active={tab} onChange={locked ? () => undefined : setTab} />
 
       {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
       {success && <FeedbackNote tone="success">{success}</FeedbackNote>}
@@ -192,7 +195,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
             ariaLabel="Market category"
             options={FILTERS.map((f) => ({ id: f.key, label: f.label }))}
             value={filter}
-            onChange={setFilter}
+            onChange={locked ? () => undefined : setFilter}
           />
           {filteredListings.length === 0 ? (
             <EmptyState
@@ -223,7 +226,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
             >
               <PrimaryButton
                 icon="market"
-                disabled={loading !== null || data.cash < l.minNextBid}
+                disabled={locked || data.cash < l.minNextBid}
                 pending={loading === l.id}
                 onClick={() => handleBid(l.id, l.minNextBid)}
               >
@@ -254,6 +257,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
               <select
                 className="g-input"
                 value={sellItem}
+                disabled={locked}
                 onChange={(e) => setSellItem(e.target.value)}
               >
                 {data.tradableInventory.map((i) => (
@@ -270,6 +274,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 label="Quantity"
                 value={sellQty}
                 max={MAX_LISTING_QUANTITY}
+                disabled={locked}
                 onChange={(raw) => setSellQty(raw)}
               />
               <p className="g-note">
@@ -284,6 +289,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
                 id="market-price"
                 label="Opening bid (total for lot)"
                 value={startPrice}
+                disabled={locked}
                 onChange={(raw) => {
                   setPriceTouched(true);
                   setStartPrice(raw);
@@ -310,6 +316,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
               <select
                 className="g-input"
                 value={duration}
+                disabled={locked}
                 onChange={(e) => setDuration(Number(e.target.value) as MarketDurationMinutes)}
               >
                 {data.durations.map((d) => (
@@ -320,7 +327,8 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
               </select>
               <PrimaryButton
                 icon="market"
-                disabled={loading !== null || qtyOverCap}
+                disabled={locked || qtyOverCap}
+                pending={loading === 'sell'}
                 onClick={handleCreateListing}
               >
                 {loading === 'sell' ? ACTION_PENDING.marketList : 'List Item'}
@@ -369,6 +377,6 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
           ))}
         </>
       )}
-    </>
+    </div>
   );
 }

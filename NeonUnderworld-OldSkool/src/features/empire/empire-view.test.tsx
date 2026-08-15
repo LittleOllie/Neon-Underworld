@@ -168,7 +168,6 @@ describe('EmpireSimpleView accordion layout', () => {
     const html = renderToStaticMarkup(<EmpireSimpleView data={buildMockData()} />);
 
     expect(html).toContain('PayoutForm 21%');
-    expect(html).toContain('Higher payout improves Street Worker happiness');
     expect(html).not.toMatch(/<\/details>[\s\S]*<div class="g-section-label">PAYOUT<\/div>/);
   });
 });

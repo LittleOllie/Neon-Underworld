@@ -9,6 +9,7 @@ import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import { EMPIRE_PAYOUT_RULES } from '@local/config/empire-rules';
 import { payoutTradeOffDescription } from '@core/lib/game-engine/supply-status';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
+import { ACTION_PENDING } from '@local/lib/loading-copy';
 
 interface PayoutFormProps {
   initialPayout: number;
@@ -20,7 +21,7 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
   const [preview, setPreview] = useState<{ effects: string[] } | null>(null);
   const [previewError, setPreviewError] = useState('');
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(false);
 
   const proposedTrade = payout !== initialPayout ? payoutTradeOffDescription(payout) : null;
 
@@ -47,25 +48,30 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
   }, [payout, initialPayout]);
 
   async function handleUpdate() {
-    setLoading(true);
+    if (pending) return;
+    setPending(true);
     setMessage('');
-    const result = await updatePayoutAction(payout);
-    setLoading(false);
-    if (!result.success) {
-      setMessage(result.error);
-      return;
+    try {
+      const result = await updatePayoutAction(payout);
+      if (!result.success) {
+        setMessage(result.error);
+        return;
+      }
+      setMessage(`Payout updated to ${result.data.payoutPercent}%.`);
+      setPayout(result.data.payoutPercent);
+      if (result.data.shell) reconcile(result.data.shell);
+    } finally {
+      setPending(false);
     }
-    setMessage(`Payout updated to ${result.data.payoutPercent}%.`);
-    setPayout(result.data.payoutPercent);
-    if (result.data.shell) reconcile(result.data.shell);
   }
 
   return (
-    <div>
+    <div aria-busy={pending || undefined}>
       <div className="g-stepper">
         <button
           type="button"
           className="g-stepper-btn"
+          disabled={pending}
           onClick={() =>
             setPayout((p) => Math.max(EMPIRE_PAYOUT_RULES.minPercent, p - EMPIRE_PAYOUT_RULES.increment))
           }
@@ -77,6 +83,7 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
         <button
           type="button"
           className="g-stepper-btn"
+          disabled={pending}
           onClick={() =>
             setPayout((p) => Math.min(EMPIRE_PAYOUT_RULES.maxPercent, p + EMPIRE_PAYOUT_RULES.increment))
           }
@@ -106,9 +113,10 @@ export function PayoutForm({ initialPayout }: PayoutFormProps) {
         className="g-btn-save"
         icon="payout"
         onClick={handleUpdate}
-        disabled={loading || payout === initialPayout}
+        disabled={pending || payout === initialPayout}
+        pending={pending}
       >
-        {loading ? 'Saving…' : 'Save Payout'}
+        {pending ? ACTION_PENDING.payout : 'Save Payout'}
       </PrimaryButton>
 
       {message && (

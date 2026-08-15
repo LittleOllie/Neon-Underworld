@@ -186,6 +186,7 @@ function CartelHQView({
                     id={`cartel-armoury-${entry.key}`}
                     value={armouryQuantities[entry.key] ?? '1'}
                     max={1000}
+                    disabled={loading !== null}
                     onChange={(value) =>
                       setArmouryQuantities((prev) => ({ ...prev, [entry.key]: value }))
                     }
@@ -271,6 +272,8 @@ function CartelHQView({
       <select
         className="g-input"
         value={cartel.myDonationPercent}
+        disabled={loading !== null}
+        aria-busy={loading === 'donation' || undefined}
         onChange={(e) => onDonation(Number(e.target.value))}
       >
         {donationOptions.map((p) => (
@@ -288,6 +291,7 @@ function CartelHQView({
             className="g-input"
             placeholder="Player alias to invite"
             value={inviteAlias}
+            disabled={loading !== null}
             onChange={(e) => setInviteAlias(e.target.value)}
           />
           <PrimaryButton
@@ -304,6 +308,7 @@ function CartelHQView({
               <select
                 className="g-input"
                 value={transferTargetId}
+                disabled={loading !== null}
                 onChange={(e) => setTransferTargetId(e.target.value)}
               >
                 <option value="">Transfer leadership to…</option>
@@ -395,8 +400,19 @@ export function CartelPanel(initial: Props) {
   }
 
   async function handleDecline(inviteId: string) {
-    const response = await declineCartelInviteAction(inviteId);
-    if (response.success) applyMutation(response.data.page, response.data.shell);
+    if (loading !== null) return;
+    setLoading(`decline-${inviteId}`);
+    setError('');
+    try {
+      const response = await declineCartelInviteAction(inviteId);
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyMutation(response.data.page, response.data.shell);
+    } finally {
+      setLoading(null);
+    }
   }
 
   async function handleRequestJoin(cartelId: string) {
@@ -491,8 +507,19 @@ export function CartelPanel(initial: Props) {
   }
 
   async function handleDonation(percent: number) {
-    const response = await setCartelDonationAction(percent);
-    if (response.success) applyMutation(response.data.page, response.data.shell);
+    if (loading !== null) return;
+    setLoading('donation');
+    setError('');
+    try {
+      const response = await setCartelDonationAction(percent);
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyMutation(response.data.page, response.data.shell);
+    } finally {
+      setLoading(null);
+    }
   }
 
   async function handleArmouryPurchase(itemKey: string) {
@@ -551,9 +578,10 @@ export function CartelPanel(initial: Props) {
               <PrimaryButton
                 variant="secondary"
                 disabled={loading !== null}
+                pending={loading === `decline-${inv.id}`}
                 onClick={() => handleDecline(inv.id)}
               >
-                Decline
+                {loading === `decline-${inv.id}` ? ACTION_PENDING.cartelAction : 'Decline'}
               </PrimaryButton>
             </div>
           </SelectableCard>

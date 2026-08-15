@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useMutationLock } from '@local/hooks/useMutationLock';
 import { useOptionalPlayerShell } from '@local/components/game/PlayerShellProvider';
 import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import {
@@ -228,6 +229,7 @@ function TargetCard({
 export function AttackForm(props: AttackFormProps) {
   const router = useRouter();
   const reconcile = useGameplayReconcile();
+  const { locked: formLocked, pendingKey, run } = useMutationLock();
   const shellCtx = useOptionalPlayerShell();
   const [targets, setTargets] = useState(props.targets);
   const [turns, setTurns] = useState(props.turns);
@@ -241,8 +243,6 @@ export function AttackForm(props: AttackFormProps) {
   const [selected, setSelected] = useState<AttackTargetCandidate | null>(() =>
     resolveInitialTarget(props.targets, props.initialTargetAlias, props.initialReportId),
   );
-  const [intelLoading, setIntelLoading] = useState(false);
-  const [deepIntelLoading, setDeepIntelLoading] = useState(false);
   const [showIntel, setShowIntel] = useState(false);
   const [showDeepIntel, setShowDeepIntel] = useState(false);
 
@@ -252,7 +252,6 @@ export function AttackForm(props: AttackFormProps) {
   const [forceRaw, setForceRaw] = useState(String(defaultForce));
   const [force, setForce] = useState(defaultForce);
   const [confirming, setConfirming] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OldSkoolAttackLaunchResult | null>(null);
 
@@ -345,115 +344,115 @@ export function AttackForm(props: AttackFormProps) {
 
   async function handleGatherIntel() {
     if (!selected) return;
-    setIntelLoading(true);
-    setError('');
-    const response = await scoutTargetAction(selected.alias, uuidv4());
-    setIntelLoading(false);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setTurns(response.data.newTurns);
-    const bands = bandsFromIntel(response.data.intel);
-    const updated: AttackTargetCandidate = {
-      ...selected,
-      hasIntel: true,
-      reportId: response.data.reportId,
-      bands,
-    };
-    setSelected(updated);
-    setTargets((prev) =>
-      prev.map((t) => (t.playerId === updated.playerId ? updated : t)),
-    );
-    setShowIntel(true);
-    reconcile(response.data.shell);
+    await run('intel', async () => {
+      setError('');
+      const response = await scoutTargetAction(selected.alias, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setTurns(response.data.newTurns);
+      const bands = bandsFromIntel(response.data.intel);
+      const updated: AttackTargetCandidate = {
+        ...selected,
+        hasIntel: true,
+        reportId: response.data.reportId,
+        bands,
+      };
+      setSelected(updated);
+      setTargets((prev) =>
+        prev.map((t) => (t.playerId === updated.playerId ? updated : t)),
+      );
+      setShowIntel(true);
+      reconcile(response.data.shell);
+    });
   }
 
   async function handleGatherDeepIntel(refresh = false) {
     if (!selected) return;
-    setDeepIntelLoading(true);
-    setError('');
-    const response = await deepIntelTargetAction(selected.alias, uuidv4());
-    setDeepIntelLoading(false);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setTurns(response.data.newTurns);
-    const deepIntel: DeepIntelDisplay = {
-      reportId: response.data.reportId,
-      estimatedThugMin: response.data.deepIntel.estimatedThugMin,
-      estimatedThugMax: response.data.deepIntel.estimatedThugMax,
-      estimatedWorkerMin: response.data.deepIntel.estimatedWorkerMin,
-      estimatedWorkerMax: response.data.deepIntel.estimatedWorkerMax,
-      weaponReadinessBand: response.data.deepIntel.weaponReadinessBand,
-      cashExposureBand: response.data.deepIntel.cashExposureBand,
-      drugExposureBand: response.data.deepIntel.drugExposureBand,
-      cartelPresence: response.data.deepIntel.cartelPresence,
-      workforceStabilityBand: response.data.deepIntel.workforceStabilityBand,
-      workforceProtectionBand: response.data.deepIntel.workforceProtectionBand,
-      poachingOutlook: response.data.deepIntel.poachingOutlook,
-      gatheredAt: response.data.deepIntel.scoutedAt,
-    };
-    const updated: AttackTargetCandidate = {
-      ...selected,
-      hasDeepIntel: true,
-      deepIntelReportId: response.data.reportId,
-      deepIntel,
-    };
-    setSelected(updated);
-    setTargets((prev) =>
-      prev.map((t) => (t.playerId === updated.playerId ? updated : t)),
-    );
-    setShowDeepIntel(true);
-    reconcile(response.data.shell);
-    if (refresh) setShowIntel(false);
+    await run('deep-intel', async () => {
+      setError('');
+      const response = await deepIntelTargetAction(selected.alias, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setTurns(response.data.newTurns);
+      const deepIntel: DeepIntelDisplay = {
+        reportId: response.data.reportId,
+        estimatedThugMin: response.data.deepIntel.estimatedThugMin,
+        estimatedThugMax: response.data.deepIntel.estimatedThugMax,
+        estimatedWorkerMin: response.data.deepIntel.estimatedWorkerMin,
+        estimatedWorkerMax: response.data.deepIntel.estimatedWorkerMax,
+        weaponReadinessBand: response.data.deepIntel.weaponReadinessBand,
+        cashExposureBand: response.data.deepIntel.cashExposureBand,
+        drugExposureBand: response.data.deepIntel.drugExposureBand,
+        cartelPresence: response.data.deepIntel.cartelPresence,
+        workforceStabilityBand: response.data.deepIntel.workforceStabilityBand,
+        workforceProtectionBand: response.data.deepIntel.workforceProtectionBand,
+        poachingOutlook: response.data.deepIntel.poachingOutlook,
+        gatheredAt: response.data.deepIntel.scoutedAt,
+      };
+      const updated: AttackTargetCandidate = {
+        ...selected,
+        hasDeepIntel: true,
+        deepIntelReportId: response.data.reportId,
+        deepIntel,
+      };
+      setSelected(updated);
+      setTargets((prev) =>
+        prev.map((t) => (t.playerId === updated.playerId ? updated : t)),
+      );
+      setShowDeepIntel(true);
+      reconcile(response.data.shell);
+      if (refresh) setShowIntel(false);
+    });
   }
 
   async function handleLaunch() {
     if (!selected?.reportId || !canAttack) return;
-    setLoading(true);
-    setError('');
-    try {
-      const response = await launchAttackAction(
-        selected.reportId,
-        attackType,
-        Math.max(1, Math.floor(force)),
-        uuidv4(),
-      );
-      if (!response.success) {
-        const err = response.error;
-        if (
-          err.includes('below your attack range') ||
-          err.includes('too far below your Net Worth')
-        ) {
-          setSelected((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  eligible: false,
-                  eligibilityNote: GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading,
-                }
-              : prev,
-          );
-          router.refresh();
+    const reportId = selected.reportId;
+    await run('attack', async () => {
+      setError('');
+      try {
+        const response = await launchAttackAction(
+          reportId,
+          attackType,
+          Math.max(1, Math.floor(force)),
+          uuidv4(),
+        );
+        if (!response.success) {
+          const err = response.error;
+          if (
+            err.includes('below your attack range') ||
+            err.includes('too far below your Net Worth')
+          ) {
+            setSelected((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    eligible: false,
+                    eligibilityNote: GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading,
+                  }
+                : prev,
+            );
+            router.refresh();
+          }
+          setError(err);
+          setConfirming(false);
+          return;
         }
-        setError(err);
+        setResult(response.data);
+        setTurns(response.data.newTurns);
+        if (response.data.shell) {
+          applyAttackShell(response.data.shell);
+        }
+      } catch (err) {
+        setError('Something went wrong launching the attack. Try again.');
         setConfirming(false);
-        return;
+        console.error(err);
       }
-      setResult(response.data);
-      setTurns(response.data.newTurns);
-      if (response.data.shell) {
-        applyAttackShell(response.data.shell);
-      }
-    } catch (err) {
-      setError('Something went wrong launching the attack. Try again.');
-      setConfirming(false);
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    });
   }
 
   function handleBackToTargets() {
@@ -560,11 +559,12 @@ export function AttackForm(props: AttackFormProps) {
   }
 
   return (
-    <>
+    <div aria-busy={formLocked || undefined}>
       {props.staleIntelNotice && <p className="g-error">{props.staleIntelNotice}</p>}
       <PrimaryButton
         className="g-btn-full g-btn-secondary"
         variant="secondary"
+        disabled={formLocked}
         onClick={() => {
           setSelected(null);
           setShowIntel(false);
@@ -640,11 +640,12 @@ export function AttackForm(props: AttackFormProps) {
                 className="g-btn-full g-btn-secondary"
                 variant="secondary"
                 icon="intel"
-                disabled={deepIntelLoading || turns < props.deepIntelTurnCost}
+                disabled={formLocked || turns < props.deepIntelTurnCost}
+                pending={pendingKey === 'deep-intel'}
                 onClick={() => handleGatherDeepIntel(true)}
               >
-                {deepIntelLoading
-                  ? 'Gathering…'
+                {pendingKey === 'deep-intel'
+                  ? ACTION_PENDING.deepIntel
                   : `Refresh Deep Intel — ${props.deepIntelTurnCost} Turns`}
               </PrimaryButton>
             </>
@@ -675,11 +676,12 @@ export function AttackForm(props: AttackFormProps) {
                 <PrimaryButton
                   className="g-btn-full"
                   icon="intel"
-                  disabled={deepIntelLoading || turns < props.deepIntelTurnCost}
+                  disabled={formLocked || turns < props.deepIntelTurnCost}
+                  pending={pendingKey === 'deep-intel'}
                   onClick={() => handleGatherDeepIntel()}
                 >
-                  {deepIntelLoading
-                    ? 'Gathering…'
+                  {pendingKey === 'deep-intel'
+                    ? ACTION_PENDING.deepIntel
                     : `Gather Deep Intel — ${props.deepIntelTurnCost} Turns`}
                 </PrimaryButton>
               )}
@@ -715,10 +717,13 @@ export function AttackForm(props: AttackFormProps) {
           <PrimaryButton
             className="g-btn-full"
             icon="intel"
-            disabled={intelLoading || turns < props.intelTurnCost}
+            disabled={formLocked || turns < props.intelTurnCost}
+            pending={pendingKey === 'intel'}
             onClick={handleGatherIntel}
           >
-            {intelLoading ? 'Gathering…' : `Gather Intel — ${props.intelTurnCost} Turns`}
+            {pendingKey === 'intel'
+              ? ACTION_PENDING.intel
+              : `Gather Intel — ${props.intelTurnCost} Turns`}
           </PrimaryButton>
         </>
       )}
@@ -743,6 +748,7 @@ export function AttackForm(props: AttackFormProps) {
               label: `${ATTACK_TYPE_LABELS[type]} (${ATTACK_RULES.turnCosts[type]}t)`,
             }))}
             value={attackType}
+            disabled={formLocked}
             onChange={(type) => {
               setAttackType(type);
               setConfirming(false);
@@ -769,6 +775,7 @@ export function AttackForm(props: AttackFormProps) {
             id="attack-force"
             label="Thugs to send"
             value={forceRaw}
+            disabled={formLocked}
             onChange={(raw, parsed) => {
               setForceRaw(raw);
               setForce(parsed ?? 0);
@@ -810,7 +817,7 @@ export function AttackForm(props: AttackFormProps) {
               className="g-btn-full g-btn-danger"
               icon="attack"
               iconTone="danger"
-              disabled={!canAttack}
+              disabled={!canAttack || formLocked}
               onClick={() => setConfirming(true)}
             >
               Attack
@@ -824,15 +831,16 @@ export function AttackForm(props: AttackFormProps) {
                 className="g-btn-full g-btn-danger"
                 icon="attack"
                 iconTone="danger"
-                disabled={loading || !canAttack}
-                pending={loading}
+                disabled={formLocked || !canAttack}
+                pending={pendingKey === 'attack'}
                 onClick={handleLaunch}
               >
-                {loading ? ACTION_PENDING.attack : 'Confirm Attack'}
+                {pendingKey === 'attack' ? ACTION_PENDING.attack : 'Confirm Attack'}
               </PrimaryButton>
               <PrimaryButton
                 className="g-btn-full g-btn-secondary"
                 variant="secondary"
+                disabled={formLocked}
                 onClick={() => setConfirming(false)}
               >
                 Cancel
@@ -843,7 +851,7 @@ export function AttackForm(props: AttackFormProps) {
       )}
 
       {error && !selected.hasIntel && <p className="g-error">{error}</p>}
-    </>
+    </div>
   );
 }
 

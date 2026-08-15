@@ -19,6 +19,7 @@ import {
   calculateProstituteHappiness,
   calculateThugHappiness,
 } from '../src/lib/game-engine/happiness';
+import { resolveNpcSeedAvatar } from '../src/lib/game-engine/npc-avatar';
 
 const prisma = new PrismaClient();
 
@@ -298,6 +299,7 @@ async function main() {
         prostituteHappiness,
         thugHappiness,
         isSystemPlayer: false,
+        avatar: resolveNpcSeedAvatar(aliasNorm),
       },
     });
 

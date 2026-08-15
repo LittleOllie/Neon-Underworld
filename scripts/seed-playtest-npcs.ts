@@ -20,6 +20,7 @@ import {
   calculateThugHappiness,
 } from '../src/lib/game-engine/happiness';
 import { createSeededRng } from '../src/lib/game-engine/rng';
+import { resolveNpcSeedAvatar } from '../src/lib/game-engine/npc-avatar';
 
 export const PLAYTEST_NPC_COUNT = 50;
 const PLAYTEST_NPC_EMAIL_PREFIX = 'playtest-npc+';
@@ -259,6 +260,7 @@ export async function seedPlaytestNpcs(
         prostituteHappiness,
         thugHappiness,
         isSystemPlayer: false,
+        avatar: resolveNpcSeedAvatar(aliasNorm),
       },
     });
 

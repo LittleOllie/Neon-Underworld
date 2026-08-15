@@ -54,29 +54,37 @@ export function useWirePanel(stats: WireExecutorStats) {
     [router, close],
   );
 
+  const confirmInFlight = useRef(false);
+
   const confirmPurchase = useCallback(async () => {
+    if (confirmInFlight.current) return;
     const current = panelPhase;
     if (current.phase !== 'confirm') return;
 
+    confirmInFlight.current = true;
     const { command, preview } = current;
     setPanelPhase({ phase: 'pending', command });
 
-    const response = await shopPurchaseAction(preview.itemKey, preview.quantity, uuidv4());
+    try {
+      const response = await shopPurchaseAction(preview.itemKey, preview.quantity, uuidv4());
 
-    if (!response.success) {
-      setPanelPhase({ phase: 'error', command, message: response.error });
-      return;
+      if (!response.success) {
+        setPanelPhase({ phase: 'error', command, message: response.error });
+        return;
+      }
+
+      reconcile(response.data.shell);
+      setPanelPhase({
+        phase: 'success',
+        command,
+        displayName: preview.displayName,
+        quantity: response.data.quantity,
+        totalCost: response.data.totalCost,
+        remainingCash: response.data.newCash,
+      });
+    } finally {
+      confirmInFlight.current = false;
     }
-
-    reconcile(response.data.shell);
-    setPanelPhase({
-      phase: 'success',
-      command,
-      displayName: preview.displayName,
-      quantity: response.data.quantity,
-      totalCost: response.data.totalCost,
-      remainingCash: response.data.newCash,
-    });
   }, [panelPhase, reconcile]);
 
   const cancelConfirm = useCallback(() => {

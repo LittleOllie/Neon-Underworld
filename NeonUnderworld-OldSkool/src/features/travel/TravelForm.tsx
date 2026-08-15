@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useMutationLock } from '@local/hooks/useMutationLock';
 import {
   travelAction,
   type TravelPageData,
@@ -24,10 +25,12 @@ type Props = TravelPageData & { initialDestination?: string };
 
 export function TravelForm({ initialDestination, ...props }: Props) {
   const reconcile = useGameplayReconcile();
+  const { locked, pendingKey, run } = useMutationLock();
   const [data, setData] = useState(props);
-  const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState<TravelResult | null>(null);
+
+  const loading = pendingKey;
 
   const ridesShort = Math.max(0, data.ridesRequired - data.ridesOwned);
   const turnsShort = data.turnsAvailable < data.turnCost;
@@ -36,33 +39,33 @@ export function TravelForm({ initialDestination, ...props }: Props) {
     : null;
 
   async function handleTravel(slug: string) {
-    setLoading(slug);
-    setError('');
-    const response = await travelAction(slug, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setResult(response.data);
-    setData((prev) => {
-      const shell = response.data.shell;
-      const crew =
-        shell?.thugs != null && shell.workers != null
-          ? travelCrewPopulation(shell.thugs, shell.workers)
-          : prev.crewPopulation;
-      const rides = shell?.rides ?? prev.ridesOwned;
-      return {
-        ...prev,
-        turnsAvailable: response.data.newTurns,
-        currentCity: response.data.destinationName,
-        currentSlug: response.data.destinationSlug,
-        ridesOwned: rides,
-        ridesRequired: ridesRequiredForTravel(crew),
-        crewPopulation: crew,
-      };
+    await run(slug, async () => {
+      setError('');
+      const response = await travelAction(slug, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setResult(response.data);
+      setData((prev) => {
+        const shell = response.data.shell;
+        const crew =
+          shell?.thugs != null && shell.workers != null
+            ? travelCrewPopulation(shell.thugs, shell.workers)
+            : prev.crewPopulation;
+        const rides = shell?.rides ?? prev.ridesOwned;
+        return {
+          ...prev,
+          turnsAvailable: response.data.newTurns,
+          currentCity: response.data.destinationName,
+          currentSlug: response.data.destinationSlug,
+          ridesOwned: rides,
+          ridesRequired: ridesRequiredForTravel(crew),
+          crewPopulation: crew,
+        };
+      });
+      reconcile(response.data.shell);
     });
-    reconcile(response.data.shell);
   }
 
   if (result) {
@@ -89,7 +92,7 @@ export function TravelForm({ initialDestination, ...props }: Props) {
   }
 
   return (
-    <>
+    <div aria-busy={locked || undefined}>
       {pendingDestination && (
         <TravelPendingOverlay destination={pendingDestination} visible />
       )}
@@ -143,7 +146,7 @@ export function TravelForm({ initialDestination, ...props }: Props) {
           >
             <PrimaryButton
               icon="travel"
-              disabled={blocked || loading !== null}
+              disabled={blocked || locked}
               pending={isPending}
               onClick={() => handleTravel(dest.slug)}
             >
@@ -152,6 +155,6 @@ export function TravelForm({ initialDestination, ...props }: Props) {
           </SelectableCard>
         );
       })}
-    </>
+    </div>
   );
 }

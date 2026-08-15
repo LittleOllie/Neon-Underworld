@@ -9,6 +9,7 @@ type SelectableCardProps = {
   onClick?: () => void;
   children?: React.ReactNode;
   className?: string;
+  disabled?: boolean;
   /** button for selectable rows; div for static cards with actions inside */
   as?: 'button' | 'div';
 };
@@ -22,6 +23,7 @@ export function SelectableCard({
   onClick,
   children,
   className,
+  disabled = false,
   as,
 }: SelectableCardProps) {
   const useButton = as === 'button' || (as !== 'div' && onClick != null);
@@ -51,6 +53,7 @@ export function SelectableCard({
         type="button"
         className={classes}
         onClick={onClick}
+        disabled={disabled}
         aria-pressed={selected}
       >
         {body}

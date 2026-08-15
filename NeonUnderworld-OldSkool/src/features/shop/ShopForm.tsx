@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useMutationLock } from '@local/hooks/useMutationLock';
 import {
   shopPurchaseAction,
   shopSellAction,
@@ -51,6 +52,7 @@ export function ShopForm({
   highlightItem = null,
 }: ShopFormProps) {
   const reconcile = useGameplayReconcile();
+  const { locked, pendingKey, run } = useMutationLock();
   const highlightRef = useRef<HTMLDivElement | null>(null);
   const [cash, setCash] = useState(initialCash);
   const [inventory, setInventory] = useState(initialInventory);
@@ -59,7 +61,6 @@ export function ShopForm({
   const [sellThugsQtyRaw, setSellThugsQtyRaw] = useState('1');
   const [tab, setTab] = useState<OldSkoolShopTab>(initialTab);
   const [mode, setMode] = useState<ShopMode>('buy');
-  const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState<TransactionResult | null>(null);
 
@@ -99,26 +100,26 @@ export function ShopForm({
       setError(validationError);
       return;
     }
-    setLoading(entry.key);
-    setError('');
-    const response = await shopPurchaseAction(entry.key, quantity!, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setCash(response.data.newCash);
-    const invKey = shopInventoryKey(entry.key);
-    if (invKey) {
-      setInventory((prev) => ({ ...prev, [invKey]: response.data.newOwnedQuantity }));
-    }
-    setResult({
-      mode: 'buy',
-      name: entry.displayName,
-      qty: quantity!,
-      amount: response.data.totalCost,
+    await run(entry.key, async () => {
+      setError('');
+      const response = await shopPurchaseAction(entry.key, quantity!, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setCash(response.data.newCash);
+      const invKey = shopInventoryKey(entry.key);
+      if (invKey) {
+        setInventory((prev) => ({ ...prev, [invKey]: response.data.newOwnedQuantity }));
+      }
+      setResult({
+        mode: 'buy',
+        name: entry.displayName,
+        qty: quantity!,
+        amount: response.data.totalCost,
+      });
+      reconcile(response.data.shell);
     });
-    reconcile(response.data.shell);
   }
 
   async function handleSell(entry: ShopCatalogEntry) {
@@ -137,29 +138,29 @@ export function ShopForm({
       setError(`You don't own enough ${entry.displayName}.`);
       return;
     }
-    setLoading(entry.key);
-    setError('');
-    const streetDrug = streetDrugFromShopKey(entry.key);
-    const response = streetDrug
-      ? await streetDrugSaleAction(streetDrug, quantity!, uuidv4())
-      : await shopSellAction(entry.key, quantity!, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setCash(response.data.newCash);
-    const invKey = shopInventoryKey(entry.key);
-    if (invKey) {
-      setInventory((prev) => ({ ...prev, [invKey]: response.data.newOwnedQuantity }));
-    }
-    setResult({
-      mode: 'sell',
-      name: entry.displayName,
-      qty: quantity!,
-      amount: response.data.totalPayout,
+    await run(entry.key, async () => {
+      setError('');
+      const streetDrug = streetDrugFromShopKey(entry.key);
+      const response = streetDrug
+        ? await streetDrugSaleAction(streetDrug, quantity!, uuidv4())
+        : await shopSellAction(entry.key, quantity!, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setCash(response.data.newCash);
+      const invKey = shopInventoryKey(entry.key);
+      if (invKey) {
+        setInventory((prev) => ({ ...prev, [invKey]: response.data.newOwnedQuantity }));
+      }
+      setResult({
+        mode: 'sell',
+        name: entry.displayName,
+        qty: quantity!,
+        amount: response.data.totalPayout,
+      });
+      reconcile(response.data.shell);
     });
-    reconcile(response.data.shell);
   }
 
   async function handleHireThugs() {
@@ -174,9 +175,8 @@ export function ShopForm({
       setError(`You need $${total.toLocaleString()} to hire ${quantity!.toLocaleString()} Thugs.`);
       return;
     }
-    setLoading('hire-thugs');
-    setError('');
-    try {
+    await run('hire-thugs', async () => {
+      setError('');
       const response = await hireThugsAction(quantity!, uuidv4());
       if (!response.success) {
         setError(response.error);
@@ -192,11 +192,7 @@ export function ShopForm({
         newThugs: response.data.newThugs,
       });
       reconcile(response.data.shell);
-    } catch {
-      setError('Could not complete hire. Please try again.');
-    } finally {
-      setLoading(null);
-    }
+    });
   }
 
   async function handleSellThugs() {
@@ -210,9 +206,8 @@ export function ShopForm({
       setError(`You only have ${inventory.thugs.toLocaleString()} Thugs available to release.`);
       return;
     }
-    setLoading('sell-thugs');
-    setError('');
-    try {
+    await run('sell-thugs', async () => {
+      setError('');
       const response = await sellThugsAction(quantity!, uuidv4());
       if (!response.success) {
         setError(response.error);
@@ -228,11 +223,7 @@ export function ShopForm({
         newThugs: response.data.newThugs,
       });
       reconcile(response.data.shell);
-    } catch {
-      setError('Could not complete release. Please try again.');
-    } finally {
-      setLoading(null);
-    }
+    });
   }
 
   const hireQty = parsePositiveInteger(hireQtyRaw);
@@ -315,11 +306,12 @@ export function ShopForm({
   }
 
   return (
-    <>
+    <div aria-busy={locked || undefined}>
       <div className="g-shop-mode">
         <button
           type="button"
           className={`g-shop-mode-btn${mode === 'buy' ? ' g-shop-mode-btn--active' : ''}`}
+          disabled={locked}
           onClick={() => {
             setMode('buy');
             setError('');
@@ -330,6 +322,7 @@ export function ShopForm({
         <button
           type="button"
           className={`g-shop-mode-btn${mode === 'sell' ? ' g-shop-mode-btn--active' : ''}`}
+          disabled={locked}
           onClick={() => {
             setMode('sell');
             setError('');
@@ -356,6 +349,7 @@ export function ShopForm({
             key={t.id}
             type="button"
             className={`g-filter${tab === t.id ? ' g-filter-active' : ''}`}
+            disabled={locked}
             onClick={() => {
               setTab(t.id);
             }}
@@ -389,6 +383,7 @@ export function ShopForm({
               value={hireQtyRaw}
               onChange={(raw) => setHireQtyRaw(raw)}
               className="g-shop-qty"
+              disabled={locked}
             />
             {hireTotal !== null && (
               <span className="g-shop-total">Total: ${hireTotal.toLocaleString()}</span>
@@ -396,10 +391,10 @@ export function ShopForm({
             <PrimaryButton
               icon="thugs"
               onClick={handleHireThugs}
-              disabled={loading === 'hire-thugs' || cannotAffordHire || hireQty === null}
-              pending={loading === 'hire-thugs'}
+              disabled={locked || cannotAffordHire || hireQty === null}
+              pending={pendingKey === 'hire-thugs'}
             >
-              {loading === 'hire-thugs' ? ACTION_PENDING.shopPurchase : 'Hire Thugs'}
+              {pendingKey === 'hire-thugs' ? ACTION_PENDING.hireThugs : 'Hire Thugs'}
             </PrimaryButton>
           </div>
           {cannotAffordHire && <p className="g-error">Not enough cash.</p>}
@@ -426,6 +421,7 @@ export function ShopForm({
                 value={sellThugsQtyRaw}
                 onChange={(raw) => setSellThugsQtyRaw(raw)}
                 className="g-shop-qty"
+                disabled={locked}
               />
               {sellThugsTotal !== null && (
                 <span className="g-shop-total">You receive: ${sellThugsTotal.toLocaleString()}</span>
@@ -434,13 +430,13 @@ export function ShopForm({
                 icon="thugs"
                 onClick={handleSellThugs}
                 disabled={
-                  loading === 'sell-thugs' ||
+                  locked ||
                   cannotSellThugs ||
                   sellThugsQty === null
                 }
-                pending={loading === 'sell-thugs'}
+                pending={pendingKey === 'sell-thugs'}
               >
-                {loading === 'sell-thugs' ? ACTION_PENDING.shopSell : 'Release Thugs'}
+                {pendingKey === 'sell-thugs' ? ACTION_PENDING.releaseThugs : 'Release Thugs'}
               </PrimaryButton>
             </div>
           )}
@@ -489,6 +485,7 @@ export function ShopForm({
                   setQuantities((prev) => ({ ...prev, [entry.key]: raw }))
                 }
                 className="g-shop-qty"
+                disabled={locked}
               />
               {total !== null && (
                 <span className="g-shop-total">
@@ -499,22 +496,22 @@ export function ShopForm({
                 <PrimaryButton
                   icon="shop"
                   onClick={() => handleBuy(entry)}
-                  disabled={loading === entry.key || cannotAfford || qty === null}
-                  pending={loading === entry.key}
+                  disabled={locked || cannotAfford || qty === null}
+                  pending={pendingKey === entry.key}
                 >
-                  {loading === entry.key ? ACTION_PENDING.shopPurchase : 'Buy'}
+                  {pendingKey === entry.key ? ACTION_PENDING.shopPurchase : 'Buy'}
                 </PrimaryButton>
               ) : (
                 <PrimaryButton
                   onClick={() => handleSell(entry)}
                   disabled={
-                    loading === entry.key ||
+                    locked ||
                     qty === null ||
                     (qty !== null && qty > owned)
                   }
-                  pending={loading === entry.key}
+                  pending={pendingKey === entry.key}
                 >
-                  {loading === entry.key ? ACTION_PENDING.shopSell : `Sell ${entry.displayName}`}
+                  {pendingKey === entry.key ? ACTION_PENDING.shopSell : `Sell ${entry.displayName}`}
                 </PrimaryButton>
               )}
             </div>
@@ -527,6 +524,6 @@ export function ShopForm({
       {!isCrewTab && mode === 'sell' && items.every((entry) => ownedCount(entry) <= 0) && (
         <p className="g-note">Nothing to sell in this category.</p>
       )}
-    </>
+    </div>
   );
 }

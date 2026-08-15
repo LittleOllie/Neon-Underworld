@@ -116,6 +116,7 @@ export function ReportsInbox({ initialReports, initialHasMore, filter, unreadCou
             icon="reports"
             onClick={handleMarkAllRead}
             disabled={markingAll}
+            pending={markingAll}
           >
             {markingAll ? 'Marking…' : 'Mark all read'}
           </PrimaryButton>

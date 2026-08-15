@@ -210,6 +210,7 @@ export function BusinessesPanel({ initialData }: Props) {
   const [drugQty, setDrugQty] = useState<Record<string, string>>({});
   const [drugType, setDrugType] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
+  const panelLocked = loading !== null;
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -280,37 +281,46 @@ export function BusinessesPanel({ initialData }: Props) {
   }, [nowMs, hasUpgrading, data.businesses, activeView]);
 
   async function runPurchase(type: BusinessType) {
+    if (loading !== null) return;
     setLoading(`buy-${type}`);
     setError('');
     setMessage('');
-    const response = await purchaseBusinessAction(type, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    applyShell(response.data);
-    const ok = await reloadPageData(response.data.businessId);
-    if (ok) {
-      setMessage(`Acquired ${response.data.businessName} for ${fmtCash(response.data.purchasePrice)}.`);
+    try {
+      const response = await purchaseBusinessAction(type, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyShell(response.data);
+      const ok = await reloadPageData(response.data.businessId);
+      if (ok) {
+        setMessage(`Acquired ${response.data.businessName} for ${fmtCash(response.data.purchasePrice)}.`);
+      }
+    } finally {
+      setLoading(null);
     }
   }
 
   async function runCollect(businessId: string) {
+    if (loading !== null) return;
     setLoading(`collect-${businessId}`);
     setError('');
-    const response = await collectBusinessSafeAction(businessId, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
+    try {
+      const response = await collectBusinessSafeAction(businessId, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyShell(response.data);
+      setData((prev) => patchCollectState(prev, businessId, response.data.newCash));
+      setMessage(`Collected $${response.data.collected.toLocaleString()}.`);
+    } finally {
+      setLoading(null);
     }
-    applyShell(response.data);
-    setData((prev) => patchCollectState(prev, businessId, response.data.newCash));
-    setMessage(`Collected $${response.data.collected.toLocaleString()}.`);
   }
 
   async function runWorkers(businessId: string, mode: 'assign' | 'remove') {
+    if (loading !== null) return;
     const qty = parsePositiveInteger(workerQty[businessId] ?? '1');
     const validationError = validateQuantity(qty);
     if (validationError) {
@@ -320,33 +330,37 @@ export function BusinessesPanel({ initialData }: Props) {
     setLoading(`${mode}-${businessId}`);
     setError('');
     setMessage('');
-    const action = mode === 'assign' ? assignBusinessWorkersAction : removeBusinessWorkersAction;
-    const response = await action(businessId, qty!, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
+    try {
+      const action = mode === 'assign' ? assignBusinessWorkersAction : removeBusinessWorkersAction;
+      const response = await action(businessId, qty!, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyShell(response.data);
+      const biz = data.businesses.find((b) => b.id === businessId);
+      setData((prev) =>
+        patchWorkerState(
+          prev,
+          businessId,
+          response.data.assignedWorkers,
+          response.data.streetWorkers,
+          biz?.level ?? 1,
+          biz?.businessType ?? 'NIGHTCLUB',
+        ),
+      );
+      setMessage(
+        mode === 'assign'
+          ? `Assigned ${qty!.toLocaleString()} Worker${qty === 1 ? '' : 's'}.`
+          : `Removed ${qty!.toLocaleString()} Worker${qty === 1 ? '' : 's'}.`,
+      );
+    } finally {
+      setLoading(null);
     }
-    applyShell(response.data);
-    const biz = data.businesses.find((b) => b.id === businessId);
-    setData((prev) =>
-      patchWorkerState(
-        prev,
-        businessId,
-        response.data.assignedWorkers,
-        response.data.streetWorkers,
-        biz?.level ?? 1,
-        biz?.businessType ?? 'NIGHTCLUB',
-      ),
-    );
-    setMessage(
-      mode === 'assign'
-        ? `Assigned ${qty!.toLocaleString()} Worker${qty === 1 ? '' : 's'}.`
-        : `Removed ${qty!.toLocaleString()} Worker${qty === 1 ? '' : 's'}.`,
-    );
   }
 
   async function runSecurity(businessId: string, mode: 'assign' | 'remove') {
+    if (loading !== null) return;
     const qty = parsePositiveInteger(thugQty[businessId] ?? '1');
     const validationError = validateQuantity(qty);
     if (validationError) {
@@ -356,42 +370,50 @@ export function BusinessesPanel({ initialData }: Props) {
     setLoading(`${mode}-sec-${businessId}`);
     setError('');
     setMessage('');
-    const action = mode === 'assign' ? assignBusinessSecurityAction : removeBusinessSecurityAction;
-    const response = await action(businessId, qty!, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
+    try {
+      const action = mode === 'assign' ? assignBusinessSecurityAction : removeBusinessSecurityAction;
+      const response = await action(businessId, qty!, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyShell(response.data);
+      setData((prev) =>
+        patchSecurityState(prev, businessId, response.data.assignedThugs, response.data.streetThugs),
+      );
+      setMessage(
+        mode === 'assign'
+          ? `Assigned ${qty!.toLocaleString()} Thug${qty === 1 ? '' : 's'} to security.`
+          : `Removed ${qty!.toLocaleString()} Thug${qty === 1 ? '' : 's'} from security.`,
+      );
+    } finally {
+      setLoading(null);
     }
-    applyShell(response.data);
-    setData((prev) =>
-      patchSecurityState(prev, businessId, response.data.assignedThugs, response.data.streetThugs),
-    );
-    setMessage(
-      mode === 'assign'
-        ? `Assigned ${qty!.toLocaleString()} Thug${qty === 1 ? '' : 's'} to security.`
-        : `Removed ${qty!.toLocaleString()} Thug${qty === 1 ? '' : 's'} from security.`,
-    );
   }
 
   async function runUpgrade(businessId: string) {
+    if (loading !== null) return;
     setLoading(`upgrade-${businessId}`);
     setError('');
     setMessage('');
-    const response = await upgradeBusinessAction(businessId, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
+    try {
+      const response = await upgradeBusinessAction(businessId, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyShell(response.data);
+      await reloadPageData(businessId);
+      setMessage(
+        `Upgrade to Level ${response.data.upgradeTargetLevel} started — completes in ${response.data.upgradeCompletesAt ? formatUpgradeRemaining(response.data.upgradeCompletesAt, Date.now()) : 'soon'}.`,
+      );
+    } finally {
+      setLoading(null);
     }
-    applyShell(response.data);
-    await reloadPageData(businessId);
-    setMessage(
-      `Upgrade to Level ${response.data.upgradeTargetLevel} started — completes in ${response.data.upgradeCompletesAt ? formatUpgradeRemaining(response.data.upgradeCompletesAt, Date.now()) : 'soon'}.`,
-    );
   }
 
   async function runDrug(businessId: string, mode: 'store' | 'withdraw') {
+    if (loading !== null) return;
     const drug = (drugType[businessId] ?? 'hash') as DrugKey;
     const qty = parsePositiveInteger(drugQty[businessId] ?? '1');
     const validationError = validateQuantity(qty);
@@ -402,20 +424,23 @@ export function BusinessesPanel({ initialData }: Props) {
     setLoading(`${mode}-${businessId}-${drug}`);
     setError('');
     setMessage('');
-    const action = mode === 'store' ? storeBusinessDrugsAction : withdrawBusinessDrugsAction;
-    const response = await action(businessId, drug, qty!, uuidv4());
-    setLoading(null);
-    if (!response.success) {
-      setError(response.error);
-      return;
+    try {
+      const action = mode === 'store' ? storeBusinessDrugsAction : withdrawBusinessDrugsAction;
+      const response = await action(businessId, drug, qty!, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      applyShell(response.data);
+      setData((prev) => patchDrugState(prev, businessId, drug, qty!, mode));
+      setMessage(
+        mode === 'store'
+          ? `Stored ${qty!.toLocaleString()} ${DRUG_LABELS[drug]}.`
+          : `Withdrew ${qty!.toLocaleString()} ${DRUG_LABELS[drug]}.`,
+      );
+    } finally {
+      setLoading(null);
     }
-    applyShell(response.data);
-    setData((prev) => patchDrugState(prev, businessId, drug, qty!, mode));
-    setMessage(
-      mode === 'store'
-        ? `Stored ${qty!.toLocaleString()} ${DRUG_LABELS[drug]}.`
-        : `Withdrew ${qty!.toLocaleString()} ${DRUG_LABELS[drug]}.`,
-    );
   }
 
   function renderUpgradeSection(biz: BusinessesPageData['businesses'][number]) {
@@ -498,7 +523,7 @@ export function BusinessesPanel({ initialData }: Props) {
         <PrimaryButton
           type="button"
           pending={loading === `upgrade-${biz.id}`}
-          disabled={!canAfford}
+          disabled={panelLocked || !canAfford}
           onClick={() => runUpgrade(biz.id)}
         >
           Start Upgrade to Level {biz.nextUpgradeLevel}
@@ -564,13 +589,14 @@ export function BusinessesPanel({ initialData }: Props) {
               id={`workers-${biz.id}`}
               label="Quantity"
               value={workerQty[biz.id] ?? '1'}
+              disabled={panelLocked}
               onChange={(v) => setWorkerQty((prev) => ({ ...prev, [biz.id]: v }))}
             />
             <div className="g-btn-row">
               <PrimaryButton
                 type="button"
                 pending={loading === `assign-${biz.id}`}
-                disabled={biz.workerOverCapacity || biz.assignedWorkers >= biz.workerCapacity}
+                disabled={panelLocked || biz.workerOverCapacity || biz.assignedWorkers >= biz.workerCapacity}
                 onClick={() => runWorkers(biz.id, 'assign')}
               >
                 Assign
@@ -579,6 +605,7 @@ export function BusinessesPanel({ initialData }: Props) {
                 type="button"
                 variant="secondary"
                 pending={loading === `remove-${biz.id}`}
+                disabled={panelLocked}
                 onClick={() => runWorkers(biz.id, 'remove')}
               >
                 Remove
@@ -597,13 +624,14 @@ export function BusinessesPanel({ initialData }: Props) {
               id={`security-${biz.id}`}
               label="Quantity"
               value={thugQty[biz.id] ?? '1'}
+              disabled={panelLocked}
               onChange={(v) => setThugQty((prev) => ({ ...prev, [biz.id]: v }))}
             />
             <div className="g-btn-row">
               <PrimaryButton
                 type="button"
                 pending={loading === `assign-sec-${biz.id}`}
-                disabled={biz.securityOverCapacity || biz.assignedThugs >= biz.securityCapacity}
+                disabled={panelLocked || biz.securityOverCapacity || biz.assignedThugs >= biz.securityCapacity}
                 onClick={() => runSecurity(biz.id, 'assign')}
               >
                 Assign Security
@@ -612,6 +640,7 @@ export function BusinessesPanel({ initialData }: Props) {
                 type="button"
                 variant="secondary"
                 pending={loading === `remove-sec-${biz.id}`}
+                disabled={panelLocked}
                 onClick={() => runSecurity(biz.id, 'remove')}
               >
                 Remove
@@ -627,7 +656,7 @@ export function BusinessesPanel({ initialData }: Props) {
             <PrimaryButton
               type="button"
               pending={loading === `collect-${biz.id}`}
-              disabled={biz.safeCash <= 0}
+              disabled={panelLocked || biz.safeCash <= 0}
               onClick={() => runCollect(biz.id)}
             >
               Collect {biz.safeCash > 0 ? fmtCash(biz.safeCash) : 'Safe'}
@@ -651,6 +680,7 @@ export function BusinessesPanel({ initialData }: Props) {
               <select
                 className="g-input"
                 value={drugType[biz.id] ?? 'hash'}
+                disabled={panelLocked}
                 onChange={(e) => setDrugType((prev) => ({ ...prev, [biz.id]: e.target.value }))}
               >
                 {(['hash', 'shrooms', 'coke', 'heroin'] as const).map((key) => (
@@ -664,12 +694,14 @@ export function BusinessesPanel({ initialData }: Props) {
               id={`drugs-${biz.id}`}
               label="Quantity"
               value={drugQty[biz.id] ?? '1'}
+              disabled={panelLocked}
               onChange={(v) => setDrugQty((prev) => ({ ...prev, [biz.id]: v }))}
             />
             <div className="g-btn-row">
               <PrimaryButton
                 type="button"
                 pending={loading === `store-${biz.id}-${drugType[biz.id] ?? 'hash'}`}
+                disabled={panelLocked}
                 onClick={() => runDrug(biz.id, 'store')}
               >
                 Store
@@ -678,6 +710,7 @@ export function BusinessesPanel({ initialData }: Props) {
                 type="button"
                 variant="secondary"
                 pending={loading === `withdraw-${biz.id}-${drugType[biz.id] ?? 'hash'}`}
+                disabled={panelLocked}
                 onClick={() => runDrug(biz.id, 'withdraw')}
               >
                 Withdraw
@@ -745,7 +778,7 @@ export function BusinessesPanel({ initialData }: Props) {
                 <PrimaryButton
                   type="button"
                   pending={loading === `buy-${entry.type}`}
-                  disabled={!data.canPurchase || data.cash < entry.purchasePrice}
+                  disabled={panelLocked || !data.canPurchase || data.cash < entry.purchasePrice}
                   onClick={() => runPurchase(entry.type)}
                 >
                   Buy {entry.displayName}
@@ -759,7 +792,7 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   return (
-    <>
+    <div aria-busy={panelLocked || undefined}>
       <BusinessSection
         title="Summary"
         badge={`${data.summary.ownedCount} owned · ${data.summary.overallHeatBand} heat`}
@@ -813,6 +846,6 @@ export function BusinessesPanel({ initialData }: Props) {
 
       {error ? <p className="g-error">{error}</p> : null}
       {message ? <p className="g-note">{message}</p> : null}
-    </>
+    </div>
   );
 }

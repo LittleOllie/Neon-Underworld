@@ -18,6 +18,7 @@ import {
   calculateThugHappiness,
 } from '../src/lib/game-engine/happiness';
 import { createSeededRng } from '../src/lib/game-engine/rng';
+import { resolveNpcSeedAvatar } from '../src/lib/game-engine/npc-avatar';
 import { resolveScouting } from '../src/lib/game-engine/scouting';
 import type { DistrictModifiers } from '../src/config/game/balance';
 
@@ -225,6 +226,7 @@ async function main() {
         prostituteHappiness,
         thugHappiness,
         isSystemPlayer: true,
+        avatar: resolveNpcSeedAvatar(aliasNorm),
       },
     });
 

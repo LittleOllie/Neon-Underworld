@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
+import { useMutationLock } from '@local/hooks/useMutationLock';
 import { useOptionalPlayerShell } from '@local/components/game/PlayerShellProvider';
 import { produceAction, type OldSkoolProduceResult } from '@local/server/actions/produce.actions';
 import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
@@ -49,6 +50,7 @@ export function ProduceForm({
   drugLabBonus = 0,
 }: ProduceFormProps) {
   const reconcile = useGameplayReconcile();
+  const { locked: pending, run } = useMutationLock();
   const shellCtx = useOptionalPlayerShell();
   const effectiveThugs = shellCtx?.stats.thugs ?? thugCount;
   const effectiveWorkers = shellCtx?.stats.workers ?? prostituteCount;
@@ -56,7 +58,6 @@ export function ProduceForm({
   const [amountRaw, setAmountRaw] = useState('25');
   const [amount, setAmount] = useState(25);
   const [drugType, setDrugType] = useState<ProductionDrug>('hash');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OldSkoolProduceResult | null>(null);
 
@@ -103,17 +104,17 @@ export function ProduceForm({
       setError('You need thugs to produce. Scout to recruit personnel.');
       return;
     }
-    setLoading(true);
-    setError('');
-    const response = await produceAction(amount, drugType, uuidv4());
-    setLoading(false);
-    if (!response.success) {
-      setError(response.error);
-      return;
-    }
-    setResult(response.data);
-    setTurns(response.data.newTurns);
-    reconcile(response.data.shell);
+    await run('produce', async () => {
+      setError('');
+      const response = await produceAction(amount, drugType, uuidv4());
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setResult(response.data);
+      setTurns(response.data.newTurns);
+      reconcile(response.data.shell);
+    });
   }
 
   if (result) {
@@ -183,7 +184,7 @@ export function ProduceForm({
   const drugLabel = formatDrugLabel(drugType);
 
   return (
-    <>
+    <div aria-busy={pending || undefined}>
       {effectiveThugs === 0 && (
         <p className="g-note">
           Need thugs? <Link href="/scout">Scout to recruit</Link>
@@ -201,6 +202,7 @@ export function ProduceForm({
         options={DRUGS.map((d) => ({ id: d.key, label: d.label }))}
         value={drugType}
         onChange={setDrugType}
+        disabled={pending}
       />
 
       {(() => {
@@ -214,9 +216,10 @@ export function ProduceForm({
         value={amountRaw}
         onChange={handleAmountChange}
         suffix="turns"
+        disabled={pending}
       />
 
-      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} />
+      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} disabled={pending} />
 
       <p className="g-note">Supplies help keep your crew loyal and effective.</p>
 
@@ -246,11 +249,11 @@ export function ProduceForm({
         className="g-btn-full"
         icon="produce"
         onClick={handleProduce}
-        disabled={loading || effectiveThugs === 0}
-        pending={loading}
+        disabled={pending || effectiveThugs === 0}
+        pending={pending}
       >
-        {loading ? ACTION_PENDING.produce : 'Produce'}
+        {pending ? ACTION_PENDING.produce : 'Produce'}
       </PrimaryButton>
-    </>
+    </div>
   );
 }
