@@ -3,6 +3,12 @@ import { REDLITE_MARKET_STARTING_PRICES, REDLITE_NET_WORTH } from './redlite-rul
 /** Worker support hash — above $5 NW/drug unit; convenience premium for guaranteed supply */
 export const SHOP_HASH_UNIT_PRICE = 8;
 
+/** Server-validated maximum units per single City Shop purchase. */
+export const SHOP_MAX_SINGLE_PURCHASE_QUANTITY = 100_000;
+
+/** Quick-buy quantity presets for late-game bulk purchases. */
+export const SHOP_BULK_QUANTITIES = [100, 500, 1000, 5000] as const;
+
 export type ShopCategory =
   | 'weapons'
   | 'vehicles'

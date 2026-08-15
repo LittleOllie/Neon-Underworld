@@ -1,6 +1,6 @@
 import { PageTitle } from '@local/components/game';
 import { RoutePrefetch } from '@local/components/game/RoutePrefetch';
-import { requireGameSession, loadBusinessNetworkBonus } from '@local/lib/game-context';
+import { requireGameSession, loadEmpireRecruitment } from '@local/lib/game-context';
 import { ScoutForm } from '@local/features/scout/ScoutForm';
 import {
   REDLITE_SCOUT_AREAS,
@@ -19,8 +19,7 @@ export default async function ScoutPage({ searchParams }: Props) {
 
   const prefilledTurns = parsePositiveInt(params.turns);
   const prefilledArea = parseArea(params.area);
-  const businessNetwork =
-    ctx.businesses > 0 ? await loadBusinessNetworkBonus(ctx.id) : null;
+  const empireRecruitment = await loadEmpireRecruitment(ctx.id, ctx.prostitutes, ctx.thugs);
 
   return (
     <>
@@ -35,7 +34,7 @@ export default async function ScoutPage({ searchParams }: Props) {
         thugCount={ctx.thugs}
         prefilledTurns={prefilledTurns}
         prefilledArea={prefilledArea}
-        businessNetwork={businessNetwork}
+        empireRecruitment={empireRecruitment}
       />
     </>
   );

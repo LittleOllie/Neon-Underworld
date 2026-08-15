@@ -13,14 +13,20 @@ import {
 } from '../src/lib/security/crypto';
 import { TURNS_CONFIG } from '../src/config/game/balance';
 import { createInitialTurnState } from '../src/lib/game-engine/turns';
-import { calculateNetWorth } from '../src/lib/game-engine/net-worth';
-import { playerToResources } from '../src/lib/game-engine/state';
-import {
-  calculateProstituteHappiness,
-  calculateThugHappiness,
-} from '../src/lib/game-engine/happiness';
+import { calculateCanonicalNetWorthFromPlayer } from '../src/lib/game-engine/canonical-net-worth';
+import { aggregateBusinessNwContext } from '../src/server/services/business.service';
 import { createSeededRng } from '../src/lib/game-engine/rng';
 import { resolveNpcSeedAvatar } from '../src/lib/game-engine/npc-avatar';
+import {
+  applyNpcTargetStateToPlayer,
+  progressionMetaForSlot,
+} from '../src/lib/game-engine/npc-progression/initialize';
+import { progressNpcPlayer } from '../src/server/services/npc-progression.service';
+import {
+  buildNpcTargetState,
+  canonicalNwForTargetState,
+} from '../src/lib/game-engine/npc-progression/target-state';
+import { NPC_LADDER_TOTAL_SLOTS } from '../src/config/game/npc-progression-rules';
 
 export const PLAYTEST_NPC_COUNT = 50;
 const PLAYTEST_NPC_EMAIL_PREFIX = 'playtest-npc+';
@@ -39,74 +45,6 @@ function playtestNpcAlias(index: number): string {
   const b = NAME_PARTS[20 + (index % 20)]!;
   const n = String(index + 1).padStart(2, '0');
   return `${a}${b}${n}`;
-}
-
-function jitter(value: number, rng: ReturnType<typeof createSeededRng>, pct = 0.12): number {
-  const factor = 1 + rng.nextFloat(-pct, pct);
-  return Math.max(0, Math.round(value * factor));
-}
-
-function buildProfile(index: number) {
-  const rng = createSeededRng(index * 7919 + 42);
-  const tier = index / (PLAYTEST_NPC_COUNT - 1);
-  const targetNw = Math.round(2500 * Math.pow(120, tier));
-
-  let cash = Math.max(300, Math.round(targetNw * 0.15));
-  let prostitutes = Math.max(1, Math.round(1 + tier * 45));
-  let thugs = Math.max(1, Math.round(1 + tier * 40));
-  let rides = Math.max(0, Math.round(tier * 18));
-  let hash = Math.max(0, Math.round(tier * 60));
-  let shrooms = Math.max(0, Math.round(tier * 30));
-  let coke = Math.max(0, Math.round(tier * 20));
-  let heroin = Math.max(0, Math.round(tier * 12));
-  const glocks = Math.max(1, Math.min(thugs, Math.round(1 + tier * 15)));
-  const uzis = Math.max(0, Math.round(tier * 10));
-  const aks = Math.max(0, Math.round(tier * 5));
-  const beer = Math.max(3, Math.round(5 + tier * 60));
-  const condoms = Math.max(5, Math.round(10 + tier * 80));
-  const prostitutePayoutPercent = Math.max(15, Math.min(65, Math.round(60 - tier * 40)));
-
-  const nw = () =>
-    calculateNetWorth(
-      playerToResources({
-        cash,
-        prostitutes,
-        thugs,
-        rides,
-        hash,
-        shrooms,
-        coke,
-        heroin,
-      }),
-    );
-
-  let guard = 0;
-  while (nw() < targetNw * 0.85 && guard < 12) {
-    if (guard % 3 === 0) prostitutes += 1;
-    else if (guard % 3 === 1) thugs += 1;
-    else cash += Math.max(500, Math.round(targetNw * 0.05));
-    guard++;
-  }
-
-  return {
-    alias: playtestNpcAlias(index),
-    districtSlug: DISTRICT_SLUGS[index % DISTRICT_SLUGS.length]!,
-    cash,
-    prostitutes,
-    thugs,
-    rides,
-    glocks,
-    uzis,
-    aks,
-    beer,
-    condoms,
-    hash,
-    shrooms,
-    coke,
-    heroin,
-    prostitutePayoutPercent,
-    lastSeenHoursAgo: rng.nextFloat(0.25, 96),
-  };
 }
 
 async function createRankSnapshots(
@@ -157,11 +95,13 @@ export async function seedPlaytestNpcs(
 
   let created = 0;
   let skipped = 0;
-  let jittered = 0;
+  let progressed = 0;
 
   for (let i = 0; i < PLAYTEST_NPC_COUNT; i++) {
-    const profile = buildProfile(i);
-    const aliasNorm = normalizeAlias(profile.alias);
+    const alias = playtestNpcAlias(i);
+    const aliasNorm = normalizeAlias(alias);
+    const districtSlug = DISTRICT_SLUGS[i % DISTRICT_SLUGS.length]!;
+    const meta = progressionMetaForSlot(i, aliasNorm);
     const existing = await prisma.player.findUnique({
       where: { aliasNormalized: aliasNorm },
       include: { user: true },
@@ -170,46 +110,44 @@ export async function seedPlaytestNpcs(
     if (existing) {
       skipped++;
       const isPlaytestNpc = existing.user.email.startsWith(PLAYTEST_NPC_EMAIL_PREFIX);
-      if (jitterExisting && isPlaytestNpc) {
-        const rng = createSeededRng(Date.now() % 100000 + i * 313);
-        const next = {
-          cash: jitter(existing.cash, rng),
-          prostitutes: jitter(existing.prostitutes, rng, 0.08),
-          thugs: jitter(existing.thugs, rng, 0.08),
-          rides: jitter(existing.rides, rng, 0.1),
-          hash: jitter(existing.hash, rng, 0.15),
-          shrooms: jitter(existing.shrooms, rng, 0.15),
-          coke: jitter(existing.coke, rng, 0.15),
-          heroin: jitter(existing.heroin, rng, 0.15),
-          glocks: Math.max(1, jitter(existing.glocks, rng, 0.1)),
-          uzis: jitter(existing.uzis, rng, 0.15),
-          aks: jitter(existing.aks, rng, 0.15),
-        };
-        await prisma.player.update({
-          where: { id: existing.id },
-          data: next,
+      if (isPlaytestNpc) {
+        const hasProgression = await prisma.npcProgressionState.findUnique({
+          where: { playerId: existing.id },
         });
-        const nw = calculateNetWorth(playerToResources({ ...existing, ...next }));
-        await prisma.rankSnapshot.create({
-          data: {
+        if (!hasProgression) {
+          await applyNpcTargetStateToPlayer(prisma, {
             playerId: existing.id,
+            districtId: existing.districtId,
             seasonId: season.id,
-            netWorth: nw,
-            rank: 0,
-          },
-        });
+            archetype: meta.archetype,
+            ladderSlot: meta.ladderSlot,
+            growthSeed: meta.growthSeed,
+            roundDay: 1,
+          });
+          progressed++;
+        }
+        if (jitterExisting) {
+          await progressNpcPlayer(prisma, {
+            playerId: existing.id,
+            email: existing.user.email,
+            aliasNormalized: aliasNorm,
+            districtId: existing.districtId,
+            roundDay: 1,
+            force: true,
+          });
+          progressed++;
+        }
         await prisma.playerStatusExt.upsert({
           where: { playerId: existing.id },
           create: { playerId: existing.id, lastSeenAt: new Date() },
-          update: { lastSeenAt: new Date(Date.now() - profile.lastSeenHoursAgo * 60 * 60 * 1000) },
+          update: { lastSeenAt: new Date(Date.now() - 12 * 60 * 60 * 1000) },
         });
-        jittered++;
       }
       continue;
     }
 
-    const district = districtMap.get(profile.districtSlug);
-    if (!district) throw new Error(`District not found: ${profile.districtSlug}`);
+    const district = districtMap.get(districtSlug);
+    if (!district) throw new Error(`District not found: ${districtSlug}`);
 
     const email = `${PLAYTEST_NPC_EMAIL_PREFIX}${aliasNorm}@neonunderworld.local`;
     const user = await prisma.user.create({
@@ -220,47 +158,27 @@ export async function seedPlaytestNpcs(
       },
     });
 
-    const prostituteHappiness = calculateProstituteHappiness({
-      prostitutes: profile.prostitutes,
-      thugs: profile.thugs,
-      hash: profile.hash,
-      condoms: profile.condoms,
-      prostitutePayoutPercent: profile.prostitutePayoutPercent,
-    }).score;
-
-    const thugHappiness = calculateThugHappiness({
-      thugs: profile.thugs,
-      glocks: profile.glocks,
-      uzis: profile.uzis,
-      aks: profile.aks,
-      beer: profile.beer,
-    }).score;
+    const preview = buildNpcTargetState({
+      archetype: meta.archetype,
+      roundDay: 1,
+      ladderSlot: meta.ladderSlot,
+      growthSeed: meta.growthSeed,
+      totalSlots: NPC_LADDER_TOTAL_SLOTS,
+    });
 
     const player = await prisma.player.create({
       data: {
         userId: user.id,
-        alias: profile.alias,
+        alias,
         aliasNormalized: aliasNorm,
         districtId: district.id,
         seasonId: season.id,
-        cash: profile.cash,
-        prostitutes: profile.prostitutes,
-        thugs: profile.thugs,
-        rides: profile.rides,
-        glocks: profile.glocks,
-        uzis: profile.uzis,
-        aks: profile.aks,
-        beer: profile.beer,
-        condoms: profile.condoms,
-        hash: profile.hash,
-        shrooms: profile.shrooms,
-        coke: profile.coke,
-        heroin: profile.heroin,
-        prostitutePayoutPercent: profile.prostitutePayoutPercent,
-        prostituteHappiness,
-        thugHappiness,
+        cash: 0,
+        prostitutes: 0,
+        thugs: 0,
         isSystemPlayer: false,
         avatar: resolveNpcSeedAvatar(aliasNorm),
+        prostitutePayoutPercent: 50,
       },
     });
 
@@ -275,23 +193,44 @@ export async function seedPlaytestNpcs(
       },
     });
 
-    const lastSeenAt = new Date(Date.now() - profile.lastSeenHoursAgo * 60 * 60 * 1000);
-    await prisma.playerStatusExt.upsert({
-      where: { playerId: player.id },
-      create: { playerId: player.id, lastSeenAt },
-      update: { lastSeenAt },
+    await applyNpcTargetStateToPlayer(prisma, {
+      playerId: player.id,
+      districtId: district.id,
+      seasonId: season.id,
+      archetype: meta.archetype,
+      ladderSlot: meta.ladderSlot,
+      growthSeed: meta.growthSeed,
+      roundDay: 1,
     });
 
-    const nw = calculateNetWorth(playerToResources(player));
+    const refreshed = await prisma.player.findUniqueOrThrow({
+      where: { id: player.id },
+      include: { ownedBusinesses: true },
+    });
+    const bizCtx = aggregateBusinessNwContext(refreshed.ownedBusinesses);
+    const nw = calculateCanonicalNetWorthFromPlayer(refreshed, bizCtx);
     const rng = createSeededRng(i * 1337);
     await createRankSnapshots(prisma, player.id, season.id, nw, rng);
 
+    await prisma.playerStatusExt.upsert({
+      where: { playerId: player.id },
+      create: {
+        playerId: player.id,
+        lastSeenAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
+      },
+      update: {
+        lastSeenAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
+      },
+    });
+
     created++;
-    console.log(`  + ${profile.alias} (${district.name}) — NW $${nw.toLocaleString()}`);
+    console.log(
+      `  + ${alias} (${district.name}) — ${meta.archetype} NW $${nw.toLocaleString()} (target $${canonicalNwForTargetState(preview).toLocaleString()})`,
+    );
   }
 
   console.log(
-    `Playtest NPC seed complete: ${created} created, ${skipped} already existed${jittered ? `, ${jittered} jittered` : ''}.`,
+    `Playtest NPC seed complete: ${created} created, ${skipped} already existed${progressed ? `, ${progressed} re-progressed` : ''}.`,
   );
 }
 

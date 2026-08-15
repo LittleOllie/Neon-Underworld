@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { AUTH_CONFIG } from '@/config/game/balance';
+import { SHOP_MAX_SINGLE_PURCHASE_QUANTITY } from '@/config/game/shop-rules';
+import { COMBAT_ABSOLUTE_MAX_COMMIT } from '@/lib/game-engine/combat/commitment';
+
 export const registerSchema = z
   .object({
     email: z.string().email('Enter a valid email address'),
@@ -42,7 +45,7 @@ export const shopPurchaseSchema = z.object({
     'glock', 'uzi', 'ak', 'ride',
     'hash', 'shroom', 'coke', 'heroin', 'beer', 'condom',
   ]),
-  quantity: z.number().int().min(1),
+  quantity: z.number().int().min(1).max(SHOP_MAX_SINGLE_PURCHASE_QUANTITY),
   idempotencyKey: z.string().uuid(),
 });
 
@@ -71,7 +74,8 @@ export const hireThugsSchema = z.object({
   quantity: z.coerce
     .number()
     .int('Enter a valid number of Thugs.')
-    .min(1, 'Enter a valid number of Thugs.'),
+    .min(1, 'Enter a valid number of Thugs.')
+    .max(SHOP_MAX_SINGLE_PURCHASE_QUANTITY, 'Maximum 100,000 Thugs per hire.'),
   idempotencyKey: z.string().uuid(),
 });
 
@@ -84,7 +88,7 @@ export const attackLaunchSchema = z.object({
     .number()
     .int('Enter a valid number of thugs.')
     .min(1, 'Enter a valid number of thugs.')
-    .max(5000),
+    .max(COMBAT_ABSOLUTE_MAX_COMMIT),
   idempotencyKey: z.string().uuid(),
 });
 
@@ -95,7 +99,7 @@ export const directAttackLaunchSchema = z.object({
     .number()
     .int('Enter a valid number of thugs.')
     .min(1, 'Enter a valid number of thugs.')
-    .max(5000),
+    .max(COMBAT_ABSOLUTE_MAX_COMMIT),
   idempotencyKey: z.string().uuid(),
 });
 

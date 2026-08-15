@@ -15,6 +15,10 @@ import {
   ATTACK_TYPE_PURPOSE,
   type AttackType,
 } from '@core/config/game/attack-rules';
+import {
+  maxCommitmentForAttack,
+  suggestedCommitmentForAttack,
+} from '@core/lib/game-engine/combat/commitment';
 import { ridesRequiredForThugs } from '@core/lib/game-engine/combat-rules';
 import {
   allocateWeaponsForThugs,
@@ -246,14 +250,26 @@ export function AttackForm(props: AttackFormProps) {
   const [showIntel, setShowIntel] = useState(false);
   const [showDeepIntel, setShowDeepIntel] = useState(false);
 
-  const forceMax = Math.min(crew.thugs, ATTACK_RULES.maxAttackingThugs);
-  const defaultForce = Math.min(50, forceMax);
   const [attackType, setAttackType] = useState<AttackType>('HOME_INVASION');
+  const forceMax = useMemo(
+    () => maxCommitmentForAttack(attackType, crew.thugs),
+    [attackType, crew.thugs],
+  );
+  const defaultForce = useMemo(
+    () => suggestedCommitmentForAttack(attackType, crew.thugs),
+    [attackType, crew.thugs],
+  );
   const [forceRaw, setForceRaw] = useState(String(defaultForce));
   const [force, setForce] = useState(defaultForce);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OldSkoolAttackLaunchResult | null>(null);
+
+  useEffect(() => {
+    const next = suggestedCommitmentForAttack(attackType, crew.thugs);
+    setForce(next);
+    setForceRaw(String(next));
+  }, [attackType, crew.thugs]);
 
   useEffect(() => {
     setTargets(props.targets);
@@ -338,7 +354,7 @@ export function AttackForm(props: AttackFormProps) {
     !poachBlockedByDeepIntel &&
     force > 0 &&
     force <= crew.thugs &&
-    force <= ATTACK_RULES.maxAttackingThugs &&
+    force <= forceMax &&
     ridesNeeded <= crew.rides &&
     turnCost <= turns;
 

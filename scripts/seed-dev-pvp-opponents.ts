@@ -20,6 +20,10 @@ import {
   calculateThugHappiness,
 } from '../src/lib/game-engine/happiness';
 import { resolveNpcSeedAvatar } from '../src/lib/game-engine/npc-avatar';
+import {
+  ensureNpcProgressionState,
+  progressionMetaForDevPvp,
+} from '../src/lib/game-engine/npc-progression/initialize';
 
 const prisma = new PrismaClient();
 
@@ -238,12 +242,28 @@ async function main() {
 
   let created = 0;
   let skipped = 0;
+  let progressionEnsured = 0;
 
-  for (const profile of DEV_PVP_OPPONENTS) {
+  for (let index = 0; index < DEV_PVP_OPPONENTS.length; index++) {
+    const profile = DEV_PVP_OPPONENTS[index]!;
     const aliasNorm = normalizeAlias(profile.alias);
-    const existing = await prisma.player.findUnique({ where: { aliasNormalized: aliasNorm } });
+    const existing = await prisma.player.findUnique({
+      where: { aliasNormalized: aliasNorm },
+      include: { user: true },
+    });
     if (existing) {
       skipped++;
+      if (existing.user.email.startsWith('dev-pvp+')) {
+        const meta = progressionMetaForDevPvp(index, aliasNorm);
+        await ensureNpcProgressionState(prisma, {
+          playerId: existing.id,
+          archetype: meta.archetype,
+          ladderSlot: meta.ladderSlot,
+          growthSeed: meta.growthSeed,
+          roundDay: 1,
+        });
+        progressionEnsured++;
+      }
       continue;
     }
 
@@ -333,9 +353,20 @@ async function main() {
 
     created++;
     console.log(`  + ${profile.alias} (${district.name}) — NW $${nw.toLocaleString()}`);
+
+    const meta = progressionMetaForDevPvp(index, aliasNorm);
+    await ensureNpcProgressionState(prisma, {
+      playerId: player.id,
+      archetype: meta.archetype,
+      ladderSlot: meta.ladderSlot,
+      growthSeed: meta.growthSeed,
+      roundDay: 1,
+    });
   }
 
-  console.log(`Dev PvP seed complete: ${created} created, ${skipped} already existed.`);
+  console.log(
+    `Dev PvP seed complete: ${created} created, ${skipped} already existed, ${progressionEnsured} progression states ensured.`,
+  );
 }
 
 main()

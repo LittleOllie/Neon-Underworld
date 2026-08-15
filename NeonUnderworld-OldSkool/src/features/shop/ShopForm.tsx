@@ -15,6 +15,7 @@ import {
 import { hireThugsAction } from '@local/server/actions/hire-thugs.actions';
 import { sellThugsAction } from '@local/server/actions/sell-thugs.actions';
 import { THUG_HIRE_PRICE, THUG_SELL_PRICE } from '@core/config/game/hire-thugs-rules';
+import { SHOP_BULK_QUANTITIES } from '@core/config/game/shop-rules';
 import { streetDrugFromShopKey, OLDSKOOL_SHOP_TABS, type OldSkoolShopTab } from '@local/config/shop-display';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
@@ -26,6 +27,7 @@ import {
   shopPreviewTotal,
   shopInventoryKey,
   validateQuantity,
+  maxAffordableQuantity,
 } from '@local/lib/numeric-input';
 
 type ShopFormProps = ShopPageData & {
@@ -74,6 +76,38 @@ export function ShopForm({
     const tabDef = OLDSKOOL_SHOP_TABS.find((t) => t.id === tab) ?? OLDSKOOL_SHOP_TABS[0];
     return catalog.filter((entry) => tabDef.categories.includes(entry.category));
   }, [catalog, tab]);
+
+  function setBulkQuantity(rawKey: string, amount: number) {
+    setQuantities((prev) => ({ ...prev, [rawKey]: String(amount) }));
+  }
+
+  function renderBulkButtons(getMax: () => number, onSelect: (n: number) => void) {
+    const max = getMax();
+    if (max <= 0) return null;
+    return (
+      <div className="g-turn-quick" role="group" aria-label="Quick quantities">
+        {SHOP_BULK_QUANTITIES.filter((q) => q <= max).map((q) => (
+          <button
+            key={q}
+            type="button"
+            className="g-turn-quick-btn"
+            disabled={locked}
+            onClick={() => onSelect(q)}
+          >
+            {q.toLocaleString()}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="g-turn-quick-btn"
+          disabled={locked}
+          onClick={() => onSelect(max)}
+        >
+          MAX
+        </button>
+      </div>
+    );
+  }
 
   function ownedCount(entry: ShopCatalogEntry): number {
     const key = shopInventoryKey(entry.key);
@@ -377,6 +411,10 @@ export function ShopForm({
             Current Thugs: <GameValue>{inventory.thugs.toLocaleString()}</GameValue>
           </p>
           <div className="g-shop-controls">
+            {renderBulkButtons(
+              () => maxAffordableQuantity(cash, THUG_HIRE_PRICE),
+              (n) => setHireQtyRaw(String(n)),
+            )}
             <NumericInput
               id="hire-thugs-qty"
               label="Quantity of Thugs to hire"
@@ -477,6 +515,11 @@ export function ShopForm({
             </p>
             {entry.purpose ? <p className="g-shop-purpose">{entry.purpose}</p> : null}
             <div className="g-shop-controls">
+              {mode === 'buy' &&
+                renderBulkButtons(
+                  () => maxAffordableQuantity(cash, price),
+                  (n) => setBulkQuantity(entry.key, n),
+                )}
               <NumericInput
                 id={`qty-${entry.key}`}
                 label={`Quantity of ${entry.displayName}`}

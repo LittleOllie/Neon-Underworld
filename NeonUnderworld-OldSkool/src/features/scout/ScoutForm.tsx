@@ -20,7 +20,7 @@ import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
 import { SCOUT_RESULT_SECONDARY_ACTIONS } from '@local/lib/scout-result-actions';
 import { formatRecruitmentBonusDisplay } from '@core/config/game/business-recruitment-rules';
-import type { BusinessNetworkBonus } from '@core/config/game/business-recruitment-rules';
+import type { EmpireRecruitmentMultipliers } from '@core/config/game/empire-recruitment-rules';
 import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
 
 interface ScoutFormProps {
@@ -32,7 +32,7 @@ interface ScoutFormProps {
   thugCount: number;
   prefilledTurns?: number;
   prefilledArea?: RedliteScoutAreaSlug;
-  businessNetwork?: BusinessNetworkBonus | null;
+  empireRecruitment?: EmpireRecruitmentMultipliers | null;
 }
 
 export function ScoutForm({
@@ -44,7 +44,7 @@ export function ScoutForm({
   thugCount,
   prefilledTurns,
   prefilledArea,
-  businessNetwork,
+  empireRecruitment,
 }: ScoutFormProps) {
   const reconcile = useGameplayReconcile();
   const { locked: pending, run } = useMutationLock();
@@ -123,15 +123,21 @@ export function ScoutForm({
         tone: 'negative',
       });
     }
+    if (result.empireRecruitmentStrength) {
+      lines.push({
+        text: `Recruitment network: ${result.empireRecruitmentStrength}`,
+        tone: 'positive',
+      });
+    }
     if ((result.businessNetworkWorkerBonusPercent ?? 0) > 0) {
       lines.push({
-        text: `Business Network: ${formatRecruitmentBonusDisplay(result.businessNetworkWorkerBonusPercent!)} Workers`,
+        text: `Business bonus: ${formatRecruitmentBonusDisplay(result.businessNetworkWorkerBonusPercent!)} Workers`,
         tone: 'positive',
       });
     }
     if ((result.businessNetworkThugBonusPercent ?? 0) > 0) {
       lines.push({
-        text: `Business Network: ${formatRecruitmentBonusDisplay(result.businessNetworkThugBonusPercent!)} Thugs`,
+        text: `Business bonus: ${formatRecruitmentBonusDisplay(result.businessNetworkThugBonusPercent!)} Thugs`,
         tone: 'positive',
       });
     }
@@ -184,21 +190,26 @@ export function ScoutForm({
 
       <p className="g-note">Supplies help keep your crew loyal and effective.</p>
 
-      {businessNetwork &&
-      (businessNetwork.workerBonusPercent > 0 || businessNetwork.thugBonusPercent > 0) ? (
+      {empireRecruitment ? (
         <p className="g-scout-network g-note">
-          <strong>Business Network</strong> — Workers{' '}
-          {formatRecruitmentBonusDisplay(businessNetwork.workerBonusPercent)} · Thugs{' '}
-          {formatRecruitmentBonusDisplay(businessNetwork.thugBonusPercent)}
+          <strong>Recruitment Network</strong> — {empireRecruitment.strengthLabel}
+          {(empireRecruitment.workerBonusPercent > 0 || empireRecruitment.thugBonusPercent > 0) && (
+            <>
+              {' '}
+              · Workers {formatRecruitmentBonusDisplay(empireRecruitment.workerBonusPercent)} · Thugs{' '}
+              {formatRecruitmentBonusDisplay(empireRecruitment.thugBonusPercent)}
+            </>
+          )}
         </p>
-      ) : businessNetwork ? (
+      ) : (
         <p className="g-scout-network g-note">
-          <strong>Business Network:</strong> None —{' '}
+          <strong>Recruitment Network:</strong> Street operation —{' '}
           <a href="/businesses" className="g-link-inline">
             expand your empire
-          </a>
+          </a>{' '}
+          to recruit faster.
         </p>
-      ) : null}
+      )}
 
       {error && <p className="g-error">{error}</p>}
 

@@ -898,6 +898,10 @@ export function BusinessesPanel({ initialData }: Props) {
             <p className="g-note g-business-limits--compact">
               <strong>Drug Lab</strong> — stronger Thug recruitment; keeps its production benefits.
             </p>
+            <p className="g-note g-business-limits--compact">
+              Upgrades strengthen your recruitment network. As your empire grows (staffed businesses,
+              crew size, portfolio depth), Scout actions recruit more — at no extra cash cost per Scout.
+            </p>
           </div>
         </details>
       </BusinessSection>

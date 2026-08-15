@@ -511,6 +511,14 @@ export async function getAttackPageData(
   options?: { targetAlias?: string; reportId?: string },
 ) {
   await assertSessionMatchesPlayer(ctx.id);
+
+  const { maybeProgressActiveSeasonNpcs } = await import(
+    '@core/server/services/npc-progression.service'
+  );
+  await maybeProgressActiveSeasonNpcs(prisma).catch((err) => {
+    console.error('NPC progression (attack page) failed:', err);
+  });
+
   const attackerNw = ctx.netWorth;
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 

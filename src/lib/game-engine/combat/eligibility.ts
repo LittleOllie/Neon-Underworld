@@ -1,5 +1,6 @@
 import { isWithinAttackRange } from '@/config/game/redlite-rules';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
+import { maxCommitmentForAttack } from '@/lib/game-engine/combat/commitment';
 import { WORKER_POACHING_RULES } from '@/config/game/worker-poaching-rules';
 import { ridesRequiredForThugs } from '@/lib/game-engine/combat-rules';
 import {
@@ -99,12 +100,12 @@ export function validateAttackEligibilityCode(
 
   if (
     !Number.isInteger(input.attackingThugs) ||
-    input.attackingThugs < ATTACK_RULES.minAttackingThugs ||
-    input.attackingThugs > ATTACK_RULES.maxAttackingThugs
+    input.attackingThugs < ATTACK_RULES.minAttackingThugs
   ) {
     return 'INVALID_FORCE';
   }
-  if (input.attackingThugs > input.attackerThugs) {
+  const maxCommit = maxCommitmentForAttack(input.attackType, input.attackerThugs);
+  if (input.attackingThugs > maxCommit || input.attackingThugs > input.attackerThugs) {
     return 'INVALID_FORCE';
   }
 

@@ -16,7 +16,7 @@ import {
   calculateProstituteHappiness,
   calculateThugHappiness,
 } from '@/lib/game-engine/happiness';
-import { calculateBusinessNetworkBonus } from '@/config/game/business-recruitment-rules';
+import { calculateEmpireRecruitmentMultipliers } from '@/config/game/empire-recruitment-rules';
 import { deriveScoutSeed } from '@/lib/game-engine/rng';
 import { netWorthDelta } from '@/lib/game-engine/net-worth';
 import {
@@ -64,6 +64,8 @@ export interface ScoutResultData {
   thugMoraleAfter?: number;
   businessNetworkWorkerBonusPercent?: number;
   businessNetworkThugBonusPercent?: number;
+  empireRecruitmentStrength?: string;
+  empireRecruitmentFactor?: number;
 }
 
 export async function scoutAction(
@@ -168,9 +170,15 @@ export async function scoutAction(
 
       const ownedBusinesses = await tx.business.findMany({
         where: { playerId },
-        select: { businessType: true, level: true },
+        select: { businessType: true, level: true, assignedWorkers: true },
       });
-      const businessNetwork = calculateBusinessNetworkBonus(ownedBusinesses);
+      const assignedWorkers = ownedBusinesses.reduce((sum, b) => sum + b.assignedWorkers, 0);
+      const recruitment = calculateEmpireRecruitmentMultipliers({
+        businesses: ownedBusinesses.map(({ businessType, level }) => ({ businessType, level })),
+        workers: player.prostitutes,
+        thugs: player.thugs,
+        assignedWorkers,
+      });
 
       const scoutOutcome = resolveScouting({
         turnsSpent: parsed.data.turns,
@@ -184,10 +192,10 @@ export async function scoutAction(
         prostitutePayoutPercent: player.prostitutePayoutPercent,
         seed,
         businessNetwork: {
-          workerMultiplier: businessNetwork.workerMultiplier,
-          thugMultiplier: businessNetwork.thugMultiplier,
-          workerBonusPercent: businessNetwork.workerBonusPercent,
-          thugBonusPercent: businessNetwork.thugBonusPercent,
+          workerMultiplier: recruitment.workerMultiplier,
+          thugMultiplier: recruitment.thugMultiplier,
+          workerBonusPercent: recruitment.workerBonusPercent,
+          thugBonusPercent: recruitment.thugBonusPercent,
         },
       });
 
@@ -299,6 +307,8 @@ export async function scoutAction(
         thugMoraleAfter: newThugHappiness,
         businessNetworkWorkerBonusPercent: scoutOutcome.businessNetworkWorkerBonusPercent,
         businessNetworkThugBonusPercent: scoutOutcome.businessNetworkThugBonusPercent,
+        empireRecruitmentStrength: recruitment.strengthLabel,
+        empireRecruitmentFactor: recruitment.empireFactor,
       };
 
       await tx.gameAction.create({

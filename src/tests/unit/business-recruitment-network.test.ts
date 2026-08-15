@@ -58,8 +58,11 @@ describe('business recruitment network config', () => {
       { businessType: 'WAREHOUSE', level: 5 },
       { businessType: 'NIGHTCLUB', level: 5 },
     ]);
-    expect(network.workerBonusPercent).toBeCloseTo(26 + 26 * 0.35 + 20 * 0.18, 5);
-    expect(network.thugBonusPercent).toBeCloseTo(20, 5);
+    expect(network.workerBonusPercent).toBeCloseTo(
+      26 * 2.1 + 26 * 2.1 * 0.35 + 20 * 2.1 * 0.18,
+      5,
+    );
+    expect(network.thugBonusPercent).toBeCloseTo(20 * 2.1, 5);
   });
 
   it('caps extreme ownership', () => {
@@ -70,6 +73,7 @@ describe('business recruitment network config', () => {
     const network = calculateBusinessNetworkBonus(businesses);
     expect(network.workerBonusPercent).toBeLessThanOrEqual(MAX_WORKER_RECRUITMENT_BONUS_PERCENT);
     expect(network.thugBonusPercent).toBeLessThanOrEqual(MAX_THUG_RECRUITMENT_BONUS_PERCENT);
+    expect(network.workerBonusPercent).toBeGreaterThan(50);
   });
 
   it('formats recruitment bonus display', () => {

@@ -15,6 +15,7 @@ import { getPendingCartelInvites } from '@local/server/services/cartel-attention
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 import { prisma } from '@core/lib/db/prisma';
 import { calculateBusinessNetworkBonus } from '@core/config/game/business-recruitment-rules';
+import { calculateEmpireRecruitmentMultipliers } from '@core/config/game/empire-recruitment-rules';
 
 export const loadBusinessNetworkBonus = cache(async (playerId: string) => {
   const businesses = await prisma.business.findMany({
@@ -22,6 +23,20 @@ export const loadBusinessNetworkBonus = cache(async (playerId: string) => {
     select: { businessType: true, level: true },
   });
   return calculateBusinessNetworkBonus(businesses);
+});
+
+export const loadEmpireRecruitment = cache(async (playerId: string, workers: number, thugs: number) => {
+  const businesses = await prisma.business.findMany({
+    where: { playerId },
+    select: { businessType: true, level: true, assignedWorkers: true },
+  });
+  const assignedWorkers = businesses.reduce((sum, b) => sum + b.assignedWorkers, 0);
+  return calculateEmpireRecruitmentMultipliers({
+    businesses: businesses.map(({ businessType, level }) => ({ businessType, level })),
+    workers,
+    thugs,
+    assignedWorkers,
+  });
 });
 
 export const requireGameSession = cache(async (): Promise<{

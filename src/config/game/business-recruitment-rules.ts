@@ -53,9 +53,12 @@ const DRUG_LAB_THUG_TIER_PERCENT: Record<number, number> = {
 /** Diminishing returns when stacking multiple businesses (same resource type pool). */
 export const RECRUITMENT_STACK_WEIGHTS = [1, 0.35, 0.18, 0.1, 0.06, 0.04, 0.03, 0.02] as const;
 
-/** Hard cap on stacked recruitment bonus (+125% = 2.25× multiplier). */
-export const MAX_WORKER_RECRUITMENT_BONUS_PERCENT = 125;
-export const MAX_THUG_RECRUITMENT_BONUS_PERCENT = 125;
+/** Tier contribution multiplier before portfolio stacking (empire-scale rounds). */
+export const RECRUITMENT_TIER_CONTRIBUTION_MULTIPLIER = 2.1;
+
+/** Hard cap on stacked recruitment bonus (+350% = 4.5× network multiplier). */
+export const MAX_WORKER_RECRUITMENT_BONUS_PERCENT = 350;
+export const MAX_THUG_RECRUITMENT_BONUS_PERCENT = 350;
 
 export function getBusinessTierRecruitmentContribution(
   type: BusinessType,
@@ -105,8 +108,12 @@ export function calculateBusinessNetworkBonus(
 
   for (const business of businesses) {
     const tier = getBusinessTierRecruitmentContribution(business.businessType, business.level);
-    if (tier.workerPercent > 0) workerContributions.push(tier.workerPercent);
-    if (tier.thugPercent > 0) thugContributions.push(tier.thugPercent);
+    if (tier.workerPercent > 0) {
+      workerContributions.push(tier.workerPercent * RECRUITMENT_TIER_CONTRIBUTION_MULTIPLIER);
+    }
+    if (tier.thugPercent > 0) {
+      thugContributions.push(tier.thugPercent * RECRUITMENT_TIER_CONTRIBUTION_MULTIPLIER);
+    }
     totalWorkerCapacity += getBusinessLevelStats(business.businessType, business.level).workerCapacity;
   }
 

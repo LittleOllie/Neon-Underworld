@@ -39,8 +39,8 @@ export const ATTACK_RULES = {
   /** Minimum thugs to launch any attack */
   minAttackingThugs: 1,
 
-  /** Max thugs per single attack request */
-  maxAttackingThugs: 5000,
+  /** Max thugs per single attack request — per-type caps in combat/commitment.ts may be lower */
+  maxAttackingThugs: 25000,
 
   blockedAttackerLifeStatuses: ['HOSPITALIZED', 'JAIL', 'INACTIVE'] as const,
   blockedDefenderLifeStatuses: ['INACTIVE'] as const,
