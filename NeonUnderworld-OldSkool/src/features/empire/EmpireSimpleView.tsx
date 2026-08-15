@@ -46,10 +46,6 @@ export function EmpireSimpleView({ data }: Props) {
     <>
       <div className="g-empire-summary" aria-label="Empire summary">
         <StatRow label="Net Worth" value={formatEmpireSummaryMoney(data.player.netWorth)} />
-        <p className="g-note g-empire-hint g-empire-nw-hint">
-          Your empire&apos;s overall value. Grow cash, crew, drugs, and businesses to climb the
-          rankings.
-        </p>
         <StatRow label="District Rank" value={formatRank(data.player.rank)} />
         <StatRow label="Cash" value={formatEmpireSummaryMoney(data.player.cash)} />
         <StatRow label="Businesses" value={businessesOwned.toLocaleString()} />
@@ -75,10 +71,6 @@ export function EmpireSimpleView({ data }: Props) {
             }
             valueTone="inherit"
           />
-          <p className="g-note g-empire-hint">
-            Street Workers earn Scout and Produce income. Business Workers generate passive business
-            income and cannot do street work.
-          </p>
           <StatusBar label="Street happiness" percent={workerHappy} />
           <StatRow
             label="Supplies"
@@ -94,9 +86,6 @@ export function EmpireSimpleView({ data }: Props) {
           <SectionLabel>PAYOUT</SectionLabel>
           <StatRow label="Payout" value={`${data.personnel.workerPayoutPercent}%`} />
           <PayoutForm initialPayout={data.personnel.workerPayoutPercent} />
-          <p className="g-note g-empire-hint">
-            Higher payout improves Street Worker happiness but reduces the cash you keep.
-          </p>
         </EmpireSection>
 
         <EmpireSection
@@ -118,10 +107,6 @@ export function EmpireSimpleView({ data }: Props) {
             }
             valueTone="inherit"
           />
-          <p className="g-note g-empire-hint">
-            Street Thugs fight, Produce, and protect Workers. Security Thugs protect Businesses and
-            are unavailable for street actions.
-          </p>
           <StatusBar label="Street happiness" percent={thugHappy} />
           <StatRow
             label="Armed (street)"

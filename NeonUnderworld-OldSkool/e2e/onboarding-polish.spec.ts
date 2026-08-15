@@ -72,7 +72,7 @@ test.describe('Onboarding polish — desktop', () => {
     }
 
     await gotoGame(page, '/empire');
-    await expect(page.getByText(/Your empire's overall value/i)).toBeVisible();
+    await expect(page.getByText('Net Worth', { exact: true })).toBeVisible();
 
     await gotoGame(page, '/rankings');
     await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible();
