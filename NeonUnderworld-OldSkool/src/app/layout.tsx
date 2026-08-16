@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Providers } from '@local/components/Providers';
-import { StartupSplash } from '@local/components/game/StartupSplash';
-import { StartupSplashDismiss } from '@local/components/game/StartupSplashDismiss';
 import { APP_BRANDING } from '@local/config/app-branding';
 import '@local/styles/globals.css';
 import '@local/styles/game-typography.css';
@@ -35,14 +33,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="nu-root nu-startup-pending">
-      <head>
-        <link rel="preload" as="image" href="/images/game-backgrounds/NUPFPLogo.webp" />
-      </head>
+    <html lang="en" className="nu-root">
       <body className="nu-body">
-        <StartupSplash />
         <Providers>{children}</Providers>
-        <StartupSplashDismiss />
       </body>
     </html>
   );

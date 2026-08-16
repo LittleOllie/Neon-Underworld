@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getBootCopy, type BootSessionStatus, BOOT_SCREEN } from '@local/config/boot-screen';
@@ -12,42 +12,15 @@ const SMOKE_EXIT_MS = 920;
 
 const BOOT_DISMISSED_KEY = 'nu-boot-dismissed';
 
-const DIRECT_GAME_ROUTE_PREFIXES = [
-  '/command',
-  '/empire',
-  '/scout',
-  '/produce',
-  '/shop',
-  '/attack',
-  '/market',
-  '/cartels',
-  '/businesses',
-  '/reports',
-  '/rankings',
-  '/travel',
-  '/bank',
-  '/settings',
-  '/guides',
-  '/how-to-play',
-  '/players',
-  '/identity',
-  '/playtest',
-] as const;
-
 function readBootDismissed(): boolean {
   if (typeof window === 'undefined') return false;
   return sessionStorage.getItem(BOOT_DISMISSED_KEY) === '1';
 }
 
-function isDirectGameRoute(pathname: string): boolean {
-  return DIRECT_GAME_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
 type BootPhase = 'active' | 'exit' | 'hidden';
 
 /**
- * Full-screen intro — auto-dismisses once session resolves (no Enter required).
- * Direct game-route links skip the gate entirely.
+ * Full-screen intro — dismisses on Enter, smoke sweep exit, then Home (or login).
  */
 export function BootScreen({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -65,25 +38,6 @@ export function BootScreen({ children }: { children: React.ReactNode }) {
   const copy = getBootCopy(bootStatus, session?.user?.alias);
   const showLogout = bootStatus === 'authenticated';
   const isReady = bootStatus !== 'loading';
-
-  useEffect(() => {
-    if (phase === 'hidden') return;
-
-    if (readBootDismissed() || isDirectGameRoute(pathname)) {
-      sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
-      setPhase('hidden');
-      return;
-    }
-
-    if (!isReady) return;
-
-    sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
-    setPhase('hidden');
-
-    if (bootStatus === 'authenticated' && (pathname === '/' || pathname === '/login')) {
-      router.replace('/command');
-    }
-  }, [phase, pathname, isReady, bootStatus, router]);
 
   function dismissBoot() {
     if (phase !== 'active' || !isReady) return;

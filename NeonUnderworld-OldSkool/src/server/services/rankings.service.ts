@@ -158,29 +158,6 @@ async function lookupPlayerRankInFilter(
   return rows.find((row) => row.id === playerId)?.rank ?? 0;
 }
 
-/** Derive overall + district rank from one overall leaderboard pass (avoids double cold scan). */
-async function lookupPlayerRanksFromOverall(
-  playerId: string,
-  seasonId: string,
-  districtSlug: string,
-): Promise<{ overallRank: number; districtRank: number }> {
-  const rows = await getCachedSeasonRankings(seasonId, 'overall');
-  const overallRank = rows.find((row) => row.id === playerId)?.rank ?? 0;
-
-  let districtRank = 0;
-  let districtIndex = 0;
-  for (const row of rows) {
-    if (row.citySlug !== districtSlug) continue;
-    districtIndex++;
-    if (row.id === playerId) {
-      districtRank = districtIndex;
-      break;
-    }
-  }
-
-  return { overallRank, districtRank };
-}
-
 const getCachedPlayerOverallRank = cache((playerId: string, seasonId: string) =>
   unstable_cache(
     () => lookupPlayerRankInFilter(playerId, seasonId, 'overall'),
@@ -204,17 +181,6 @@ const getCachedPlayerDistrictRank = cache((playerId: string, seasonId: string, d
   )();
 });
 
-const getCachedPlayerRanksFromOverall = cache((playerId: string, seasonId: string, districtSlug: string) =>
-  unstable_cache(
-    () => lookupPlayerRanksFromOverall(playerId, seasonId, districtSlug),
-    ['player-ranks-overall-pass', playerId, seasonId, districtSlug],
-    {
-      revalidate: PLAYER_RANK_CACHE_SECONDS,
-      tags: [playerRankCacheTag(playerId), seasonRankingsCacheTag(seasonId)],
-    },
-  )(),
-);
-
 export const RankingsService = {
   getSeasonRankings(seasonId: string, filter: RankingsFilter = 'overall'): Promise<RankingRow[]> {
     return getCachedSeasonRankings(seasonId, filter);
@@ -232,15 +198,6 @@ export const RankingsService = {
     districtSlug: string,
   ): Promise<number> {
     return getCachedPlayerDistrictRank(playerId, seasonId, districtSlug);
-  },
-
-  /** Single overall-leaderboard pass — header rank lookups without a second season scan. */
-  getPlayerRanksFromOverall(
-    playerId: string,
-    seasonId: string,
-    districtSlug: string,
-  ): Promise<{ overallRank: number; districtRank: number }> {
-    return getCachedPlayerRanksFromOverall(playerId, seasonId, districtSlug);
   },
 
   /** @deprecated Prefer getPlayerOverallRank or getPlayerDistrictRank. */

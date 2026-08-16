@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { PageTitle } from '@local/components/game';
-import { RouteLoadingState } from '@local/components/game/RouteLoadingState';
-import { requireGameSession } from '@local/lib/game-context';
+import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
+import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
 import {
+  RankingsService,
   defaultRankingsFilterForDistrict,
   type RankingsFilter,
 } from '@local/server/services/rankings.service';
-import { RankingsList } from '@local/features/rankings/RankingsList';
+import { devPerf } from '@local/lib/dev-perf';
 
 const DISTRICT_FILTERS: { key: RankingsFilter; label: string }[] = [
   { key: 'neon-strip', label: 'Neon Strip' },
@@ -40,11 +40,21 @@ interface Props {
   searchParams: Promise<{ filter?: string }>;
 }
 
+function lastSeenLabel(online: boolean, lastSeen: Date | null): string {
+  if (online) return 'Online';
+  if (!lastSeen) return 'Offline';
+  return formatRelativeTime(lastSeen);
+}
+
 export default async function RankingsPage({ searchParams }: Props) {
   const params = await searchParams;
   const { ctx } = await requireGameSession();
   const playerId = ctx.id;
   const filter = resolveFilter(params.filter, ctx.district.slug);
+
+  const rows = await devPerf('/rankings data', () =>
+    RankingsService.getSeasonRankings(ctx.seasonId, filter),
+  );
 
   return (
     <>
@@ -73,9 +83,61 @@ export default async function RankingsPage({ searchParams }: Props) {
         ))}
       </div>
 
-      <Suspense fallback={<RouteLoadingState />}>
-        <RankingsList seasonId={ctx.seasonId} playerId={playerId} filter={filter} />
-      </Suspense>
+      {rows.map((p) => {
+        const isYou = p.id === playerId;
+        const status = lastSeenLabel(p.online, p.lastSeen);
+
+        if (isYou) {
+          return (
+            <div key={p.id} className="g-rank-row g-rank-you">
+              <span className="g-rank-num">#{p.rank}</span>
+              <span className="g-rank-name">
+                <PlayerIdentity
+                  player={{
+                    alias: p.alias,
+                    avatarId: p.avatarId,
+                    aliasNormalized: p.aliasNormalized,
+                    cartelTag: p.cartelTag,
+                    city: p.city,
+                  }}
+                  avatarSize="sm"
+                  showCartel
+                  showCity
+                  static
+                  suffix="(you)"
+                />
+              </span>
+              <span className="g-rank-worth">${p.netWorth.toLocaleString()}</span>
+            </div>
+          );
+        }
+
+        return (
+          <Link
+            key={p.id}
+            href={`/players/${p.aliasNormalized}`}
+            className="g-rank-row g-rank-link"
+          >
+            <span className="g-rank-num">#{p.rank}</span>
+            <span className="g-rank-name">
+              <PlayerIdentity
+                player={{
+                  alias: p.alias,
+                  avatarId: p.avatarId,
+                  aliasNormalized: p.aliasNormalized,
+                  cartelTag: p.cartelTag,
+                  city: p.city,
+                }}
+                avatarSize="sm"
+                showCartel
+                static
+              />
+              <span className="g-inbox-meta"> · {status}</span>
+            </span>
+            <span className="g-rank-worth">${p.netWorth.toLocaleString()}</span>
+          </Link>
+        );
+      })}
     </>
   );
 }
