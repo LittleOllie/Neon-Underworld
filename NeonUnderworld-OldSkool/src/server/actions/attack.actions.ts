@@ -37,12 +37,14 @@ import {
 import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
 import {
   buildShellSnapshotForPlayer,
   finalizeLocalMutationShell,
 } from '@local/server/services/shell-snapshot.service';
 import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
+import { isRoutePrefetch } from '@local/lib/is-route-prefetch';
 import type { AttackTargetCandidate } from '@local/features/attack/AttackForm.types';
 
 export type { AttackLaunchResult, AttackTargetCandidate };
@@ -512,12 +514,17 @@ export async function getAttackPageData(
 ) {
   await assertSessionMatchesPlayer(ctx.id);
 
-  const { maybeProgressActiveSeasonNpcs } = await import(
-    '@core/server/services/npc-progression.service'
-  );
-  await maybeProgressActiveSeasonNpcs(prisma).catch((err) => {
-    console.error('NPC progression (attack page) failed:', err);
-  });
+  if (!isRoutePrefetch()) {
+    after(async () => {
+      const { isNpcProgressionCatchUpNeeded, progressActiveSeasonNpcs } = await import(
+        '@core/server/services/npc-progression.service'
+      );
+      const stale = await isNpcProgressionCatchUpNeeded(prisma);
+      if (stale) {
+        await progressActiveSeasonNpcs(prisma).catch(() => {});
+      }
+    });
+  }
 
   const attackerNw = ctx.netWorth;
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);

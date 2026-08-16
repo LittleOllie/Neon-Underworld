@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@local/lib/auth/config';
 
-export default async function HomePage() {
-  const session = await auth();
-  if (session?.user?.playerId) redirect('/command');
+/** Root entry — middleware redirects before this renders in normal flow. */
+export default function HomePage() {
   redirect('/login');
 }

@@ -1,3 +1,92 @@
+/* ── Instant first-paint startup splash (pre-hydration) ── */
+.nu-startup-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 35%, #141418 0%, #050506 58%, #020203 100%);
+  transition: opacity 160ms ease, visibility 160ms ease;
+}
+
+.nu-startup-splash--hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.nu-startup-splash__veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 8, 0.35);
+  pointer-events: none;
+}
+
+.nu-startup-splash__core {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+}
+
+.nu-startup-splash__logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(201, 169, 98, 0.45);
+  box-shadow: 0 0 24px rgba(201, 169, 98, 0.22);
+  animation: nu-startup-logo-pulse 1.6s ease-in-out infinite;
+}
+
+.nu-startup-splash__message {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(212, 210, 204, 0.82);
+  text-align: center;
+}
+
+@keyframes nu-startup-logo-pulse {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+    box-shadow: 0 0 16px rgba(201, 169, 98, 0.16);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+    box-shadow: 0 0 28px rgba(201, 169, 98, 0.32);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nu-startup-splash__logo {
+    animation: nu-startup-logo-fade 2s ease-in-out infinite;
+  }
+
+  @keyframes nu-startup-logo-fade {
+    0%,
+    100% {
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
+html.nu-startup-pending .nu-body {
+  overflow: hidden;
+}
+
 /* ── Branded NU loader ── */
 .nu-loader {
   display: inline-flex;

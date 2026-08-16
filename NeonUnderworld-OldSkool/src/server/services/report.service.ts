@@ -506,21 +506,24 @@ export const ReportService = {
   },
 
   async getUnreadCount(playerId: string): Promise<number> {
-    const trueCount = await prisma.report.count({
-      where: inboxReportWhere(playerId, { unreadOnly: true }),
-    });
     const ext = await prisma.playerStatusExt.findUnique({
       where: { playerId },
       select: { unreadReports: true },
     });
-    if (ext != null && ext.unreadReports !== trueCount) {
-      await prisma.playerStatusExt
-        .update({
-          where: { playerId },
-          data: { unreadReports: trueCount },
-        })
-        .catch(() => {});
+    if (ext != null) {
+      return ext.unreadReports;
     }
+
+    const trueCount = await prisma.report.count({
+      where: inboxReportWhere(playerId, { unreadOnly: true }),
+    });
+    await prisma.playerStatusExt
+      .upsert({
+        where: { playerId },
+        create: { playerId, unreadReports: trueCount },
+        update: { unreadReports: trueCount },
+      })
+      .catch(() => {});
     return trueCount;
   },
 

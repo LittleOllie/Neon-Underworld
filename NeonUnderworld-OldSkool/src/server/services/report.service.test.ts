@@ -116,17 +116,28 @@ describe('ReportService inbox semantics', () => {
     expect(result.hasMore).toBe(true);
   });
 
-  it('reconciles ext unread counter to true inbox count', async () => {
-    reportCount.mockResolvedValue(2);
+  it('uses denormalized unread counter on hot path when ext exists', async () => {
     extFindUnique.mockResolvedValue({ unreadReports: 5 });
-    extUpdate.mockResolvedValue({});
+    const { ReportService } = await import('./report.service');
+    const count = await ReportService.getUnreadCount('p1');
+    expect(count).toBe(5);
+    expect(reportCount).not.toHaveBeenCalled();
+  });
+
+  it('reconciles ext unread counter when ext row is missing', async () => {
+    reportCount.mockResolvedValue(2);
+    extFindUnique.mockResolvedValue(null);
+    extUpsert.mockResolvedValue({});
     const { ReportService } = await import('./report.service');
     const count = await ReportService.getUnreadCount('p1');
     expect(count).toBe(2);
-    expect(extUpdate).toHaveBeenCalledWith({
-      where: { playerId: 'p1' },
-      data: { unreadReports: 2 },
-    });
+    expect(extUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { playerId: 'p1' },
+        create: { playerId: 'p1', unreadReports: 2 },
+        update: { unreadReports: 2 },
+      }),
+    );
   });
 
   it('markRead is idempotent and skips badge decrement for district scout', async () => {

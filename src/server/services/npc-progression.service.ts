@@ -291,3 +291,37 @@ export async function maybeProgressActiveSeasonNpcs(
 ): Promise<void> {
   await progressActiveSeasonNpcs(prisma);
 }
+
+const NPC_MANAGED_EMAIL_FILTER = {
+  OR: [
+    { email: { startsWith: 'playtest-npc+' as const } },
+    { email: { startsWith: 'dev-pvp+' as const } },
+  ],
+};
+
+/** Cheap aggregate — true when any progression-managed NPC is behind current season day. */
+export async function isNpcProgressionCatchUpNeeded(
+  prisma: PrismaClient,
+): Promise<boolean> {
+  const season = await prisma.season.findFirst({
+    where: { status: SeasonStatus.ACTIVE },
+    orderBy: { number: 'desc' },
+  });
+  if (!season) return false;
+
+  const roundDay = getSeasonRoundDay(season.startsAt, season.endsAt);
+  const agg = await prisma.npcProgressionState.aggregate({
+    where: {
+      player: {
+        seasonId: season.id,
+        isSystemPlayer: false,
+        user: NPC_MANAGED_EMAIL_FILTER,
+      },
+    },
+    _min: { lastProgressedDay: true },
+  });
+
+  const minDay = agg._min.lastProgressedDay;
+  if (minDay == null) return true;
+  return minDay < roundDay;
+}

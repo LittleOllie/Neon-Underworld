@@ -1,10 +1,24 @@
 import NextAuth from 'next-auth';
+import { NextResponse } from 'next/server';
 import { authConfig } from '@local/lib/auth/auth.config';
 
-export const { auth: middleware } = NextAuth(authConfig);
+const { auth } = NextAuth(authConfig);
+
+/** Edge auth + root redirect — authenticated users skip `/` server render hop. */
+export default auth((req) => {
+  const { pathname } = req.nextUrl;
+
+  if (pathname === '/') {
+    const destination = req.auth?.user ? '/command' : '/login';
+    return NextResponse.redirect(new URL(destination, req.nextUrl));
+  }
+
+  return NextResponse.next();
+});
 
 export const config = {
   matcher: [
+    '/',
     '/command',
     '/command/:path*',
     '/empire/:path*',

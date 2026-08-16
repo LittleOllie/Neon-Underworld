@@ -86,7 +86,7 @@ async function main() {
 
   console.log('\n--- Market ---');
   const expired = await timed('expired listings count', () =>
-    prisma.marketListing.count({ where: { status: 'ACTIVE', expiresAt: { lt: new Date() } } }),
+    prisma.marketListing.count({ where: { status: 'ACTIVE', endsAt: { lt: new Date() } } }),
   );
   const active = await timed('active listings count', () =>
     prisma.marketListing.count({ where: { status: 'ACTIVE' } }),

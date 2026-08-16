@@ -1,6 +1,7 @@
-/** Development-only async timing — no-op in production. */
+/** Development or PERF_LOG=1 async timing. */
 export async function devPerf<T>(label: string, fn: () => Promise<T>): Promise<T> {
-  if (process.env.NODE_ENV !== 'development') {
+  const enabled = process.env.NODE_ENV === 'development' || process.env.PERF_LOG === '1';
+  if (!enabled) {
     return fn();
   }
   const start = performance.now();
