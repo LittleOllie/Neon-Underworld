@@ -34,6 +34,8 @@ test.describe('Session persistence — cookie survives BootScreen', () => {
     const persistedPage = await persistedContext.newPage();
 
     await persistedPage.goto('/command');
+    await expect(persistedPage.locator('.nu-boot')).toBeVisible({ timeout: 10_000 });
+    await dismissBootScreen(persistedPage);
     await expectAuthenticatedCommand(persistedPage);
 
     await loginContext.close();
@@ -52,6 +54,8 @@ test.describe('Session persistence — cookie survives BootScreen', () => {
 
     await persistedPage.goto('/empire');
     await expect(persistedPage).toHaveURL(/\/empire/, { timeout: 20_000 });
+    await expect(persistedPage.locator('.nu-boot')).toBeVisible({ timeout: 10_000 });
+    await dismissBootScreen(persistedPage);
     await expect(persistedPage.getByRole('heading', { name: 'Empire' })).toBeVisible({
       timeout: 20_000,
     });
@@ -74,6 +78,8 @@ test.describe('Session persistence — cookie survives BootScreen', () => {
 
     await persistedPage.goto('/attack');
     await expect(persistedPage).toHaveURL(/\/attack/, { timeout: 20_000 });
+    await expect(persistedPage.locator('.nu-boot')).toBeVisible({ timeout: 10_000 });
+    await dismissBootScreen(persistedPage);
     await expect(persistedPage.getByRole('heading', { name: 'Attack' })).toBeVisible({
       timeout: 20_000,
     });

@@ -9,10 +9,10 @@ import {
 } from '@local/config/boot-screen';
 
 describe('boot screen copy', () => {
-  it('shows welcome back with alias when authenticated', () => {
+  it('shows welcome with alias when authenticated', () => {
     const copy = getBootCopy('authenticated', 'Vex_Morgan');
-    expect(copy.welcome).toBe('Welcome back');
-    expect(copy.alias).toBe('Vex_Morgan');
+    expect(copy.welcome).toBe('Welcome Vex_Morgan!');
+    expect(copy.alias).toBeNull();
     expect(copy.status).toBe('NETWORK READY');
     expect(copy.enterLabel).toBe('ENTER EMPIRE');
   });

@@ -1,13 +1,12 @@
 'use client';
 
-import { useLayoutEffect, useState } from 'react';
+import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getBootCopy, BOOT_SCREEN } from '@local/config/boot-screen';
 import {
   resolveBootDismissTarget,
   resolveBootSessionStatus,
-  shouldSkipBootOverlay,
 } from '@local/lib/boot-screen-session';
 import { BootBackgroundArt } from './BootBackgroundArt';
 import { BootLogoutButton } from './BootLogoutButton';
@@ -25,26 +24,16 @@ function readBootDismissed(): boolean {
 type BootPhase = 'active' | 'exit' | 'hidden';
 
 /**
- * Full-screen intro on entry routes only.
- * Protected game deep links skip the overlay — server/middleware auth stays authoritative.
+ * Full-screen intro with logo, welcome, and Enter — shown on each fresh visit until dismissed.
+ * Session-safe: loading never routes to login; protected routes preserve deep links.
  */
 export function BootScreen({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
-  const skipBoot = shouldSkipBootOverlay(pathname);
-  const [phase, setPhase] = useState<BootPhase>(() =>
-    readBootDismissed() || skipBoot ? 'hidden' : 'active',
-  );
+  const [phase, setPhase] = useState<BootPhase>(() => (readBootDismissed() ? 'hidden' : 'active'));
 
-  useLayoutEffect(() => {
-    if (skipBoot) {
-      sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
-      setPhase('hidden');
-    }
-  }, [skipBoot]);
-
-  const bootStatus = resolveBootSessionStatus(sessionStatus);
+  const bootStatus = resolveBootSessionStatus(sessionStatus, pathname);
   const copy = getBootCopy(bootStatus, session?.user?.alias);
   const showLogout = bootStatus === 'authenticated';
   const isReady = bootStatus !== 'loading';
@@ -55,7 +44,9 @@ export function BootScreen({ children }: { children: React.ReactNode }) {
     setPhase('exit');
 
     window.setTimeout(() => {
-      router.push(dismissTarget);
+      if (dismissTarget !== pathname) {
+        router.push(dismissTarget);
+      }
       sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
       setPhase('hidden');
     }, SMOKE_EXIT_MS);

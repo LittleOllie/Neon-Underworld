@@ -4,10 +4,10 @@ import type { BootSessionStatus } from '@local/config/boot-screen';
 export type ClientSessionStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 /**
- * Game and auth routes where middleware/server auth already gate access.
- * Boot overlay is skipped so deep links and relaunches are not hijacked client-side.
+ * Routes middleware protects — if the player reached one, a valid server session
+ * already passed. Client-side unauthenticated must not be treated as logout here.
  */
-export const BOOT_SKIP_ROUTE_PREFIXES = [
+export const BOOT_PROTECTED_GAME_ROUTE_PREFIXES = [
   '/command',
   '/empire',
   '/operations',
@@ -33,20 +33,23 @@ export const BOOT_SKIP_ROUTE_PREFIXES = [
   '/playtest',
 ] as const;
 
-/** Entry/auth routes where the boot intro may still appear. */
-export const BOOT_ENTRY_ROUTE_PREFIXES = ['/', '/login', '/register'] as const;
-
-export function shouldSkipBootOverlay(pathname: string): boolean {
-  if (BOOT_ENTRY_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-    return false;
-  }
-  return BOOT_SKIP_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+export function isProtectedGameRoute(pathname: string): boolean {
+  return BOOT_PROTECTED_GAME_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
-/** Map NextAuth client status to boot copy state — loading never becomes unauthenticated. */
-export function resolveBootSessionStatus(sessionStatus: ClientSessionStatus): BootSessionStatus {
+/**
+ * Map NextAuth client status to boot copy state.
+ * Loading never becomes unauthenticated; protected routes keep waiting on client lag.
+ */
+export function resolveBootSessionStatus(
+  sessionStatus: ClientSessionStatus,
+  pathname: string,
+): BootSessionStatus {
   if (sessionStatus === 'loading') return 'loading';
   if (sessionStatus === 'authenticated') return 'authenticated';
+  if (isProtectedGameRoute(pathname)) return 'loading';
   return 'unauthenticated';
 }
 

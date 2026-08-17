@@ -37,9 +37,10 @@ export function getBootCopy(
   }
 
   if (status === 'authenticated') {
+    const name = alias?.trim();
     return {
-      welcome: 'Welcome back',
-      alias: alias?.trim() || null,
+      welcome: name ? `Welcome ${name}!` : 'Welcome back!',
+      alias: null,
       status: 'NETWORK READY',
       enterLabel: 'ENTER EMPIRE',
     };
