@@ -1,9 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { getBootCopy, type BootSessionStatus, BOOT_SCREEN } from '@local/config/boot-screen';
+import { getBootCopy, BOOT_SCREEN } from '@local/config/boot-screen';
+import {
+  resolveBootDismissTarget,
+  resolveBootSessionStatus,
+  shouldSkipBootOverlay,
+} from '@local/lib/boot-screen-session';
 import { BootBackgroundArt } from './BootBackgroundArt';
 import { BootLogoutButton } from './BootLogoutButton';
 import { BrandedLoader } from './BrandedLoader';
@@ -20,36 +25,37 @@ function readBootDismissed(): boolean {
 type BootPhase = 'active' | 'exit' | 'hidden';
 
 /**
- * Full-screen intro — dismisses on Enter, smoke sweep exit, then Home (or login).
+ * Full-screen intro on entry routes only.
+ * Protected game deep links skip the overlay — server/middleware auth stays authoritative.
  */
 export function BootScreen({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
-  const [phase, setPhase] = useState<BootPhase>(() => (readBootDismissed() ? 'hidden' : 'active'));
+  const skipBoot = shouldSkipBootOverlay(pathname);
+  const [phase, setPhase] = useState<BootPhase>(() =>
+    readBootDismissed() || skipBoot ? 'hidden' : 'active',
+  );
 
-  const bootStatus: BootSessionStatus =
-    sessionStatus === 'loading'
-      ? 'loading'
-      : sessionStatus === 'authenticated'
-        ? 'authenticated'
-        : 'unauthenticated';
+  useLayoutEffect(() => {
+    if (skipBoot) {
+      sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
+      setPhase('hidden');
+    }
+  }, [skipBoot]);
 
+  const bootStatus = resolveBootSessionStatus(sessionStatus);
   const copy = getBootCopy(bootStatus, session?.user?.alias);
   const showLogout = bootStatus === 'authenticated';
   const isReady = bootStatus !== 'loading';
+  const dismissTarget = resolveBootDismissTarget(pathname, bootStatus);
 
   function dismissBoot() {
-    if (phase !== 'active' || !isReady) return;
+    if (phase !== 'active' || !isReady || dismissTarget === null) return;
     setPhase('exit');
 
     window.setTimeout(() => {
-      if (bootStatus === 'authenticated') {
-        const isDefaultEntry = pathname === '/' || pathname === '/login';
-        router.push(isDefaultEntry ? '/command' : pathname);
-      } else {
-        router.push('/login');
-      }
+      router.push(dismissTarget);
       sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
       setPhase('hidden');
     }, SMOKE_EXIT_MS);
