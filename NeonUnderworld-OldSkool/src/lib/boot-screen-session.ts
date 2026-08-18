@@ -31,6 +31,7 @@ export const BOOT_PROTECTED_GAME_ROUTE_PREFIXES = [
   '/how-to-play',
   '/coming',
   '/playtest',
+  '/admin',
 ] as const;
 
 export function isProtectedGameRoute(pathname: string): boolean {
@@ -39,17 +40,26 @@ export function isProtectedGameRoute(pathname: string): boolean {
   );
 }
 
+/** Intro boot is game-only — never block admin, auth, or API routes. */
+export function shouldSkipBootScreen(pathname: string): boolean {
+  return (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/api/')
+  );
+}
+
 /**
  * Map NextAuth client status to boot copy state.
- * Loading never becomes unauthenticated; protected routes keep waiting on client lag.
+ * Loading never becomes unauthenticated until the client resolves the session.
  */
 export function resolveBootSessionStatus(
   sessionStatus: ClientSessionStatus,
-  pathname: string,
+  _pathname: string,
 ): BootSessionStatus {
   if (sessionStatus === 'loading') return 'loading';
   if (sessionStatus === 'authenticated') return 'authenticated';
-  if (isProtectedGameRoute(pathname)) return 'loading';
   return 'unauthenticated';
 }
 

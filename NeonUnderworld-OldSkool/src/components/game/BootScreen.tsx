@@ -1,18 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getBootCopy, BOOT_SCREEN } from '@local/config/boot-screen';
 import {
   resolveBootDismissTarget,
   resolveBootSessionStatus,
+  shouldSkipBootScreen,
+  type ClientSessionStatus,
 } from '@local/lib/boot-screen-session';
 import { BootBackgroundArt } from './BootBackgroundArt';
 import { BootLogoutButton } from './BootLogoutButton';
 import { BrandedLoader } from './BrandedLoader';
 
 const SMOKE_EXIT_MS = 920;
+const SESSION_LOAD_TIMEOUT_MS = 8000;
 
 const BOOT_DISMISSED_KEY = 'nu-boot-dismissed';
 
@@ -32,8 +35,28 @@ export function BootScreen({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
   const [phase, setPhase] = useState<BootPhase>(() => (readBootDismissed() ? 'hidden' : 'active'));
+  const [sessionTimedOut, setSessionTimedOut] = useState(false);
 
-  const bootStatus = resolveBootSessionStatus(sessionStatus, pathname);
+  useEffect(() => {
+    if (shouldSkipBootScreen(pathname)) {
+      setPhase('hidden');
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (sessionStatus !== 'loading') {
+      setSessionTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSessionTimedOut(true), SESSION_LOAD_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [sessionStatus, pathname]);
+
+  const effectiveSessionStatus: ClientSessionStatus = sessionTimedOut
+    ? 'unauthenticated'
+    : sessionStatus;
+
+  const bootStatus = resolveBootSessionStatus(effectiveSessionStatus, pathname);
   const copy = getBootCopy(bootStatus, session?.user?.alias);
   const showLogout = bootStatus === 'authenticated';
   const isReady = bootStatus !== 'loading';
@@ -45,7 +68,7 @@ export function BootScreen({ children }: { children: React.ReactNode }) {
 
     window.setTimeout(() => {
       if (dismissTarget !== pathname) {
-        router.push(dismissTarget);
+        router.replace(dismissTarget);
       }
       sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
       setPhase('hidden');
@@ -53,6 +76,10 @@ export function BootScreen({ children }: { children: React.ReactNode }) {
   }
 
   const bootClass = BOOT_SCREEN.artIncludesBranding ? ' nu-boot--intro-art' : '';
+
+  if (shouldSkipBootScreen(pathname)) {
+    return <>{children}</>;
+  }
 
   return (
     <>

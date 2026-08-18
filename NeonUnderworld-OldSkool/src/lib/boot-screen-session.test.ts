@@ -4,6 +4,7 @@ import {
   isProtectedGameRoute,
   resolveBootDismissTarget,
   resolveBootSessionStatus,
+  shouldSkipBootScreen,
 } from '@local/lib/boot-screen-session';
 
 describe('boot screen session safety', () => {
@@ -30,11 +31,11 @@ describe('boot screen session safety', () => {
     expect(bootMayRouteToLogin('unauthenticated')).toBe(true);
   });
 
-  it('unauthenticated on protected game routes stays loading — avoids false logout', () => {
-    expect(resolveBootSessionStatus('unauthenticated', '/command')).toBe('loading');
-    expect(resolveBootSessionStatus('unauthenticated', '/attack')).toBe('loading');
-    expect(resolveBootDismissTarget('/command', 'loading')).toBeNull();
-    expect(bootMayRouteToLogin('loading')).toBe(false);
+  it('unauthenticated on protected game routes may sign in', () => {
+    expect(resolveBootSessionStatus('unauthenticated', '/command')).toBe('unauthenticated');
+    expect(resolveBootSessionStatus('unauthenticated', '/attack')).toBe('unauthenticated');
+    expect(resolveBootDismissTarget('/command', 'unauthenticated')).toBe('/login');
+    expect(bootMayRouteToLogin('unauthenticated')).toBe(true);
   });
 
   it('recognises protected game routes', () => {
@@ -43,5 +44,12 @@ describe('boot screen session safety', () => {
     expect(isProtectedGameRoute('/reports/abc')).toBe(true);
     expect(isProtectedGameRoute('/login')).toBe(false);
     expect(isProtectedGameRoute('/')).toBe(false);
+  });
+
+  it('skips boot screen on admin and auth routes', () => {
+    expect(shouldSkipBootScreen('/admin')).toBe(true);
+    expect(shouldSkipBootScreen('/admin/players')).toBe(true);
+    expect(shouldSkipBootScreen('/login')).toBe(true);
+    expect(shouldSkipBootScreen('/command')).toBe(false);
   });
 });
