@@ -47,7 +47,9 @@ import {
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 import { identityViewFromPlayer } from '@core/lib/game-engine/player-identity-fields';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
+import { isRoutePrefetch } from '@local/lib/is-route-prefetch';
 import {
   buildShellSnapshotForPlayer,
   finalizeLocalMutationShell,
@@ -551,12 +553,19 @@ export async function getAttackPageData(
 ) {
   await assertSessionMatchesPlayer(ctx.id);
 
-  const { maybeProgressActiveSeasonNpcs } = await import(
-    '@core/server/services/npc-progression.service'
-  );
-  await maybeProgressActiveSeasonNpcs(prisma).catch((err) => {
-    console.error('NPC progression (attack page) failed:', err);
-  });
+  if (!(await isRoutePrefetch())) {
+    after(async () => {
+      const { isNpcProgressionCatchUpNeeded, progressActiveSeasonNpcs } = await import(
+        '@core/server/services/npc-progression.service'
+      );
+      const stale = await isNpcProgressionCatchUpNeeded(prisma);
+      if (stale) {
+        await progressActiveSeasonNpcs(prisma).catch((err) => {
+          console.error('NPC progression (attack page background) failed:', err);
+        });
+      }
+    });
+  }
 
   const attackerNw = ctx.netWorth;
   const capSince = attackCapWindowStart(ctx.season.startsAt);

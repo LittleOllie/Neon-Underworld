@@ -352,5 +352,45 @@ export async function progressDueNpcs(
 export async function maybeProgressActiveSeasonNpcs(
   prisma: PrismaClient,
 ): Promise<void> {
+  if (!(await isNpcProgressionCatchUpNeeded(prisma))) return;
   await progressDueNpcs(prisma);
+}
+
+/** Cheap check — true when any progression NPC is missing state or past the 6h tick window. */
+export async function isNpcProgressionCatchUpNeeded(
+  prisma: PrismaClient,
+  now: Date = new Date(),
+): Promise<boolean> {
+  const season = await prisma.season.findFirst({
+    where: { status: SeasonStatus.ACTIVE },
+    orderBy: { number: 'desc' },
+  });
+  if (!season) return false;
+
+  const npcFilter = {
+    seasonId: season.id,
+    isSystemPlayer: false,
+    user: { OR: progressionNpcEmailOrFilters() },
+  } as const;
+
+  const cutoff = new Date(now.getTime() - NPC_PROGRESSION_TICK_HOURS * 3_600_000);
+
+  const [dueState, missingProgression] = await Promise.all([
+    prisma.npcProgressionState.findFirst({
+      where: {
+        lastProgressedAt: { lt: cutoff },
+        player: npcFilter,
+      },
+      select: { playerId: true },
+    }),
+    prisma.player.findFirst({
+      where: {
+        ...npcFilter,
+        npcProgression: null,
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  return dueState != null || missingProgression != null;
 }
