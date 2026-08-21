@@ -189,12 +189,11 @@ function buildCanonicalContext(
 
 const getCanonicalContextCached = cache(async (playerId: string): Promise<CanonicalPlayerContext> => {
   const player = await loadPlayerRecord(playerId);
-  const [districtRank, overallRank, netWorth] = await Promise.all([
-    RankingsService.getPlayerDistrictRank(playerId, player.seasonId, player.district.slug),
-    RankingsService.getPlayerOverallRank(playerId, player.seasonId),
+  const [ranks, netWorth] = await Promise.all([
+    RankingsService.getPlayerRanksFromOverall(playerId, player.seasonId, player.district.slug),
     NetWorthService.calculateFromPlayerAsync(player),
   ]);
-  return buildCanonicalContext(player, districtRank, overallRank, netWorth);
+  return buildCanonicalContext(player, ranks.districtRank, ranks.overallRank, netWorth);
 });
 
 export const PlayerService = {

@@ -172,6 +172,100 @@ describe('RankingsService', () => {
     expect(findMany).toHaveBeenCalledTimes(1);
   });
 
+  it('derives overall and district rank from one overall leaderboard pass', async () => {
+    findMany.mockResolvedValue([
+      {
+        id: 'p1',
+        createdAt: new Date('2026-01-01'),
+        alias: 'Alpha',
+        aliasNormalized: 'alpha',
+        avatar: null,
+        district: { name: 'Old Quarter', slug: 'old-quarter' },
+        cartel: null,
+        user: { lastLoginAt: null },
+        statusExt: null,
+        updatedAt: new Date(),
+        cash: 1000,
+        bankCash: 0,
+        prostitutes: 0,
+        thugs: 0,
+        rides: 0,
+        glocks: 0,
+        uzis: 0,
+        aks: 0,
+        hash: 0,
+        shrooms: 0,
+        coke: 0,
+        heroin: 0,
+        businesses: 0,
+      },
+      {
+        id: 'p2',
+        createdAt: new Date('2026-01-02'),
+        alias: 'Beta',
+        aliasNormalized: 'beta',
+        avatar: null,
+        district: { name: 'Neon Strip', slug: 'neon-strip' },
+        cartel: null,
+        user: { lastLoginAt: null },
+        statusExt: null,
+        updatedAt: new Date(),
+        cash: 500,
+        bankCash: 0,
+        prostitutes: 0,
+        thugs: 0,
+        rides: 0,
+        glocks: 0,
+        uzis: 0,
+        aks: 0,
+        hash: 0,
+        shrooms: 0,
+        coke: 0,
+        heroin: 0,
+        businesses: 0,
+      },
+      {
+        id: 'p3',
+        createdAt: new Date('2026-01-03'),
+        alias: 'Gamma',
+        aliasNormalized: 'gamma',
+        avatar: null,
+        district: { name: 'Old Quarter', slug: 'old-quarter' },
+        cartel: null,
+        user: { lastLoginAt: null },
+        statusExt: null,
+        updatedAt: new Date(),
+        cash: 200,
+        bankCash: 0,
+        prostitutes: 0,
+        thugs: 0,
+        rides: 0,
+        glocks: 0,
+        uzis: 0,
+        aks: 0,
+        hash: 0,
+        shrooms: 0,
+        coke: 0,
+        heroin: 0,
+        businesses: 0,
+      },
+    ]);
+    calculateForPlayers.mockResolvedValue(
+      new Map([
+        ['p1', 5000],
+        ['p2', 9000],
+        ['p3', 1000],
+      ]),
+    );
+
+    const { RankingsService } = await import('./rankings.service');
+
+    const ranks = await RankingsService.getPlayerRanksFromOverall('p1', 'season-1', 'old-quarter');
+    expect(ranks.overallRank).toBe(2);
+    expect(ranks.districtRank).toBe(1);
+    expect(findMany).toHaveBeenCalledTimes(1);
+  });
+
   it('getSeasonRankings assigns sequential ranks by net worth', async () => {
     findMany.mockResolvedValue([
       {
