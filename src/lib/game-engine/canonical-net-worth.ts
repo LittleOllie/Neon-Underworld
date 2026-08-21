@@ -72,7 +72,7 @@ export function totalOwnedWorkers(ctx: Pick<CanonicalNetWorthBusinessContext, 's
 
 export function calculateCanonicalNetWorthFromPlayer(
   player: CanonicalNetWorthPlayerRecord,
-  businessContext?: CanonicalNetWorthBusinessContext,
+  businessContext?: Partial<CanonicalNetWorthBusinessContext>,
 ): number {
   const streetWorkers = businessContext?.streetWorkers ?? player.prostitutes;
   const assignedWorkers = businessContext?.assignedWorkers ?? 0;

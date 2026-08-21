@@ -8,7 +8,9 @@ export default async function HowToPlayPage() {
   return (
     <>
       <PageTitle icon="guides">How to Play</PageTitle>
-      <HowToPlayGuide districtName={ctx.district.name} districtSlug={ctx.district.slug} />
+      <div className="g-gameplay-controls g-guides-chrome">
+        <HowToPlayGuide districtName={ctx.district.name} districtSlug={ctx.district.slug} />
+      </div>
     </>
   );
 }

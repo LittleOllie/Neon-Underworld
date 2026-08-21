@@ -1,16 +1,17 @@
 /** Boot / intro screen assets and copy helpers. */
 
+import { nuBackgroundUrl } from '@local/config/nu-backgrounds';
+import { nuLogoUrl } from '@local/config/nu-brand';
+
 /** Viewport width at or below which portrait phone intro art is used. */
 export const BOOT_PHONE_MAX_WIDTH = 768;
 
 export const BOOT_SCREEN = {
-  logoSrc: '/images/game-backgrounds/NUPFPLogo.webp',
-  /** Landscape intro for tablet/desktop (NUIntroScreen.png source). */
-  backgroundSrc: '/images/game-backgrounds/NUIntroScreen.webp',
-  /** Portrait intro for phones (NUIntroPhone.png source). */
-  phoneBackgroundSrc: '/images/game-backgrounds/NUIntroPhone.webp',
-  backgroundRevision: 3,
-  /** Art includes logo + title — UI overlays only welcome/status at bottom. */
+  logoSrc: nuLogoUrl(),
+  /** Approved Phase 3 intro — public/images/nu/backgrounds/intro.webp */
+  backgroundSrc: nuBackgroundUrl('intro'),
+  backgroundRevision: 1,
+  /** Environment art only — logo is a separate HTML overlay. */
   artIncludesBranding: true,
 } as const;
 
@@ -55,13 +56,5 @@ export function getBootCopy(
 }
 
 export function bootBackgroundUrl(): string {
-  return `${BOOT_SCREEN.backgroundSrc}?v=${BOOT_SCREEN.backgroundRevision}`;
-}
-
-export function bootPhoneBackgroundUrl(): string {
-  return `${BOOT_SCREEN.phoneBackgroundSrc}?v=${BOOT_SCREEN.backgroundRevision}`;
-}
-
-export function bootPhoneMediaQuery(): string {
-  return `(max-width: ${BOOT_PHONE_MAX_WIDTH}px)`;
+  return BOOT_SCREEN.backgroundSrc;
 }

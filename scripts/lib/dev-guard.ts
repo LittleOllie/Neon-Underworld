@@ -8,4 +8,15 @@ export function assertDevSeedAllowed(scriptName: string): void {
     );
     process.exit(1);
   }
+
+  if (process.env.VERCEL === '1' && process.env.ALLOW_DEV_SEED !== 'true') {
+    console.error(
+      `[${scriptName}] Refusing to run on Vercel without ALLOW_DEV_SEED=true.`,
+    );
+    process.exit(1);
+  }
+}
+
+export function isLocalNpcSeedEmail(email: string): boolean {
+  return email.trim().toLowerCase().startsWith('local-npc+');
 }

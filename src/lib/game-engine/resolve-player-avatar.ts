@@ -5,6 +5,12 @@ import {
   type PlayerAvatarConfig,
   type PlayerAvatarId,
 } from '@/config/game/player-avatars';
+import {
+  playerIdentityCssVars,
+  type PlayerIdentityRecord,
+} from '@/lib/game-engine/player-identity';
+import { characterThemeFromAvatarId } from '@/lib/game-engine/player-identity';
+import { themePaletteToCssVars } from '@/lib/game-engine/theme-safety';
 
 /** Resolved avatar for display/theme — unknown or missing values fall back to Viper. */
 export function resolvePlayerAvatarId(raw: string | null | undefined): PlayerAvatarId {
@@ -16,25 +22,15 @@ export function resolvePlayerAvatarConfig(raw: string | null | undefined): Playe
   return getPlayerAvatarConfig(resolvePlayerAvatarId(raw));
 }
 
-/** New players with no stored avatar must complete identity selection. */
+/** @deprecated Prefer needsIdentitySetup from player-identity (checks avatarSource). */
 export function needsAvatarSelection(raw: string | null | undefined): boolean {
   return raw == null || raw.trim() === '';
 }
 
 export function avatarThemeCssVars(config: PlayerAvatarConfig): Record<string, string> {
-  return {
-    '--nu-accent-primary': config.primary,
-    '--nu-accent-secondary': config.secondary,
-    '--nu-accent-glow': config.glow,
-    '--nu-accent-muted': config.muted,
-    '--nu-accent-muted-strong': config.mutedStrong,
-    /* Legacy NU tokens — map gold/link aliases so all surfaces inherit avatar colour. */
-    '--os-gold': config.primary,
-    '--os-gold-dark': config.secondary,
-    '--os-highlight': config.muted,
-    '--os-highlight-strong': config.mutedStrong,
-    '--os-link': config.primary,
-    '--game-gold': config.primary,
-    '--game-gold-dark': config.secondary,
-  };
+  return themePaletteToCssVars(characterThemeFromAvatarId(config.id));
+}
+
+export function identityThemeCssVars(record: PlayerIdentityRecord): Record<string, string> {
+  return playerIdentityCssVars(record);
 }

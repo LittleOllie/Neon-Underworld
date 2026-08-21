@@ -12,8 +12,7 @@ const NAV_MAIN = [
 ];
 
 const NAV_OPS = [
-  { href: '/operations', label: 'Operations' },
-  { href: '/produce', label: 'Produce' },
+  { href: '/produce', label: 'Operations' },
   { href: '/shop', label: 'City Shop' },
   { href: '/attack', label: 'Attack' },
   { href: '/travel', label: 'Travel' },
@@ -26,7 +25,7 @@ const NAV_ECON = [
 ];
 
 const NAV_SOCIAL = [
-  { href: '/cartels', label: 'Cartel' },
+  { href: '/cartels', label: 'Factions' },
   { href: '/coming/messages', label: 'Messages', soon: true },
   { href: '/coming/online', label: 'Online Players', soon: true },
 ];

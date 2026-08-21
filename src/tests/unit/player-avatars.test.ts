@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PLAYER_AVATAR_ID,
   FOUNDING_PLAYER_AVATARS,
+  FOUNDING_PLAYER_AVATARS_BY_COLOR,
+  avatarPrimaryHsl,
   getPlayerAvatarConfig,
   isPlayerAvatarId,
 } from '@/config/game/player-avatars';
@@ -40,5 +42,20 @@ describe('player avatars', () => {
   it('validates avatar ids', () => {
     expect(isPlayerAvatarId('cherry')).toBe(true);
     expect(isPlayerAvatarId('fake')).toBe(false);
+  });
+
+  it('orders identity grid avatars by similar hue across the palette', () => {
+    expect(FOUNDING_PLAYER_AVATARS_BY_COLOR).toHaveLength(20);
+    expect(new Set(FOUNDING_PLAYER_AVATARS_BY_COLOR.map((a) => a.id)).size).toBe(20);
+
+    const hsl = FOUNDING_PLAYER_AVATARS_BY_COLOR.map((a) => avatarPrimaryHsl(a.primary));
+    const chromatic = hsl.filter((c) => c.chroma >= 0.1);
+    for (let i = 1; i < chromatic.length; i++) {
+      expect(chromatic[i].h).toBeGreaterThanOrEqual(chromatic[i - 1].h);
+    }
+
+    const lastTwo = FOUNDING_PLAYER_AVATARS_BY_COLOR.slice(-2).map((a) => a.id);
+    expect(lastTwo).toContain('grimm');
+    expect(lastTwo).toContain('siren');
   });
 });

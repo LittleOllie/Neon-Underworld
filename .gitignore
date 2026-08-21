@@ -45,3 +45,14 @@ next-env.d.ts
 # Misc
 .turbo/
 .vercel/
+.data/
+
+# Regenerable simulation CLI output (see scripts/simulate-round.ts, scripts/*-sim.ts)
+scripts/output/round-sim-*.json
+scripts/output/npc-progression-sim.json
+scripts/output/npc-ladder-sim.json
+scripts/output/monthly-sim-results.json
+scripts/output/crew-scale-sim.json
+scripts/output/crew-scale-implementation-sim.json
+scripts/output/five-figure-crew-sim.json
+scripts/output/turn-economy-audit.json

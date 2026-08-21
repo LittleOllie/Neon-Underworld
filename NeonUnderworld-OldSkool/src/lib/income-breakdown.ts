@@ -23,7 +23,7 @@ export function buildStreetIncomeBreakdownLines(
 
   if (breakdown.workerPayoutShare > 0) {
     lines.push({
-      text: `−$${breakdown.workerPayoutShare.toLocaleString()} worker payout`,
+      text: `−$${breakdown.workerPayoutShare.toLocaleString()} specialist payout`,
       tone: 'neutral',
     });
   }
@@ -40,7 +40,7 @@ export function buildStreetIncomeBreakdownLines(
 
   if (cartel > 0) {
     lines.push({
-      text: `−$${cartel.toLocaleString()} to cartel`,
+      text: `−$${cartel.toLocaleString()} to faction`,
       tone: 'neutral',
     });
   }

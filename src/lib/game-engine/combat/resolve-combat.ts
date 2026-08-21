@@ -1,4 +1,5 @@
-import { ATTACK_RULES, ATTACK_TYPE_LABELS, type AttackType } from '@/config/game/attack-rules';
+import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
+import { buildCombatOutcomeLabel } from '@/lib/game-engine/combat/attack-result-presentation';
 import { createCombatRng } from './combat-random';
 import { allocateWeaponsForThugs } from './weapon-allocation';
 import { resolveForceScores, forceEstimate } from './force-score';
@@ -142,42 +143,37 @@ export function resolveCombat(input: CombatResolutionInput): CombatResolutionRes
   }
 
   let outcome: CombatResolutionResult['outcome'];
-  let outcomeLabel: string;
 
   if (input.attackType === 'DRIVE_BY') {
     if (casualties.attackerVictory && casualties.defenderLosses > 0) {
       outcome = 'SUCCESS';
-      outcomeLabel = 'Drive-by complete — you won the clash and inflicted damage.';
     } else if (casualties.attackerVictory) {
       outcome = 'PARTIAL';
-      outcomeLabel = 'Drive-by broke through — defenders held with no losses.';
     } else {
       outcome = 'REPULSED';
-      outcomeLabel = 'Drive-by repelled — defenders held the line.';
     }
   } else if (input.attackType === 'POACH_WORKERS') {
     if (!casualties.attackerVictory) {
       outcome = 'REPULSED';
-      outcomeLabel = 'Poach attempt failed — their crew refused to move.';
     } else if (workersStolen > 0) {
       outcome = 'SUCCESS';
-      outcomeLabel = poachStrong
-        ? `Workers poached — ${workersStolen.toLocaleString()} joined your operation.`
-        : `Workers poached — ${workersStolen.toLocaleString()} transferred to your crew.`;
     } else {
       outcome = 'PARTIAL';
-      outcomeLabel = 'Poach attempt repelled — defenders stopped the workforce transfer.';
     }
   } else if (casualties.attackerVictory && (theft.cashStolen > 0 || totalDrugs(theft.drugsStolen) > 0)) {
     outcome = 'SUCCESS';
-    outcomeLabel = `${ATTACK_TYPE_LABELS[input.attackType]} successful.`;
   } else if (casualties.attackerVictory) {
     outcome = 'PARTIAL';
-    outcomeLabel = `${ATTACK_TYPE_LABELS[input.attackType]} partial — defenders damaged, no assets taken.`;
   } else {
     outcome = 'REPULSED';
-    outcomeLabel = `${ATTACK_TYPE_LABELS[input.attackType]} repelled.`;
   }
+
+  const outcomeLabel = buildCombatOutcomeLabel({
+    attackType: input.attackType,
+    outcome,
+    workersStolen,
+    poachStrong,
+  });
 
   return {
     attackType: input.attackType,

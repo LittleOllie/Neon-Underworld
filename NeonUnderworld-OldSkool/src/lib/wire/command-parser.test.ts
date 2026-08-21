@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getCityShopItem } from '@core/config/game/shop-rules';
+import { OS_TERMS } from '@local/config/terminology';
 import { parseWireCommand } from './command-parser';
 import {
   resolveShopItemFromPhrase,
@@ -136,7 +137,7 @@ describe('parseWireCommand — rejections', () => {
     const result = parseWireCommand('buy 100 workers');
     expect(result).toEqual({
       kind: 'UNKNOWN',
-      reason: 'Workers cannot be purchased from the City Shop. Use Scout to recruit personnel.',
+      reason: `${OS_TERMS.specialists} cannot be purchased from the City Shop. Use Scout to recruit personnel.`,
     });
   });
 });
@@ -164,13 +165,13 @@ describe('shop item aliases', () => {
   });
 
   it('uses canonical display names from CITY_SHOP_ITEMS', () => {
-    expect(resolveShopItemFromPhrase('AK-47')).toBe('ak');
-    expect(resolveShopItemFromPhrase('Condoms')).toBe('condom');
+    expect(resolveShopItemFromPhrase('Assault Rifle')).toBe('ak');
+    expect(resolveShopItemFromPhrase('Kits')).toBe('condom');
   });
 
   it('flags worker terms', () => {
     expect(isWorkerPurchaseTerm('workers')).toBe(true);
-    expect(isWorkerPurchaseTerm('prostitutes')).toBe(true);
+    expect(isWorkerPurchaseTerm('specialists')).toBe(true);
   });
 });
 

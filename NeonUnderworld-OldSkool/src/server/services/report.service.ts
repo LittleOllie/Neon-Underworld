@@ -1,6 +1,7 @@
 import type { ReportCategory } from '@prisma/client';
 import { cache } from 'react';
 import { prisma } from '@core/lib/db/prisma';
+import { getPlayerSeasonStartsAt, isReportFromCurrentRound } from '@core/server/services/round-rollover.service';
 import type { ScoutResultData } from '@core/server/actions/scout.actions';
 import type { PlayerIntelSnapshot } from '@core/lib/game-engine/combat/eligibility';
 import type { DeepIntelSnapshot } from '@core/lib/game-engine/combat/deep-intel';
@@ -15,6 +16,7 @@ import {
   computeConfidencePercent,
 } from '@core/lib/game-engine/combat/intel-bands';
 import { ATTACK_RULES } from '@core/config/game/attack-rules';
+import { OS_TERMS, enforcersLabel, specialistsLabel } from '@local/config/terminology';
 
 /** Reports shown in the player inbox — excludes routine district scout clutter. */
 export function isPlayerInboxReport(metadata: unknown, category: string): boolean {
@@ -233,7 +235,7 @@ export const ReportService = {
       playerId,
       'SCOUT',
       `Scout Report — ${districtName}`,
-      `+${result.prostitutesFound} workers, +${result.thugsFound} thugs, +$${result.cashEarned.toLocaleString()}`,
+      `+${result.prostitutesFound} ${specialistsLabel(result.prostitutesFound).toLowerCase()}, +${result.thugsFound} ${enforcersLabel(result.thugsFound).toLowerCase()}, +$${result.cashEarned.toLocaleString()}`,
       {
         body: result.summary,
         metadata: { snapshot, type: 'DISTRICT_SCOUT', idempotencyKey: idempotencyKey ?? null },
@@ -266,7 +268,7 @@ export const ReportService = {
       playerId,
       'SCOUT',
       `Player Intel — ${intel.targetAlias}`,
-      `${bands.thugs} thugs · ${bands.weapons} · ${bands.confidence}% confidence`,
+      `${bands.thugs} ${OS_TERMS.enforcers.toLowerCase()} · ${bands.weapons} · ${bands.confidence}% confidence`,
       {
         body: `Intelligence on ${intel.targetAlias} in ${intel.targetCity}. Report valid until ${new Date(intel.expiresAt).toLocaleString()}.`,
         metadata: {
@@ -301,7 +303,7 @@ export const ReportService = {
       playerId,
       'SCOUT',
       `Deep Intel — ${deepIntel.targetAlias}`,
-      `${thugRange} thugs · ${workerRange} workers · ${deepIntel.weaponReadinessBand} · ${deepIntel.workforceStabilityBand}`,
+      `${thugRange} ${OS_TERMS.enforcers.toLowerCase()} · ${workerRange} ${OS_TERMS.specialists.toLowerCase()} · ${deepIntel.weaponReadinessBand} · ${deepIntel.workforceStabilityBand}`,
       {
         body: `Deep intelligence snapshot on ${deepIntel.targetAlias} in ${deepIntel.targetCity}.`,
         metadata: {
@@ -326,15 +328,15 @@ export const ReportService = {
     const attackerSummary =
       snapshot.attackType === 'POACH_WORKERS'
         ? snapshot.workersStolen > 0
-          ? `Workers poached from ${defenderAlias}: +${snapshot.workersStolen.toLocaleString()}.`
-          : `Poach attempt vs ${defenderAlias}: ${snapshot.outcome}.`
+          ? `${OS_TERMS.specialists} extracted from ${defenderAlias}: +${snapshot.workersStolen.toLocaleString()}.`
+          : `Extraction attempt vs ${defenderAlias}: ${snapshot.outcome}.`
         : `${label} vs ${defenderAlias}: ${snapshot.outcome}. Lost ${snapshot.attackerLosses}, killed ${snapshot.defenderLosses}.`;
     const defenderSummary =
       snapshot.attackType === 'POACH_WORKERS'
         ? snapshot.workersStolen > 0
-          ? `Workers poached by ${attackerAlias}: -${snapshot.workersStolen.toLocaleString()}.`
-          : `Poach attempt from ${attackerAlias}: ${snapshot.outcome}.`
-        : `${label} from ${attackerAlias}: ${snapshot.outcome}. Lost ${snapshot.defenderLosses} thugs.`;
+          ? `${OS_TERMS.specialists} extracted by ${attackerAlias}: -${snapshot.workersStolen.toLocaleString()}.`
+          : `Extraction attempt from ${attackerAlias}: ${snapshot.outcome}.`
+        : `${label} from ${attackerAlias}: ${snapshot.outcome}. Lost ${snapshot.defenderLosses} ${enforcersLabel(snapshot.defenderLosses).toLowerCase()}.`;
 
     const attackerReportId = await this.create(
       attackerId,
@@ -365,6 +367,7 @@ export const ReportService = {
     basicIntelReports: ValidPlayerIntelReport[];
     deepIntelReports: ValidDeepIntelReport[];
   }> {
+    const seasonStartsAt = await getPlayerSeasonStartsAt(playerId);
     const rows = await prisma.report.findMany({
       where: { playerId, category: 'SCOUT' },
       orderBy: { createdAt: 'desc' },
@@ -376,6 +379,7 @@ export const ReportService = {
     const deepIntelReports: ValidDeepIntelReport[] = [];
 
     for (const r of rows) {
+      if (seasonStartsAt && !isReportFromCurrentRound(r.createdAt, seasonStartsAt)) continue;
       const meta = r.metadata as {
         type?: string;
         intel?: PlayerIntelSnapshot;
@@ -414,6 +418,7 @@ export const ReportService = {
   },
 
   async listValidPlayerIntelReports(playerId: string): Promise<ValidPlayerIntelReport[]> {
+    const seasonStartsAt = await getPlayerSeasonStartsAt(playerId);
     const rows = await prisma.report.findMany({
       where: { playerId, category: 'SCOUT' },
       orderBy: { createdAt: 'desc' },
@@ -423,6 +428,7 @@ export const ReportService = {
     const now = Date.now();
     return rows
       .map((r) => {
+        if (seasonStartsAt && !isReportFromCurrentRound(r.createdAt, seasonStartsAt)) return null;
         const meta = r.metadata as { type?: string; intel?: PlayerIntelSnapshot; snapshot?: PlayerIntelReportSnapshot } | null;
         if (meta?.type !== 'PLAYER_INTEL' || !meta.intel) return null;
         const expired = new Date(meta.intel.expiresAt).getTime() <= now;
@@ -445,6 +451,7 @@ export const ReportService = {
   },
 
   async listValidDeepIntelReports(playerId: string): Promise<ValidDeepIntelReport[]> {
+    const seasonStartsAt = await getPlayerSeasonStartsAt(playerId);
     const rows = await prisma.report.findMany({
       where: { playerId, category: 'SCOUT' },
       orderBy: { createdAt: 'desc' },
@@ -454,6 +461,7 @@ export const ReportService = {
     const now = Date.now();
     return rows
       .map((r) => {
+        if (seasonStartsAt && !isReportFromCurrentRound(r.createdAt, seasonStartsAt)) return null;
         const meta = r.metadata as { type?: string; deepIntel?: DeepIntelSnapshot } | null;
         if (meta?.type !== 'DEEP_INTEL' || !meta.deepIntel) return null;
         const expired = new Date(meta.deepIntel.expiresAt).getTime() <= now;

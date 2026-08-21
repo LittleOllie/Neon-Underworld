@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { registerAction } from '@local/server/actions/auth.actions';
+import { GoogleSignInButton, AuthDivider } from '@local/features/auth/GoogleSignInButton';
 
 interface RegisterFormProps {
   districts: Array<{ slug: string; name: string; description: string }>;
+  googleEnabled?: boolean;
 }
 
-export function RegisterForm({ districts }: RegisterFormProps) {
+export function RegisterForm({ districts, googleEnabled = false }: RegisterFormProps) {
   const router = useRouter();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,7 +32,10 @@ export function RegisterForm({ districts }: RegisterFormProps) {
   }
 
   return (
-    <form className="g-auth-form" onSubmit={handleSubmit}>
+    <>
+      <GoogleSignInButton enabled={googleEnabled} callbackUrl="/command" />
+      {googleEnabled ? <AuthDivider /> : null}
+      <form className="g-auth-form" onSubmit={handleSubmit}>
       <label className="g-auth-field">
         <span className="g-field-label">Invite code</span>
         <input
@@ -110,5 +115,6 @@ export function RegisterForm({ districts }: RegisterFormProps) {
         Already registered? <Link href="/login">Sign in</Link>
       </p>
     </form>
+    </>
   );
 }

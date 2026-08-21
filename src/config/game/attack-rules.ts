@@ -3,6 +3,7 @@ import { REDLITE_ATTACK, REDLITE_VEHICLES, REDLITE_WEAPONS } from './redlite-rul
 /** Neon Underworld Attack v1 — single source of truth */
 export const ATTACK_RULES = {
   netWorthMinMultiplier: REDLITE_ATTACK.minNetWorthMultiplier,
+  netWorthMaxMultiplier: REDLITE_ATTACK.maxNetWorthMultiplier,
 
   /** 1 ride per 5 attacking thugs (Neon simplification — all v1 mobile attacks) */
   thugsPerRide: REDLITE_VEHICLES.thugsPerRide,
@@ -17,10 +18,10 @@ export const ATTACK_RULES = {
   },
 
   turnCosts: {
-    DRIVE_BY: 2,
-    HOME_INVASION: 3,
-    RAID_DRUG_LABS: 3,
-    POACH_WORKERS: 4,
+    DRIVE_BY: 5,
+    HOME_INVASION: 8,
+    RAID_DRUG_LABS: 10,
+    POACH_WORKERS: 12,
   } as const,
 
   /** Turns to gather basic player intel before attacking (optional — direct attacks skip this) */
@@ -64,16 +65,19 @@ export const ATTACK_RULES = {
 export type AttackType = keyof typeof ATTACK_RULES.turnCosts;
 
 export const ATTACK_TYPE_LABELS: Record<AttackType, string> = {
-  DRIVE_BY: 'Drive-By Shooting',
-  HOME_INVASION: 'Home Invasion',
-  RAID_DRUG_LABS: 'Raid Drug Labs',
-  POACH_WORKERS: 'Poach Workers',
+  DRIVE_BY: 'Strike',
+  HOME_INVASION: 'Breach',
+  RAID_DRUG_LABS: 'Raid',
+  POACH_WORKERS: 'Extraction',
 };
 
 export const ATTACK_TYPE_PURPOSE: Record<AttackType, string> = {
-  DRIVE_BY: 'Win the force confrontation and kill defending thugs. No asset theft.',
-  HOME_INVASION: 'Defeat defenders and steal exposed cash on hand. Bank is protected.',
-  RAID_DRUG_LABS: 'Defeat defenders and steal drugs from stock.',
+  DRIVE_BY:
+    'Clash with their Enforcers to inflict crew losses. Strike does not take Cash, stock, or Specialists — a full win needs damage on their line.',
+  HOME_INVASION:
+    'Break in to seize exposed Cash they are holding on hand. Vault funds stay protected, and you need a strong win with enough survivors to take anything.',
+  RAID_DRUG_LABS:
+    'Strip Components, Chips, Modules, and Cores from their stockpiles. Requires a decisive win — no payout if stock is empty or your force takes heavy losses.',
   POACH_WORKERS:
-    'Target their street operation and convince vulnerable Workers to join you.',
+    'Attempt to pull Specialists from their operation into yours. Targets need a sizeable workforce; extraction yields crew, not Cash or stock.',
 };

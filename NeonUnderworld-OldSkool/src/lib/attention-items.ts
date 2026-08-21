@@ -1,6 +1,7 @@
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import type { CommandEmpireBrief } from '@local/domain/empire.model';
 import type { BusinessOperationsSummary } from '@local/lib/business-heat-display';
+import { OS_TERMS } from '@local/config/terminology';
 import { buildWorkerStabilityMeter, buildBeerSupplyMeter } from '@local/server/domain/status-presentation';
 
 export interface AttentionItem {
@@ -76,12 +77,14 @@ function pushDefenceAlerts(items: AttentionItem[], defenceAlerts: DefenceAlertSu
     const latest = poachAlerts[0]!;
     const lossLine =
       latest.workersStolen > 0
-        ? `${latest.workersStolen.toLocaleString()} workers taken`
+        ? `${latest.workersStolen.toLocaleString()} ${OS_TERMS.specialists.toLowerCase()} taken`
         : 'poach attempt on your crew';
     items.push({
       id: 'workers-poached',
       headline:
-        poachAlerts.length > 1 ? `WORKERS POACHED ${poachAlerts.length} TIMES` : 'WORKERS POACHED',
+        poachAlerts.length > 1
+          ? `${OS_TERMS.specialists.toUpperCase()} POACHED ${poachAlerts.length} TIMES`
+          : `${OS_TERMS.specialists.toUpperCase()} POACHED`,
       label: `${latest.attackerAlias} — ${lossLine}`,
       href:
         poachAlerts.length > 1 ? '/reports?filter=unread' : `/reports/${latest.reportId}`,
@@ -121,7 +124,10 @@ function pushSystemReports(items: AttentionItem[], systemReports: SystemAttentio
     const latest = raids[0]!;
     items.push({
       id: 'police-raid',
-      headline: raids.length > 1 ? `${raids.length} POLICE RAIDS` : 'POLICE RAID',
+      headline:
+        raids.length > 1
+          ? `${raids.length} ${OS_TERMS.securitySweep.toUpperCase()}S`
+          : OS_TERMS.securitySweep.toUpperCase(),
       label:
         latest.businessName != null
           ? `${latest.businessName} was hit by authorities.`
@@ -190,11 +196,13 @@ function pushBusinessAttention(
     items.push({
       id: 'business-critical-heat',
       headline:
-        criticalHeatCount > 1 ? `${criticalHeatCount} BUSINESSES AT CRITICAL HEAT` : 'CRITICAL BUSINESS HEAT',
+        criticalHeatCount > 1
+          ? `${criticalHeatCount} BUSINESSES AT CRITICAL ${OS_TERMS.heat.toUpperCase()}`
+          : `CRITICAL BUSINESS ${OS_TERMS.heat.toUpperCase()}`,
       label:
         first != null
-          ? `${first.name} is at critical heat — raid risk is elevated.`
-          : 'A business is at critical heat.',
+          ? `${first.name} is at critical ${OS_TERMS.heat.toLowerCase()} — raid risk is elevated.`
+          : `A business is at critical ${OS_TERMS.heat.toLowerCase()}.`,
       href: '/businesses',
       severity: 'critical',
       icon: 'warning',
@@ -210,7 +218,7 @@ function pushBusinessAttention(
         overCapacityCount > 1
           ? `${overCapacityCount} BUSINESSES OVER CAPACITY`
           : 'BUSINESS OVER CAPACITY',
-      label: 'Workers or Security exceed capacity — adjust assignments.',
+      label: `${OS_TERMS.specialists} or Security exceed capacity — adjust assignments.`,
       href: '/businesses',
       severity: 'alert',
       icon: 'warning',
@@ -226,8 +234,8 @@ function pushBusinessAttention(
   ) {
     items.push({
       id: 'business-heat-high',
-      headline: 'BUSINESS HEAT HIGH',
-      label: 'At least one business has elevated heat.',
+      headline: `BUSINESS ${OS_TERMS.heat.toUpperCase()} HIGH`,
+      label: `At least one business has elevated ${OS_TERMS.heat.toLowerCase()}.`,
       href: '/businesses',
       severity: 'info',
       icon: 'info',
@@ -243,8 +251,8 @@ function pushCartelInvites(items: AttentionItem[], cartelInvites: CartelInviteAt
     id: 'cartel-invitation',
     headline:
       cartelInvites.length > 1
-        ? `${cartelInvites.length} CARTEL INVITATIONS`
-        : 'CARTEL INVITATION',
+        ? `${cartelInvites.length} ${OS_TERMS.factions.toUpperCase()} INVITATIONS`
+        : `${OS_TERMS.faction.toUpperCase()} INVITATION`,
     label: `You've been invited to join ${first.cartelName}.`,
     href: '/cartels',
     severity: 'alert',
@@ -307,7 +315,7 @@ export function collectAttentionItems(input: {
     items.push({
       id: 'unarmed-thugs',
       value: String(brief.unarmedThugs),
-      label: `street thug${brief.unarmedThugs === 1 ? '' : 's'} unarmed`,
+      label: `${brief.unarmedThugs === 1 ? OS_TERMS.enforcer : OS_TERMS.enforcers} unarmed`,
       href: '/shop?tab=weapons',
       severity: 'alert',
       icon: 'warning',
@@ -335,7 +343,7 @@ export function collectAttentionItems(input: {
   if (ctx.prostitutes > 0 && ctx.turns < 1) {
     items.push({
       id: 'production-turns',
-      label: 'Turns required for production',
+      label: 'Turns required for Operations',
       href: '/produce',
       severity: 'info',
       icon: 'info',
@@ -346,20 +354,11 @@ export function collectAttentionItems(input: {
   const workerMeter = buildWorkerStabilityMeter(row);
   const workerCritical = workerMeter.band === 'critical' || workerMeter.band === 'low';
 
-  if (workerMeter.supportingText?.includes('Condom')) {
+  if (workerMeter.supportingText?.includes(OS_TERMS.kit)) {
     items.push({
       id: 'worker-condoms',
-      label: 'Street worker supplies are low — condoms',
+      label: `${OS_TERMS.specialist} supplies are low — ${OS_TERMS.kits.toLowerCase()}`,
       href: '/shop?tab=supplies',
-      severity: workerCritical ? 'alert' : 'info',
-      icon: 'warning',
-      priority: workerCritical ? PRIORITY.criticalSupply : PRIORITY.supplies,
-    });
-  } else if (workerMeter.supportingText?.includes('Hash')) {
-    items.push({
-      id: 'worker-hash',
-      label: 'Street worker supplies are low — hash',
-      href: '/shop?tab=supplies&item=hash',
       severity: workerCritical ? 'alert' : 'info',
       icon: 'warning',
       priority: workerCritical ? PRIORITY.criticalSupply : PRIORITY.supplies,
@@ -367,7 +366,7 @@ export function collectAttentionItems(input: {
   } else if (ctx.condoms < 5 && ctx.prostitutes > 0) {
     items.push({
       id: 'worker-supplies',
-      label: 'Street worker supplies are low',
+      label: `${OS_TERMS.specialist} supplies are low`,
       href: '/shop?tab=supplies',
       severity: 'info',
       icon: 'warning',
@@ -379,7 +378,7 @@ export function collectAttentionItems(input: {
   if (beerMeter.value < 40 && ctx.thugs > 0) {
     items.push({
       id: 'beer-supply',
-      label: 'Beer supply is low for street thugs',
+      label: `${OS_TERMS.rations} supply is low for ${OS_TERMS.enforcers.toLowerCase()}`,
       href: '/shop?tab=supplies',
       severity: beerMeter.value < 25 ? 'alert' : 'info',
       icon: 'warning',

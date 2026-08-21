@@ -22,7 +22,7 @@ describe('market rules', () => {
   it('classifies personnel filter category', () => {
     expect(marketFilterCategory('whore')).toBe('personnel');
     expect(marketFilterCategory('thug')).toBe('personnel');
-    expect(marketItemDisplayName('whore')).toBe('Worker');
+    expect(marketItemDisplayName('whore')).toBe('Specialist');
   });
 
   it('enforces minimum starting price', () => {

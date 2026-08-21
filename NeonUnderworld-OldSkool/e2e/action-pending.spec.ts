@@ -3,7 +3,7 @@ import {
   login,
   gotoGame,
   headerTurnsLocator,
-  catalogBuyButton,
+  purchaseViaSupplyOrder,
   ensureMinTurns,
   parseTurnsUsed,
   assertNoStuckLoading,
@@ -35,10 +35,10 @@ test.describe('Action pending / double-submit protection', () => {
     await gotoGame(page, '/produce');
 
     const turnsBefore = parseTurnsUsed(await headerTurnsLocator(page).textContent());
-    await page.getByLabel('Turns to produce').fill('3');
-    const produceBtn = page.getByRole('button', { name: 'Produce', exact: true });
+    await page.getByLabel('Turns to run').fill('3');
+    const produceBtn = page.getByRole('button', { name: /^Run .+ · \d[\d,]* turns?$/ });
     await produceBtn.click({ clickCount: 2, delay: 0 });
-    await expect(page.getByRole('heading', { name: 'Production Complete' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Operations Complete' })).toBeVisible({
       timeout: 20_000,
     });
 
@@ -50,16 +50,15 @@ test.describe('Action pending / double-submit protection', () => {
   test('shop blocks cross-item purchase while pending', async ({ page }) => {
     await login(page);
     await gotoGame(page, '/shop');
+    await page.getByRole('button', { name: 'Supplies' }).click();
 
-    const buyButtons = page.locator('.g-shop-controls').getByRole('button', { name: 'Buy', exact: true });
-    const firstBuy = buyButtons.first();
-    const secondBuy = buyButtons.nth(1);
-
-    await firstBuy.click();
-    await expect.poll(async () => firstBuy.isDisabled(), { timeout: 3_000 }).toBe(true);
-    await expect(secondBuy).toBeDisabled();
-    await expect(page.getByRole('button', { name: /Buying/i }).first()).toBeVisible();
-
+    await page.getByLabel(/Quantity of Rations/i).fill('1');
+    await page.locator('.g-shop-controls').getByRole('button', { name: 'Add to order' }).first().click();
+    await page.getByRole('button', { name: 'Review' }).click();
+    const checkoutBtn = page.getByRole('button', { name: 'BUY EVERYTHING' });
+    await checkoutBtn.click();
+    await expect.poll(async () => checkoutBtn.isDisabled(), { timeout: 3_000 }).toBe(true);
+    await expect(page.getByRole('button', { name: /PROCESSING ORDER/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({
       timeout: 20_000,
     });
@@ -102,11 +101,14 @@ test.describe('Action pending / double-submit protection', () => {
       await route.continue();
     });
 
-    const buyBtn = catalogBuyButton(page);
+    await page.getByRole('button', { name: 'Supplies' }).click();
+    await page.getByLabel(/Quantity of Rations/i).fill('1');
+    await page.locator('.g-shop-controls').getByRole('button', { name: 'Add to order' }).first().click();
+    await page.getByRole('button', { name: 'Review' }).click();
+    const checkoutBtn = page.getByRole('button', { name: 'BUY EVERYTHING' });
     await dismissDevOverlay(page);
-    await buyBtn.click();
-
-    await expect(buyBtn).toBeEnabled({ timeout: 10_000 });
+    await checkoutBtn.click();
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10_000 });
     await assertNoStuckLoading(page);
   });
 });

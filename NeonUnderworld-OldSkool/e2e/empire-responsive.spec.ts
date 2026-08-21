@@ -19,38 +19,38 @@ for (const width of MOBILE_WIDTHS) {
       await login(page);
       await gotoGame(page, '/empire');
       await expect(page.getByRole('heading', { name: 'Empire' })).toBeVisible();
-      await expect(page.getByLabel('Empire summary')).toBeVisible();
+      await expect(page.getByLabel('Your empire')).toBeVisible();
       await assertNoHorizontalOverflow(page);
 
-      const workers = empireSection(page, 'WORKERS');
+      const workers = empireSection(page, 'SPECIALISTS');
       await expect(workers).toHaveCount(1);
       await expect(workers).not.toHaveAttribute('open', '');
 
-      await expect(empireSection(page, 'THUGS')).toHaveCount(1);
-      await expect(empireSection(page, 'DRUGS')).toHaveCount(1);
+      await expect(empireSection(page, 'ENFORCERS')).toHaveCount(1);
+      await expect(empireSection(page, 'TECHNOLOGY')).toHaveCount(1);
       await expect(empireSection(page, 'GEAR')).toHaveCount(1);
       await expect(empireSection(page, 'BUSINESSES')).toHaveCount(1);
 
       await workers.locator('summary').click();
-      await expect(page.getByText('Street happiness').first()).toBeVisible();
+      await expect(page.getByText('Morale').first()).toBeVisible();
       await expect(page.getByRole('button', { name: 'Increase payout' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Save Payout' })).toBeVisible();
       await assertNoHorizontalOverflow(page);
 
-      const drugsBadge = empireSection(page, 'DRUGS').locator('.g-business-section-badge');
-      await expect(drugsBadge).toContainText('STREET UNITS');
+      const techBadge = empireSection(page, 'TECHNOLOGY').locator('.g-business-section-badge');
+      await expect(techBadge).toContainText('TECH UNITS');
 
       await workers.locator('summary').click();
 
-      const thugs = empireSection(page, 'THUGS');
+      const thugs = empireSection(page, 'ENFORCERS');
       await thugs.locator('summary').click();
-      await expect(page.getByText('Armed (street)').first()).toBeVisible();
+      await expect(page.getByText('Armed (active)').first()).toBeVisible();
       await thugs.locator('summary').click();
 
-      const drugs = empireSection(page, 'DRUGS');
-      await drugs.locator('summary').click();
-      await expect(page.getByText('Hash').first()).toBeVisible();
-      await drugs.locator('summary').click();
+      const technology = empireSection(page, 'TECHNOLOGY');
+      await technology.locator('summary').click();
+      await expect(page.getByText('Components').first()).toBeVisible();
+      await technology.locator('summary').click();
 
       const gear = empireSection(page, 'GEAR');
       await gear.locator('summary').click();
@@ -59,7 +59,9 @@ for (const width of MOBILE_WIDTHS) {
 
       const businesses = empireSection(page, 'BUSINESSES');
       await businesses.locator('summary').click();
-      await expect(page.getByRole('link', { name: /Manage Businesses/i })).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: /Manage Businesses|Build your first business/i }),
+      ).toBeVisible();
       await assertNoHorizontalOverflow(page);
     });
   });

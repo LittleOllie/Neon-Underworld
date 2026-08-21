@@ -14,7 +14,7 @@ describe('GameplayError', () => {
       "You don't have enough rides for this.",
     );
     expect(GAMEPLAY_ERROR_MESSAGES.TARGET_OUT_OF_RANGE).toBe(
-      'That player is below your attack range.',
+      'That Operator is outside your attack range.',
     );
   });
 

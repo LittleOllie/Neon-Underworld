@@ -10,48 +10,55 @@ import { GlobalStatus, type GlobalStats } from './GlobalStatus';
 import { GameNav } from './GameNav';
 import { GameMainTransition } from './GameMainTransition';
 import { GamePageBackground } from './GamePageBackground';
+import { NuScene } from './NuScene';
+import { getNuBackgroundForPath } from '@local/config/route-nu-backgrounds';
 import { PlayerShellRefresh } from './PlayerShellRefresh';
 import { PlayerShellProvider, usePlayerShell } from './PlayerShellProvider';
 import { IdentityGate } from './IdentityGate';
 import { PlayerAvatar } from './PlayerAvatar';
 import {
-  avatarThemeCssVars,
-  resolvePlayerAvatarConfig,
-} from '@core/lib/game-engine/resolve-player-avatar';
+  playerIdentityCssVars,
+  type PlayerIdentityRecord,
+} from '@core/lib/game-engine/player-identity';
 import { WireControl } from '@local/features/wire/WireControl';
+import { SupplyOrderProvider, useSupplyOrder } from '@local/features/shop/useSupplyOrder';
+import { GlobalSupplyOrderDock } from '@local/features/shop/GlobalSupplyOrderDock';
 
 export type { GlobalStats };
 
 function GameShellFrame({
   background,
-  avatarId,
-  avatarPending,
+  playerIdentity,
+  identityPending,
   wireEnabled,
   children,
 }: {
   background?: GameBackgroundKey;
-  avatarId: string;
-  avatarPending: boolean;
+  playerIdentity: PlayerIdentityRecord;
+  identityPending: boolean;
   wireEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const { stats } = usePlayerShell();
-  const resolvedBackground = background ?? getBackgroundForPath(pathname);
+  const { hasItems: hasSupplyOrder } = useSupplyOrder();
+  const nuBackground = getNuBackgroundForPath(pathname);
+  const resolvedBackground = nuBackground ? undefined : (background ?? getBackgroundForPath(pathname));
   const onIdentityRoute = pathname.startsWith('/identity');
-  const themeConfig = resolvePlayerAvatarConfig(avatarId);
-  const shellThemeStyle = avatarThemeCssVars(themeConfig) as React.CSSProperties;
+  const shellThemeStyle = playerIdentityCssVars(playerIdentity) as React.CSSProperties;
 
   return (
-    <IdentityGate avatarPending={avatarPending}>
+    <IdentityGate avatarPending={identityPending}>
       <div
-        className={`g-shell${resolvedBackground ? ' g-shell--bg' : ''}`}
+        className={`g-shell${nuBackground || resolvedBackground ? ' g-shell--bg' : ''}${nuBackground ? ' g-shell--nu-scene' : ''}${onIdentityRoute ? ' g-shell--identity-route' : ''}${hasSupplyOrder ? ' g-shell--supply-dock' : ''}`}
         style={shellThemeStyle}
-        data-avatar-theme={themeConfig.id}
+        data-avatar-theme={playerIdentity.avatarSource ?? 'default'}
       >
-          {resolvedBackground && (
+          {nuBackground ? (
+            <NuScene key={nuBackground} background={nuBackground} />
+          ) : resolvedBackground ? (
             <GamePageBackground key={resolvedBackground} background={resolvedBackground} />
-          )}
+          ) : null}
           <div className="g-top">
             <div className="g-brand-row">
               <Link href="/command" className="g-brand">
@@ -71,7 +78,7 @@ function GameShellFrame({
                 ) : (
                   <div className="g-header-profile">
                     <div className="g-header-profile__avatar">
-                      <PlayerAvatar avatarId={avatarId} alt={stats.alias} size="header" />
+                      <PlayerAvatar identity={playerIdentity} alt={stats.alias} size="header" shape="square" />
                     </div>
                     <div className="g-header-profile__body">
                       <div className="g-player-line g-player-line--identity">
@@ -94,6 +101,7 @@ function GameShellFrame({
           </main>
           {!onIdentityRoute && <PlayerShellRefresh />}
           {!onIdentityRoute && wireEnabled && <WireControl />}
+          {!onIdentityRoute && <GlobalSupplyOrderDock />}
           <footer className="g-footer">Neon Underworld · OldSkool Edition</footer>
       </div>
     </IdentityGate>
@@ -103,19 +111,33 @@ function GameShellFrame({
 export function GameShell({
   stats,
   background,
-  avatarId = 'viper',
+  playerIdentity,
+  identityPending = false,
+  /** @deprecated Use playerIdentity */
+  avatarId,
+  /** @deprecated Use identityPending */
   avatarPending = false,
   wireEnabled = false,
   children,
 }: {
   stats?: GlobalStats;
-  /** Explicit override; otherwise derived from current pathname. */
   background?: GameBackgroundKey;
+  playerIdentity?: PlayerIdentityRecord;
+  identityPending?: boolean;
   avatarId?: string;
   avatarPending?: boolean;
   wireEnabled?: boolean;
   children: React.ReactNode;
 }) {
+  const resolvedIdentity: PlayerIdentityRecord = playerIdentity ?? {
+    avatar: avatarId ?? null,
+    avatarSource: avatarId ? 'CHARACTER' : null,
+    pfpUrl: null,
+    themePrimary: null,
+    themeSecondary: null,
+  };
+  const pending = identityPending || avatarPending;
+
   if (!stats) {
     return (
       <div className="g-shell">
@@ -126,14 +148,16 @@ export function GameShell({
 
   return (
     <PlayerShellProvider initialStats={stats}>
-      <GameShellFrame
-        background={background}
-        avatarId={avatarId}
-        avatarPending={avatarPending}
-        wireEnabled={wireEnabled}
-      >
-        {children}
-      </GameShellFrame>
+      <SupplyOrderProvider>
+        <GameShellFrame
+          background={background}
+          playerIdentity={resolvedIdentity}
+          identityPending={pending}
+          wireEnabled={wireEnabled}
+        >
+          {children}
+        </GameShellFrame>
+      </SupplyOrderProvider>
     </PlayerShellProvider>
   );
 }

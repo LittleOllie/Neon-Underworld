@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  FOUNDING_PLAYER_AVATARS,
+  FOUNDING_PLAYER_AVATARS_BY_COLOR,
   type PlayerAvatarId,
 } from '@core/config/game/player-avatars';
 import {
@@ -70,6 +70,15 @@ export function AvatarSelectionClient({
       : 'Pick a new portrait and accent. Your alias stays the same.';
   const cta = mode === 'onboarding' ? 'CLAIM THIS IDENTITY' : 'SAVE IDENTITY';
 
+  function avatarOptionStyle(config: (typeof FOUNDING_PLAYER_AVATARS_BY_COLOR)[number]): React.CSSProperties {
+    return {
+      '--option-accent-primary': config.primary,
+      '--option-accent-secondary': config.secondary,
+      '--option-accent-glow': config.glow,
+      '--option-accent-muted': config.muted,
+    } as React.CSSProperties;
+  }
+
   return (
     <div
       className="g-identity-select nu-glitch-surface"
@@ -91,13 +100,10 @@ export function AvatarSelectionClient({
           shape="circle"
           priority
         />
-        <p className="g-identity-select__palette">
-          {previewConfig.primary.toUpperCase()} · {previewConfig.secondary.toUpperCase()}
-        </p>
       </div>
 
       <div className="g-identity-select__grid" role="listbox" aria-label="Choose avatar">
-        {FOUNDING_PLAYER_AVATARS.map((avatar) => {
+        {FOUNDING_PLAYER_AVATARS_BY_COLOR.map((avatar) => {
           const isSelected = avatar.id === selectedId;
           return (
             <button
@@ -106,9 +112,10 @@ export function AvatarSelectionClient({
               role="option"
               aria-selected={isSelected}
               className={`g-identity-select__option${isSelected ? ' g-identity-select__option--active' : ''}`}
+              style={avatarOptionStyle(avatar)}
               onClick={() => setSelectedId(avatar.id)}
             >
-              <PlayerAvatar avatarId={avatar.id} alt={avatar.name} size="md" />
+              <PlayerAvatar avatarId={avatar.id} alt={avatar.name} size="identity" />
             </button>
           );
         })}

@@ -31,6 +31,7 @@ import { FeedbackNote } from '@local/components/game/FeedbackNote';
 import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { EmptyState } from '@local/components/game/EmptyState';
 import { parsePositiveInteger } from '@local/lib/numeric-input';
+import { OS_TERMS } from '@local/config/terminology';
 
 type Props = CartelPageData;
 
@@ -81,8 +82,8 @@ function CartelHQView({
 
   return (
     <div className="g-cartel-hq">
-      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
-      {success && <FeedbackNote tone="success">{success}</FeedbackNote>}
+      {error && <FeedbackNote tone="error" role="alert">{error}</FeedbackNote>}
+      {success && <FeedbackNote tone="success" role="status">{success}</FeedbackNote>}
 
       <header className="g-cartel-hq__header">
         <h2 className="g-cartel-hq__name">
@@ -94,7 +95,7 @@ function CartelHQView({
         </p>
       </header>
 
-      <section className="g-cartel-hq__section" aria-label="Cartel overview">
+      <section className="g-cartel-hq__section" aria-label="Faction overview">
         <SectionLabel>OVERVIEW</SectionLabel>
         <div className="g-cartel-hq__grid">
           <div className="g-cartel-hq__stat">
@@ -104,7 +105,7 @@ function CartelHQView({
             </span>
           </div>
           <div className="g-cartel-hq__stat">
-            <span className="g-cartel-hq__stat-label">Cartel Net Worth</span>
+            <span className="g-cartel-hq__stat-label">{OS_TERMS.faction} {OS_TERMS.influence}</span>
             <span className="g-cartel-hq__stat-value">
               ${cartel.cartelNetWorth.toLocaleString()}
             </span>
@@ -120,55 +121,61 @@ function CartelHQView({
         </div>
       </section>
 
-      <section className="g-cartel-hq__section" aria-label="Cartel treasury">
-        <SectionLabel>CARTEL TREASURY</SectionLabel>
+      <section className="g-cartel-hq__section" aria-label="Faction treasury">
+        <SectionLabel>FACTION TREASURY</SectionLabel>
         <StatRow label="Cash balance" value={`$${cartel.treasuryCash.toLocaleString()}`} />
         <p className="g-note">
-          Shared cartel cash from member Scout / Produce donations. Used for armoury purchases.
+          Shared faction cash from member Scout / Operations donations. Used for armoury purchases.
         </p>
       </section>
 
-      <section className="g-cartel-hq__section" aria-label="Cartel forces">
-        <SectionLabel>CARTEL FORCES</SectionLabel>
-        <StatRow label="Cartel Thugs" value={cartel.armoury.thugs.toLocaleString()} />
-        <StatRow label="Glocks" value={cartel.armoury.glocks.toLocaleString()} />
-        <StatRow label="Uzis" value={cartel.armoury.uzis.toLocaleString()} />
-        <StatRow label="Rides" value={cartel.armoury.rides.toLocaleString()} />
+      <section className="g-cartel-hq__section" aria-label="Faction forces">
+        <SectionLabel>FACTION FORCES</SectionLabel>
+        <StatRow label={`${OS_TERMS.faction} ${OS_TERMS.enforcers}`} value={cartel.armoury.thugs.toLocaleString()} />
+        <StatRow label={OS_TERMS.glocks} value={cartel.armoury.glocks.toLocaleString()} />
+        <StatRow label={OS_TERMS.uzis} value={cartel.armoury.uzis.toLocaleString()} />
+        <StatRow label={OS_TERMS.rides} value={cartel.armoury.rides.toLocaleString()} />
         <StatRow
           label="Transport capacity"
-          value={`${cartel.armoury.rides.toLocaleString()} rides · ${cartel.armoury.transportCapacity.toLocaleString()} thugs`}
+          value={`${cartel.armoury.rides.toLocaleString()} ${OS_TERMS.rides.toLowerCase()} · ${cartel.armoury.transportCapacity.toLocaleString()} ${OS_TERMS.enforcers.toLowerCase()}`}
         />
         <p className="g-note">
-          Shared cartel assets — not member personal net worth. Cartel thugs can be lost defending
-          members; cartel weapons are never lost. Each cartel ride carries 5 thugs for defence.
+          Shared faction assets — not member personal {OS_TERMS.influence.toLowerCase()}. Faction{' '}
+          {OS_TERMS.enforcers.toLowerCase()} can be lost defending members; faction weapons are never
+          lost. Each faction ride carries 5 {OS_TERMS.enforcers.toLowerCase()} for response.
         </p>
       </section>
 
-      <section className="g-cartel-hq__section" aria-label="Cartel protection">
+      <section className="g-cartel-hq__section" aria-label="Faction response">
         <SectionLabel>RESPONSE FORCE</SectionLabel>
         <StatRow
-          label="Your max cartel response"
-          value={`${cartel.protection.responseForce.maxForYou.toLocaleString()} thugs`}
+          label="Your max faction response"
+          value={`${cartel.protection.responseForce.maxForYou.toLocaleString()} ${OS_TERMS.enforcers.toLowerCase()}`}
         />
         <StatRow
           label="Local backup (your city)"
-          value={`${cartel.protection.virtualDefenceThugs.toLocaleString()} thugs`}
+          value={`${cartel.protection.virtualDefenceThugs.toLocaleString()} ${OS_TERMS.enforcers.toLowerCase()}`}
         />
         <StatRow
           label={`Supporters in ${cartel.myCity}`}
           value={String(cartel.protection.sameCitySupporters)}
         />
         <p className="g-note">
-          Cartel defence is limited by twice your personal thugs (minimum allowance 25), 25% of
-          current cartel thugs, and cartel transport capacity. Nearby cartel members also provide 10%
-          of their thugs as unarmed local backup. No cartel protection while travelling.
+          Faction response is limited by twice your personal {OS_TERMS.enforcers.toLowerCase()}{' '}
+          (minimum allowance 25), 25% of current faction {OS_TERMS.enforcers.toLowerCase()}, and
+          faction transport capacity. Nearby faction members also provide 10% of their{' '}
+          {OS_TERMS.enforcers.toLowerCase()} as unarmed local backup. No faction support while
+          travelling.
         </p>
       </section>
 
       {cartel.isLeader && (
-        <section className="g-cartel-hq__section" aria-label="Cartel armoury purchases">
+        <section className="g-cartel-hq__section" aria-label="Faction armoury purchases">
           <SectionLabel>ARMOURY</SectionLabel>
-          <p className="g-note">Purchase shared assets from treasury. Uzi and Glock only — AK-47 is player-only.</p>
+          <p className="g-note">
+            Purchase shared assets from treasury. {OS_TERMS.uzis} and {OS_TERMS.glocks} only —{' '}
+            {OS_TERMS.ak} is player-only.
+          </p>
           <div className="g-cartel-armoury">
             {cartel.armoury.catalog.map((entry) => {
               const qty = parsePositiveInteger(armouryQuantities[entry.key] ?? '1');
@@ -193,7 +200,7 @@ function CartelHQView({
                   />
                   {qty && !canAfford && (
                     <FeedbackNote tone="warn">
-                      Not enough cartel treasury — need ${total.toLocaleString()}, have $
+                      Not enough faction treasury — need ${total.toLocaleString()}, have $
                       {cartel.armoury.treasuryCash.toLocaleString()}.
                     </FeedbackNote>
                   )}
@@ -239,14 +246,14 @@ function CartelHQView({
         </section>
       )}
 
-      <section className="g-cartel-hq__section" aria-label="Cartel members">
+      <section className="g-cartel-hq__section" aria-label="Faction members">
         <SectionLabel>MEMBERS</SectionLabel>
         <ul className="g-cartel-members">
           {cartel.members.map((m) => (
             <li key={m.id} className="g-cartel-member">
               <div className="g-cartel-member__top">
                 <PlayerIdentity
-                  player={{ alias: m.alias, avatarId: m.avatarId }}
+                  player={{ alias: m.alias, ...m.identity, avatar: m.identity.avatar ?? m.avatarId }}
                   avatarSize="sm"
                   static
                 />
@@ -268,7 +275,7 @@ function CartelHQView({
       <Divider />
 
       <SectionLabel>YOUR CONTRIBUTION</SectionLabel>
-      <p className="g-note">Street income (Scout / Produce cash) — 0–{cartel.maxDonationPercent}%</p>
+      <p className="g-note">Street income (Scout / Operations cash) — 0–{cartel.maxDonationPercent}%</p>
       <select
         className="g-input"
         value={cartel.myDonationPercent}
@@ -345,7 +352,7 @@ function CartelHQView({
       <Divider />
 
       <PrimaryButton disabled={loading !== null} onClick={onLeave}>
-        Leave Cartel
+        Leave {OS_TERMS.faction}
       </PrimaryButton>
     </div>
   );
@@ -383,7 +390,7 @@ export function CartelPanel(initial: Props) {
       setError(response.error);
       return;
     }
-    setSuccess(`Cartel ${name} [${tag}] created.`);
+    setSuccess(`${OS_TERMS.faction} ${name} [${tag}] created.`);
     applyMutation(response.data.page, response.data.shell);
   }
 
@@ -439,7 +446,7 @@ export function CartelPanel(initial: Props) {
       setError(response.error);
       return;
     }
-    setSuccess(`${response.data.memberAlias} joined your cartel.`);
+    setSuccess(`${response.data.memberAlias} joined your ${OS_TERMS.faction.toLowerCase()}.`);
     applyMutation(response.data.page, response.data.shell);
   }
 
@@ -542,12 +549,12 @@ export function CartelPanel(initial: Props) {
 
     const label =
       itemKey === 'thug'
-        ? 'Cartel Thugs'
+        ? `${OS_TERMS.faction} ${OS_TERMS.enforcers}`
         : itemKey === 'glock'
-          ? 'Glocks'
+          ? OS_TERMS.glocks
           : itemKey === 'uzi'
-            ? 'Uzis'
-            : 'Rides';
+            ? OS_TERMS.uzis
+            : OS_TERMS.rides;
     setSuccess(
       `Purchased ${qty.toLocaleString()} ${label} for $${response.data.totalCost.toLocaleString()} from treasury.`,
     );
@@ -557,8 +564,8 @@ export function CartelPanel(initial: Props) {
   if (data.pendingInvites.length > 0 && !data.inCartel) {
     return (
       <>
-        <SectionLabel>CARTEL INVITES</SectionLabel>
-        {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
+        <SectionLabel>FACTION INVITES</SectionLabel>
+        {error && <FeedbackNote tone="error" role="alert">{error}</FeedbackNote>}
         {data.pendingInvites.map((inv) => (
           <SelectableCard
             key={inv.id}
@@ -621,18 +628,18 @@ export function CartelPanel(initial: Props) {
     <>
       <p className="g-note">Build your crew. Share protection. Rise together.</p>
 
-      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
-      {success && <FeedbackNote tone="success">{success}</FeedbackNote>}
+      {error && <FeedbackNote tone="error" role="alert">{error}</FeedbackNote>}
+      {success && <FeedbackNote tone="success" role="status">{success}</FeedbackNote>}
 
       {!showCreate ? (
         <>
           <PrimaryButton icon="cartel" disabled={loading !== null} onClick={() => setShowCreate(true)}>
-            Create Cartel
+            Create {OS_TERMS.faction}
           </PrimaryButton>
           <Divider />
-          <SectionLabel>AVAILABLE CARTELS</SectionLabel>
+          <SectionLabel>AVAILABLE {OS_TERMS.factions.toUpperCase()}</SectionLabel>
           {data.browse.length === 0 ? (
-            <EmptyState title="No cartels yet" body="Be the first to create one." />
+            <EmptyState title={`No ${OS_TERMS.factions.toLowerCase()} yet`} body="Be the first to create one." />
           ) : null}
           {data.browse.map((c) => {
             const isFull = c.memberCount >= c.maxMembers;
@@ -647,7 +654,7 @@ export function CartelPanel(initial: Props) {
                 {pending ? (
                   <FeedbackNote tone="info">Request pending</FeedbackNote>
                 ) : isFull ? (
-                  <FeedbackNote tone="warn">Cartel full</FeedbackNote>
+                  <FeedbackNote tone="warn">{OS_TERMS.faction} full</FeedbackNote>
                 ) : (
                   <PrimaryButton
                     icon="cartel"
@@ -664,10 +671,10 @@ export function CartelPanel(initial: Props) {
         </>
       ) : (
         <>
-          <SectionLabel>CREATE CARTEL</SectionLabel>
+          <SectionLabel>CREATE {OS_TERMS.faction.toUpperCase()}</SectionLabel>
           <input
             className="g-input"
-            placeholder="Cartel name"
+            placeholder={`${OS_TERMS.faction} name`}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />

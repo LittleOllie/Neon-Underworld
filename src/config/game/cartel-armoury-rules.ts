@@ -1,5 +1,6 @@
 import { getCityShopItem } from '@/config/game/shop-rules';
 import { REDLITE_NET_WORTH } from '@/config/game/redlite-rules';
+import { TERMS } from '@/config/game/terminology';
 
 /** Purchasable cartel armoury items — AK-47 is player-only per Redlite guide §6. */
 export type CartelArmouryItemKey = 'thug' | 'glock' | 'uzi' | 'ride';
@@ -21,31 +22,31 @@ const uziRule = getCityShopItem('uzi')!;
 export const CARTEL_ARMOURY_ITEMS: CartelArmouryItemRule[] = [
   {
     key: 'thug',
-    displayName: 'Thug',
+    displayName: TERMS.enforcer,
     field: 'thugs',
     unitPrice: REDLITE_NET_WORTH.thugs,
-    purpose: 'Shared defence crew — protects all cartel members in drive-by attacks.',
+    purpose: `Shared defence crew — protects all ${TERMS.faction.toLowerCase()} members during attacks.`,
   },
   {
     key: 'glock',
-    displayName: 'Glock',
+    displayName: TERMS.glock,
     field: 'glocks',
     unitPrice: glockRule.shopPrice,
-    purpose: 'Basic cartel weapon stock — never lost in attacks.',
+    purpose: `Basic ${TERMS.faction.toLowerCase()} weapon stock — never lost in attacks.`,
   },
   {
     key: 'uzi',
-    displayName: 'Uzi',
+    displayName: TERMS.uzi,
     field: 'uzis',
     unitPrice: uziRule.shopPrice,
-    purpose: 'Preferred cartel firepower — never lost in attacks.',
+    purpose: `Preferred ${TERMS.faction.toLowerCase()} firepower — never lost in attacks.`,
   },
   {
     key: 'ride',
-    displayName: 'Ride',
+    displayName: TERMS.ride,
     field: 'rides',
     unitPrice: CARTEL_RIDE_UNIT_PRICE,
-    purpose: 'Cartel transport — each ride carries 5 thugs for Response Force defence.',
+    purpose: `${TERMS.faction} transport — each ride carries 5 ${TERMS.enforcers.toLowerCase()} for response force defence.`,
   },
 ];
 

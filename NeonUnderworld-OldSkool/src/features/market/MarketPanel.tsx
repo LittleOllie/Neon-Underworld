@@ -14,6 +14,7 @@ import type { MarketDurationMinutes } from '@core/config/game/market-rules';
 import {
   MARKET_RULES,
   marketFilterCategory,
+  marketItemDisplayName,
   marketReferenceUnitPrice,
   suggestedMarketOpeningBid,
 } from '@core/config/game/market-rules';
@@ -28,12 +29,13 @@ import { FilterPills } from '@local/components/game/FilterPills';
 import { SelectableCard } from '@local/components/game/SelectableCard';
 import { FeedbackNote } from '@local/components/game/FeedbackNote';
 import { EmptyState } from '@local/components/game/EmptyState';
+import { OS_TERMS } from '@local/config/terminology';
 
 const FILTERS: { key: MarketFilter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'weapons', label: 'Weapons' },
   { key: 'rides', label: 'Rides' },
-  { key: 'drugs', label: 'Drugs' },
+  { key: 'drugs', label: OS_TERMS.technology },
   { key: 'supplies', label: 'Supplies' },
   { key: 'personnel', label: 'Crew' },
 ];
@@ -121,6 +123,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
   }, [data.listings, filter]);
 
   async function handleBid(listingId: string, minNextBid: number) {
+    const listing = data.listings.find((l) => l.id === listingId);
     await run(listingId, async () => {
       setError('');
       setSuccess('');
@@ -131,6 +134,16 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       }
       setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
       reconcile(response.data.shell);
+      const bidAmount = response.data.amount;
+      const itemLabel = listing
+        ? `${listing.itemName} × ${listing.quantity.toLocaleString()}`
+        : 'listing';
+      const updatedListing = response.data.marketPage.listings.find((l) => l.id === listingId);
+      const stateLine = updatedListing
+        ? `Current bid: $${(updatedListing.currentBid ?? bidAmount).toLocaleString()} · ends in ${formatTimeLeft(updatedListing.endsAt)}`
+        : 'Auction updated.';
+      setSuccess(`Bid placed — $${bidAmount.toLocaleString()} on ${itemLabel}. ${stateLine}`);
+      setTab('browse');
     });
   }
 
@@ -170,6 +183,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
       }
       setSuccess(`Listed ${qty}× ${selectedInventory?.name ?? sellItem} on the Market.`);
       setSellQty('1');
+      setFilter('all');
       setTab('mine');
       setData((prev) => mergeMarketPage(prev, response.data.marketPage, response.data.shell.cash));
       reconcile(response.data.shell);
@@ -182,12 +196,14 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
         Player auctions only — list items for a set time; other players bid and the highest bid when
         the clock runs out wins. There are no instant-buy listings.
       </p>
+
+      <div className="g-gameplay-controls g-market-chrome">
       <StatRow label="Cash on hand" value={`$${data.cash.toLocaleString()}`} />
 
       <SimpleTabs tabs={TABS} active={tab} onChange={locked ? () => undefined : setTab} />
 
-      {error && <FeedbackNote tone="error">{error}</FeedbackNote>}
-      {success && <FeedbackNote tone="success">{success}</FeedbackNote>}
+      {error && <FeedbackNote tone="error" role="alert">{error}</FeedbackNote>}
+      {success && <FeedbackNote tone="success" role="status">{success}</FeedbackNote>}
 
       {tab === 'browse' && (
         <>
@@ -347,7 +363,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
           {data.myAuctions.selling.map((l) => (
             <StatRow
               key={l.id}
-              label={`${l.itemKey} × ${l.quantity}`}
+              label={`${marketItemDisplayName(l.itemKey)} × ${l.quantity}`}
               value={
                 l.status === 'ACTIVE'
                   ? `$${(l.currentBid ?? l.startingPrice).toLocaleString()} · ${l.status}`
@@ -361,7 +377,7 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
           {data.myAuctions.bidding.map((l) => (
             <StatRow
               key={l.id}
-              label={`${l.itemKey} × ${l.quantity}`}
+              label={`${marketItemDisplayName(l.itemKey)} × ${l.quantity}`}
               value={`$${(l.currentBid ?? 0).toLocaleString()} · ${formatTimeLeft(l.endsAt.toISOString())}`}
             />
           ))}
@@ -371,12 +387,13 @@ export function MarketPanel({ initialFilter = 'all', ...initial }: Props) {
           {data.myAuctions.won.map((l) => (
             <StatRow
               key={l.id}
-              label={`${l.itemKey} × ${l.quantity}`}
+              label={`${marketItemDisplayName(l.itemKey)} × ${l.quantity}`}
               value={`$${(l.currentBid ?? 0).toLocaleString()}`}
             />
           ))}
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -23,7 +23,7 @@ import {
   getBusinessUpgradeDurationMs,
 } from '@/config/game/business-rules';
 import { calculatePlayerCanonicalNetWorthSync } from '@/lib/game-engine/business/net-worth';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
@@ -223,7 +223,7 @@ export async function purchaseBusinessAction(
         where: { id: playerId },
         include: { season: true },
       });
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       const ownedCount = await tx.business.count({ where: { playerId } });
@@ -342,7 +342,7 @@ async function mutateBusinessWorkers(
         where: { id: playerId },
         include: { season: true },
       });
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       const business = await tx.business.findFirst({
@@ -438,7 +438,7 @@ export async function collectBusinessSafeAction(
         where: { id: playerId },
         include: { season: true },
       });
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       const business = await tx.business.findFirst({
@@ -561,7 +561,7 @@ async function transferBusinessDrugs(
         where: { id: playerId },
         include: { season: true },
       });
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       const business = await tx.business.findFirst({
@@ -661,7 +661,7 @@ export async function upgradeBusinessAction(
         where: { id: playerId },
         include: { season: true },
       });
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       const business = await tx.business.findFirst({
@@ -805,7 +805,7 @@ async function mutateBusinessSecurity(
         where: { id: playerId },
         include: { season: true },
       });
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       const business = await tx.business.findFirst({

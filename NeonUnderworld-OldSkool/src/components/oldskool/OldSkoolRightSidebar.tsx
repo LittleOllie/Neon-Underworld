@@ -52,7 +52,7 @@ export function OldSkoolRightSidebar({ player, leaders, notifications }: OldSkoo
             <tr><td>{OS_TERMS.city}</td><td className="num">{player.city}</td></tr>
             <tr><td>Turns</td><td className="num">{player.turns.toLocaleString()}</td></tr>
             <tr><td>Cash</td><td className="num old-text-gold">${player.cash.toLocaleString()}</td></tr>
-            <tr><td>Net Worth</td><td className="num">${player.netWorth.toLocaleString()}</td></tr>
+            <tr><td>{OS_TERMS.influence}</td><td className="num">${player.netWorth.toLocaleString()}</td></tr>
             <tr><td>Rank</td><td className="num">#{player.rank}</td></tr>
           </tbody>
         </table>
@@ -61,7 +61,7 @@ export function OldSkoolRightSidebar({ player, leaders, notifications }: OldSkoo
       <SidebarModule title="Top Players">
         <table className="os-table">
           <thead>
-            <tr><th>#</th><th>Player</th><th className="num">NW</th></tr>
+            <tr><th>#</th><th>Operator</th><th className="num">{OS_TERMS.influence}</th></tr>
           </thead>
           <tbody>
             {leaders.map((l) => (

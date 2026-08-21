@@ -1,6 +1,6 @@
 # Neon Underworld
 
-Turn-based criminal empire strategy game — **OldSkool Edition** is the only playable client.
+Turn-based competitive underground strategy game — **OldSkool Edition** is the only playable client.
 
 The repo root contains the shared game engine (combat, turns, scouting, Prisma schema). The UI lives in `NeonUnderworld-OldSkool/`.
 

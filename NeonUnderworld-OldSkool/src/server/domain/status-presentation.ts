@@ -8,6 +8,7 @@ import { supplyBand } from '@core/lib/game-engine/supply-status';
 import type { PlayerInventoryRow } from './empire-calculations';
 import { buildEmpireSupplySummary, calculateArming } from './empire-calculations';
 import { calculateProstituteHappiness, calculateThugHappiness } from '@core/lib/game-engine/happiness';
+import { OS_TERMS } from '@local/config/terminology';
 
 export type StatusMeterBand =
   | 'critical'
@@ -69,11 +70,10 @@ export function buildWorkerStabilityMeter(player: PlayerInventoryRow): StatusMet
   const value = Math.round(happy.score);
   const band = bandFromPercent(value);
   let supporting: string | undefined;
-  if (happy.condomReadiness < 0.4) supporting = 'Condom supply is low.';
-  else if (happy.hashReadiness < 0.4) supporting = 'Hash supply is low.';
+  if (happy.condomReadiness < 0.4) supporting = `${OS_TERMS.kit} supply is low.`;
   else if (happy.protectionReadiness < 0.4) supporting = 'Protection supply is low.';
   return {
-    label: 'Worker Stability',
+    label: `${OS_TERMS.specialist} Stability`,
     value,
     band,
     statusText: statusTextFromBand(band),
@@ -89,18 +89,16 @@ export function buildWorkerSuppliesMeter(player: PlayerInventoryRow): StatusMete
     condoms: player.condoms,
     prostitutePayoutPercent: player.prostitutePayoutPercent,
   });
-  const avg =
-    (happy.hashReadiness + happy.condomReadiness + happy.protectionReadiness) / 3;
+  const avg = (happy.condomReadiness + happy.protectionReadiness) / 2;
   const value = supplyReadinessToPercent(avg);
   const band = bandFromPercent(value);
-  const hashBand = supplyBand(happy.hashReadiness);
   const condomBand = supplyBand(happy.condomReadiness);
   return {
-    label: 'Worker Supplies',
+    label: `${OS_TERMS.specialist} Supplies`,
     value,
     band,
     statusText: statusTextFromBand(band),
-    supportingText: `Hash ${hashBand.toLowerCase()} · Condoms ${condomBand.toLowerCase()}`,
+    supportingText: `${OS_TERMS.kits} ${condomBand.toLowerCase()}`,
   };
 }
 
@@ -115,7 +113,7 @@ export function buildWorkerProtectionMeter(player: PlayerInventoryRow): StatusMe
   const value = supplyReadinessToPercent(happy.protectionReadiness);
   const band = bandFromPercent(value);
   return {
-    label: 'Worker Protection',
+    label: `${OS_TERMS.specialist} Protection`,
     value,
     band,
     statusText: statusTextFromBand(band),
@@ -132,7 +130,7 @@ export function buildWorkerPayoutMeter(player: PlayerInventoryRow): StatusMeterP
   else if (payout <= 75) band = 'stable';
   else band = 'excellent';
   return {
-    label: 'Worker Payout',
+    label: `${OS_TERMS.specialist} Payout`,
     value,
     band,
     statusText: `${payout}%`,
@@ -151,11 +149,11 @@ export function buildThugStabilityMeter(player: PlayerInventoryRow): StatusMeter
   const value = Math.round(happy.score);
   const band = bandFromPercent(value);
   return {
-    label: 'Thug Stability',
+    label: `${OS_TERMS.enforcer} Stability`,
     value,
     band,
     statusText: statusTextFromBand(band),
-    supportingText: happy.beerReadiness < 0.4 ? 'Beer supply is low.' : undefined,
+    supportingText: happy.beerReadiness < 0.4 ? `${OS_TERMS.rations} supply is low.` : undefined,
   };
 }
 
@@ -171,9 +169,9 @@ export function buildWeaponCoverageMeter(player: PlayerInventoryRow): StatusMete
     statusText: statusTextFromBand(band),
     supportingText:
       arming.unarmedThugs > 0
-        ? `${arming.unarmedThugs} thug${arming.unarmedThugs === 1 ? '' : 's'} unarmed.`
+        ? `${arming.unarmedThugs} ${arming.unarmedThugs === 1 ? OS_TERMS.enforcer.toLowerCase() : OS_TERMS.enforcers.toLowerCase()} unarmed.`
         : player.thugs > 0
-          ? 'All thugs armed.'
+          ? `All ${OS_TERMS.enforcers.toLowerCase()} armed.`
           : undefined,
   };
 }
@@ -189,11 +187,11 @@ export function buildBeerSupplyMeter(player: PlayerInventoryRow): StatusMeterPre
   const value = supplyReadinessToPercent(happy.beerReadiness);
   const band = bandFromPercent(value);
   return {
-    label: 'Beer Supply',
+    label: `${OS_TERMS.rations} Supply`,
     value,
     band,
     statusText: supplyBand(happy.beerReadiness),
-    supportingText: value < 40 ? 'Buy beer in City Shop.' : undefined,
+    supportingText: value < 40 ? `Buy ${OS_TERMS.rations.toLowerCase()} in City Shop.` : undefined,
   };
 }
 

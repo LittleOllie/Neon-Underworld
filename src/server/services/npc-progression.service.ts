@@ -4,14 +4,20 @@ import {
   calculateProstituteHappiness,
   calculateThugHappiness,
 } from '@/lib/game-engine/happiness';
-import { isProgressionNpcAccount } from '@/lib/game-engine/npc-progression/identification';
 import {
-  compoundRecoveryRate,
+  isProgressionNpcAccount,
+  progressionNpcEmailOrFilters,
+} from '@/lib/game-engine/npc-progression/identification';
+import {
   businessesFromRecords,
   playerAssetsFromRecord,
-  reconcileTowardTarget,
+  reconcileBusinessesTowardTarget,
 } from '@/lib/game-engine/npc-progression/reconcile';
 import { getSeasonRoundDay } from '@/lib/game-engine/npc-progression/round-age';
+import {
+  applyNpcProgressionTicks,
+  computeDueTickCount,
+} from '@/lib/game-engine/npc-progression/tick';
 import {
   buildNpcTargetState,
   businessPurchasePriceForPlan,
@@ -20,6 +26,7 @@ import {
 import {
   archetypeForLadderSlot,
   NPC_LADDER_TOTAL_SLOTS,
+  NPC_PROGRESSION_TICK_HOURS,
   type NpcArchetypeId,
 } from '@/config/game/npc-progression-rules';
 import { defaultBusinessName } from '@/config/game/business-rules';
@@ -30,15 +37,20 @@ export interface NpcProgressionResult {
   processed: number;
   skipped: number;
   errors: number;
+  ticksApplied?: number;
 }
 
 export interface NpcProgressionOptions {
   /** Dev override — compute targets as if round is on this day. */
   forceDay?: number;
-  /** Reconcile even when lastProgressedDay >= roundDay. */
+  /** Process at least one tick even when not yet due. */
   force?: boolean;
   /** Limit batch size (testing). */
   limit?: number;
+  /** Dev: treat as if this many hours elapsed since last tick. */
+  simulateElapsedHours?: number;
+  /** Dev override for local-npc fixture participation. */
+  includeLocalNpcs?: boolean;
 }
 
 function growthSeedFromAlias(aliasNormalized: string): number {
@@ -65,6 +77,8 @@ export async function progressNpcPlayer(
     roundDay: number;
     force?: boolean;
     totalSlots?: number;
+    simulateElapsedHours?: number;
+    now?: Date;
   },
 ): Promise<'processed' | 'skipped'> {
   if (!isProgressionNpcAccount({ isSystemPlayer: false, email: input.email })) {
@@ -72,12 +86,21 @@ export async function progressNpcPlayer(
   }
 
   const totalSlots = input.totalSlots ?? NPC_LADDER_TOTAL_SLOTS;
+  const now = input.now ?? new Date();
   const existing = await tx.npcProgressionState.findUnique({ where: { playerId: input.playerId } });
   const ladderSlot = existing?.ladderSlot ?? ladderSlotFromAlias(input.aliasNormalized, 0);
   const growthSeed = existing?.growthSeed ?? growthSeedFromAlias(input.aliasNormalized);
-  const archetype: NpcArchetypeId = (existing?.archetype as NpcArchetypeId) ?? archetypeForLadderSlot(ladderSlot, totalSlots);
+  const archetype: NpcArchetypeId =
+    (existing?.archetype as NpcArchetypeId) ?? archetypeForLadderSlot(ladderSlot, totalSlots);
 
-  if (!input.force && existing && existing.lastProgressedDay >= input.roundDay) {
+  const tickCount = computeDueTickCount({
+    lastProgressedAt: existing?.lastProgressedAt ?? null,
+    now,
+    simulateElapsedHours: input.simulateElapsedHours,
+    force: input.force,
+  });
+
+  if (tickCount <= 0) {
     return 'skipped';
   }
 
@@ -86,10 +109,27 @@ export async function progressNpcPlayer(
     include: { ownedBusinesses: true },
   });
 
-  const daysToApply = existing
-    ? Math.max(1, input.roundDay - existing.lastProgressedDay)
-    : input.roundDay;
-  const recoveryRate = compoundRecoveryRate(daysToApply);
+  const currentAssets = playerAssetsFromRecord(player);
+  currentAssets.businesses = businessesFromRecords(player.ownedBusinesses);
+
+  const baseTickIndex = existing
+    ? Math.floor(
+        (now.getTime() - existing.lastProgressedAt.getTime()) / (NPC_PROGRESSION_TICK_HOURS * 3_600_000),
+      )
+    : 0;
+
+  const ticked = applyNpcProgressionTicks(
+    currentAssets,
+    {
+      archetype,
+      roundDay: input.roundDay,
+      ladderSlot,
+      growthSeed,
+      totalSlots,
+    },
+    tickCount,
+    Math.max(0, baseTickIndex),
+  );
 
   const target = buildNpcTargetState({
     archetype,
@@ -99,10 +139,15 @@ export async function progressNpcPlayer(
     totalSlots,
   });
 
-  const currentAssets = playerAssetsFromRecord(player);
-  currentAssets.businesses = businessesFromRecords(player.ownedBusinesses);
-
-  const reconciled = reconcileTowardTarget(currentAssets, target, recoveryRate);
+  const businessRecovery = Math.min(0.05 * tickCount, 0.2);
+  const reconciled = {
+    ...ticked,
+    businesses: reconcileBusinessesTowardTarget(
+      currentAssets.businesses,
+      target.businesses,
+      businessRecovery,
+    ),
+  };
 
   await tx.player.update({
     where: { id: input.playerId },
@@ -139,7 +184,13 @@ export async function progressNpcPlayer(
     },
   });
 
-  await reconcileNpcBusinesses(tx, input.playerId, input.districtId, currentAssets.businesses, reconciled.businesses);
+  await reconcileNpcBusinesses(
+    tx,
+    input.playerId,
+    input.districtId,
+    currentAssets.businesses,
+    reconciled.businesses,
+  );
 
   await tx.npcProgressionState.upsert({
     where: { playerId: input.playerId },
@@ -149,14 +200,14 @@ export async function progressNpcPlayer(
       growthSeed,
       ladderSlot,
       lastProgressedDay: input.roundDay,
-      lastProgressedAt: new Date(),
+      lastProgressedAt: now,
     },
     update: {
       archetype,
       growthSeed,
       ladderSlot,
       lastProgressedDay: input.roundDay,
-      lastProgressedAt: new Date(),
+      lastProgressedAt: now,
     },
   });
 
@@ -224,26 +275,29 @@ async function reconcileNpcBusinesses(
   }
 }
 
+function applyLocalNpcEnvOverride(includeLocalNpcs?: boolean): void {
+  if (includeLocalNpcs === true) {
+    process.env.NPC_PROGRESSION_INCLUDE_LOCAL = 'true';
+  } else if (includeLocalNpcs === false) {
+    process.env.NPC_PROGRESSION_INCLUDE_LOCAL = 'false';
+  }
+}
+
 export async function progressSeasonNpcs(
   prisma: PrismaClient,
   seasonId: string,
   options: NpcProgressionOptions = {},
 ): Promise<NpcProgressionResult> {
+  applyLocalNpcEnvOverride(options.includeLocalNpcs);
+
   const season = await prisma.season.findUniqueOrThrow({ where: { id: seasonId } });
-  const roundDay =
-    options.forceDay ??
-    getSeasonRoundDay(season.startsAt, season.endsAt);
+  const roundDay = options.forceDay ?? getSeasonRoundDay(season.startsAt, season.endsAt);
 
   const candidates = await prisma.player.findMany({
     where: {
       seasonId,
       isSystemPlayer: false,
-      user: {
-        OR: [
-          { email: { startsWith: 'playtest-npc+' } },
-          { email: { startsWith: 'dev-pvp+' } },
-        ],
-      },
+      user: { OR: progressionNpcEmailOrFilters() },
     },
     include: { user: true },
     orderBy: { aliasNormalized: 'asc' },
@@ -263,6 +317,7 @@ export async function progressSeasonNpcs(
         districtId: candidate.districtId,
         roundDay,
         force: options.force,
+        simulateElapsedHours: options.simulateElapsedHours,
       });
       if (outcome === 'processed') processed++;
       else skipped++;
@@ -286,8 +341,16 @@ export async function progressActiveSeasonNpcs(
   return progressSeasonNpcs(prisma, season.id, options);
 }
 
+/** Process NPCs whose 6-hour tick window is due (alias for scheduled / dev invocation). */
+export async function progressDueNpcs(
+  prisma: PrismaClient,
+  options: NpcProgressionOptions = {},
+): Promise<NpcProgressionResult | null> {
+  return progressActiveSeasonNpcs(prisma, options);
+}
+
 export async function maybeProgressActiveSeasonNpcs(
   prisma: PrismaClient,
 ): Promise<void> {
-  await progressActiveSeasonNpcs(prisma);
+  await progressDueNpcs(prisma);
 }

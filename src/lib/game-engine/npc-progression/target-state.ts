@@ -122,8 +122,9 @@ export function computeNpcTargetNw(
   ladderSlot: number,
   growthSeed: number,
   totalSlots: number,
+  nwBand?: { minNw: number; maxNw: number },
 ): number {
-  const { minNw, maxNw } = interpolateNpcLadderBand(roundDay);
+  const { minNw, maxNw } = nwBand ?? interpolateNpcLadderBand(roundDay);
   const slotT = totalSlots <= 1 ? 0 : ladderSlot / (totalSlots - 1);
   const curved = Math.pow(slotT, 0.72);
   const rng = createSeededRng(growthSeed * 7919 + 42);
@@ -137,6 +138,8 @@ export function buildNpcTargetState(input: {
   ladderSlot: number;
   growthSeed: number;
   totalSlots: number;
+  /** Dev/local seeds — override day-1 ladder band without changing round progression rules. */
+  nwBand?: { minNw: number; maxNw: number };
 }): NpcTargetAssetState {
   const profile = NPC_ARCHETYPE_PROFILES[input.archetype];
   const targetNw = computeNpcTargetNw(
@@ -144,6 +147,7 @@ export function buildNpcTargetState(input: {
     input.ladderSlot,
     input.growthSeed,
     input.totalSlots,
+    input.nwBand,
   );
   const rng = createSeededRng(input.growthSeed + input.roundDay * 9973);
   const businesses = planBusinesses(input.archetype, input.roundDay, input.growthSeed);

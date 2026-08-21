@@ -16,7 +16,7 @@ export const OLDSKOOL_SHOP_TABS: {
   { id: 'weapons', label: 'Weapons', icon: 'weapons', categories: ['weapons'] },
   { id: 'vehicles', label: 'Vehicles', icon: 'vehicles', categories: ['vehicles'] },
   { id: 'supplies', label: 'Supplies', icon: 'supplies', categories: ['worker_supplies', 'thug_supplies'] },
-  { id: 'drugs', label: 'Drugs', icon: 'drugs', categories: ['drugs'] },
+  { id: 'drugs', label: 'Technology', icon: 'drugs', categories: ['drugs'] },
 ];
 
 export function oldSkoolTabFromParam(param: string | undefined): OldSkoolShopTab {
@@ -32,7 +32,7 @@ export function shopHrefForItem(itemKey: string): string {
     ak: 'weapons',
     ride: 'vehicles',
     condom: 'supplies',
-    hash: 'supplies',
+    hash: 'drugs',
     beer: 'supplies',
     shroom: 'drugs',
     coke: 'drugs',

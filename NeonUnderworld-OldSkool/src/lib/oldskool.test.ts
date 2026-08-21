@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { TERMS } from '@core/config/game/terminology';
 
 describe('OldSkool terminology', () => {
-  it('uses shared cartel term from core engine', () => {
-    expect(TERMS.cartel).toBe('Cartel');
+  it('uses shared faction term from core engine', () => {
+    expect(TERMS.cartel).toBe('Faction');
   });
 
   it('uses shared scout term', () => {

@@ -2,9 +2,11 @@ import { prisma } from '@/lib/db/prisma';
 import { runSerializableTransaction, COMBAT_TRANSACTION_OPTIONS } from '@/lib/db/serializable-transaction';
 import { CartelService } from '@/server/services/cartel.service';
 import { OfflineProtectionService } from '@/server/services/offline-protection.service';
+import { formatInsufficientTurnsForAttack } from '@/lib/game-engine/combat/attack-presentation';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
 import {
   validateAttackEligibilityCode,
+  attackRangeErrorMessage,
   ridesRequired,
   type PlayerIntelSnapshot,
 } from '@/lib/game-engine/combat/eligibility';
@@ -14,6 +16,7 @@ import {
 } from '@/lib/game-engine/business/net-worth';
 import { allocateWeaponsForThugs, weaponCoverageBand } from '@/lib/game-engine/combat/weapon-allocation';
 import { deriveCombatSeed, resolveCombat } from '@/lib/game-engine/combat/resolve-combat';
+import { resolveCombatOutcomeLabel } from '@/lib/game-engine/combat/attack-result-presentation';
 import { calculateProstituteHappiness } from '@/lib/game-engine/happiness';
 import {
   consumeTurns,
@@ -21,7 +24,7 @@ import {
   settleTurnRegeneration,
 } from '@/lib/game-engine/turns';
 import { snapshotPlayerState } from '@/lib/game-engine/state';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 
@@ -129,6 +132,8 @@ export type AttackEncounterTarget =
   | { kind: 'intel'; scoutReportId: string }
   | { kind: 'direct'; defenderAliasNormalized: string };
 
+import { attackCapWindowStart, isReportFromCurrentRound } from '@/server/services/round-rollover.service';
+
 function parseIntelFromReport(metadata: unknown): PlayerIntelSnapshot | null {
   if (!metadata || typeof metadata !== 'object') return null;
   const m = metadata as { type?: string; intel?: PlayerIntelSnapshot };
@@ -139,8 +144,11 @@ function parseIntelFromReport(metadata: unknown): PlayerIntelSnapshot | null {
 export async function countAttacksOnTargetLast24h(
   attackerId: string,
   defenderId: string,
+  seasonStartsAt?: Date,
 ): Promise<number> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since = seasonStartsAt
+    ? attackCapWindowStart(seasonStartsAt)
+    : new Date(Date.now() - 24 * 60 * 60 * 1000);
   return prisma.combatEncounter.count({
     where: { attackerId, defenderId, createdAt: { gte: since } },
   });
@@ -193,7 +201,12 @@ export async function resolveAttackEncounter(
       encounterId: existing.id,
       attackType: existing.attackType as AttackType,
       outcome: existing.outcome,
-      outcomeLabel: existing.outcome,
+      outcomeLabel: resolveCombatOutcomeLabel({
+        attackType: existing.attackType as AttackType,
+        outcome: existing.outcome,
+        outcomeLabel: existing.outcome,
+        workersStolen: existing.workersStolen ?? 0,
+      }),
       attackingThugs: existing.attackingThugs,
       attackerLosses: existing.attackerLosses,
       defenderLosses: existing.defenderLosses,
@@ -232,7 +245,7 @@ export async function resolveAttackEncounter(
       include: { turnState: true, district: true, season: true },
     });
     if (!attacker.turnState) throw new GameplayError('TARGET_UNAVAILABLE', 'Your account is not ready for combat. Refresh and try again.');
-    if (attacker.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+    assertGameplaySeasonActive(attacker.season);
     assertPlayerCanPerformAction(attacker);
 
     let intel: PlayerIntelSnapshot | null = null;
@@ -243,6 +256,9 @@ export async function resolveAttackEncounter(
         where: { id: target.scoutReportId, playerId: attackerId },
       });
       if (!report) throw new GameplayError('INVALID_INTEL');
+      if (!isReportFromCurrentRound(report.createdAt, attacker.season.startsAt)) {
+        throw new GameplayError('INVALID_INTEL');
+      }
       intel = parseIntelFromReport(report.metadata);
       if (!intel) throw new GameplayError('INVALID_INTEL');
 
@@ -250,6 +266,9 @@ export async function resolveAttackEncounter(
         where: { id: intel.targetPlayerId },
         include: { district: true, season: true, turnState: true },
       });
+      if (defender.seasonId !== attacker.seasonId) {
+        throw new GameplayError('INVALID_INTEL');
+      }
     } else {
       defender = await tx.player.findFirst({
         where: {
@@ -284,11 +303,12 @@ export async function resolveAttackEncounter(
       }),
     );
 
+    const capSince = attackCapWindowStart(attacker.season.startsAt);
     const attacksOnTarget = await tx.combatEncounter.count({
       where: {
         attackerId,
         defenderId: defender.id,
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        createdAt: { gte: capSince },
       },
     });
 
@@ -319,9 +339,13 @@ export async function resolveAttackEncounter(
     });
     if (eligibilityCode) {
       const message =
-        eligibilityCode === 'TARGET_WRONG_DISTRICT' && intel && target.kind !== 'direct'
-          ? 'This player is no longer in your city.'
-          : undefined;
+        eligibilityCode === 'INSUFFICIENT_TURNS'
+          ? formatInsufficientTurnsForAttack(attackType, settled.currentTurns)
+          : eligibilityCode === 'TARGET_WRONG_DISTRICT' && intel && target.kind !== 'direct'
+            ? 'This player is no longer in your city.'
+            : eligibilityCode === 'TARGET_OUT_OF_RANGE'
+              ? attackRangeErrorMessage(attackerNw, defenderNw, 'execution')
+              : undefined;
       throw new GameplayError(eligibilityCode, message);
     }
 

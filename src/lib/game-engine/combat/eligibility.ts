@@ -1,5 +1,10 @@
-import { isWithinAttackRange } from '@/config/game/redlite-rules';
+import {
+  attackRangeViolation,
+  isWithinAttackRange,
+  type AttackRangeViolation,
+} from '@/config/game/redlite-rules';
 import { ATTACK_RULES, type AttackType } from '@/config/game/attack-rules';
+import { formatInsufficientTurnsForAttack } from '@/lib/game-engine/combat/attack-presentation';
 import { maxCommitmentForAttack } from '@/lib/game-engine/combat/commitment';
 import { WORKER_POACHING_RULES } from '@/config/game/worker-poaching-rules';
 import { ridesRequiredForThugs } from '@/lib/game-engine/combat-rules';
@@ -51,6 +56,26 @@ export interface AttackEligibilityInput {
 
 export function ridesRequired(attackingThugs: number): number {
   return ridesRequiredForThugs(attackingThugs, ATTACK_RULES.thugsPerRide);
+}
+
+export function attackRangeErrorMessage(
+  attackerNw: number,
+  defenderNw: number,
+  context: 'intel' | 'execution' = 'intel',
+): string {
+  if (context === 'execution') {
+    return GAMEPLAY_CONTEXT_MESSAGES.attackTargetNowOutOfRange;
+  }
+  const violation = attackRangeViolation(attackerNw, defenderNw);
+  if (violation === 'below') return GAMEPLAY_CONTEXT_MESSAGES.intelTargetOutOfRange;
+  if (violation === 'above') return GAMEPLAY_CONTEXT_MESSAGES.intelTargetAboveRange;
+  return GAMEPLAY_ERROR_MESSAGES.TARGET_OUT_OF_RANGE;
+}
+
+export function attackRangeIssueHeading(violation: AttackRangeViolation): string {
+  return violation === 'above'
+    ? GAMEPLAY_CONTEXT_MESSAGES.aboveAttackRangeHeading
+    : GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading;
 }
 
 export function isIntelReportValid(intel: PlayerIntelSnapshot | null, now = new Date()): boolean {
@@ -135,6 +160,12 @@ export function validateAttackEligibilityCode(
 export function validateAttackEligibility(input: AttackEligibilityInput): string | null {
   const code = validateAttackEligibilityCode(input);
   if (!code) return null;
+  if (code === 'INSUFFICIENT_TURNS') {
+    return formatInsufficientTurnsForAttack(input.attackType, input.attackerTurns);
+  }
+  if (code === 'TARGET_OUT_OF_RANGE') {
+    return attackRangeErrorMessage(input.attackerNw, input.defenderNw, 'execution');
+  }
   return GAMEPLAY_ERROR_MESSAGES[code];
 }
 
@@ -170,7 +201,11 @@ export function evaluateAttackTargetPreview(input: AttackTargetPreviewInput): {
     return { eligible: false, code: 'TARGET_WRONG_DISTRICT', message: GAMEPLAY_ERROR_MESSAGES.TARGET_WRONG_DISTRICT };
   }
   if (!isWithinAttackRange(input.attackerNw, input.defenderNw)) {
-    return { eligible: false, code: 'TARGET_OUT_OF_RANGE', message: GAMEPLAY_ERROR_MESSAGES.TARGET_OUT_OF_RANGE };
+    return {
+      eligible: false,
+      code: 'TARGET_OUT_OF_RANGE',
+      message: attackRangeErrorMessage(input.attackerNw, input.defenderNw, 'intel'),
+    };
   }
   if (input.attacksOnTargetLast24h >= ATTACK_RULES.targetAttackCapPer24h) {
     return { eligible: false, code: 'ATTACK_CAP_REACHED', message: GAMEPLAY_ERROR_MESSAGES.ATTACK_CAP_REACHED };
@@ -248,10 +283,11 @@ export function resolveRequestedTargetIssue(input: {
     };
   }
   if (!isWithinAttackRange(input.attackerNw, input.defenderNw)) {
+    const violation = attackRangeViolation(input.attackerNw, input.defenderNw)!;
     return {
       issue: 'TARGET_OUT_OF_RANGE',
-      heading: GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading,
-      message: GAMEPLAY_CONTEXT_MESSAGES.intelTargetOutOfRange,
+      heading: attackRangeIssueHeading(violation),
+      message: attackRangeErrorMessage(input.attackerNw, input.defenderNw, 'intel'),
       alias: input.defenderAlias,
       aliasNormalized: input.defenderAliasNormalized,
     };
@@ -268,6 +304,7 @@ export function resolveRequestedTargetIssue(input: {
 export type ProfileAttackEligibility =
   | { status: 'eligible' }
   | { status: 'below_range'; heading: string; message: string }
+  | { status: 'above_range'; heading: string; message: string }
   | { status: 'unavailable'; message: string }
   | { status: 'wrong_district' }
   | { status: 'self' };
@@ -295,10 +332,12 @@ export function resolveProfileAttackEligibility(input: {
   if (resolution.issue === 'SELF') return { status: 'self' };
   if (resolution.issue === 'TARGET_WRONG_DISTRICT') return { status: 'wrong_district' };
   if (resolution.issue === 'TARGET_OUT_OF_RANGE') {
+    const violation = attackRangeViolation(input.viewerNw, input.targetNw);
+    const status = violation === 'above' ? 'above_range' : 'below_range';
     return {
-      status: 'below_range',
-      heading: resolution.heading ?? GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading,
-      message: resolution.message ?? GAMEPLAY_CONTEXT_MESSAGES.intelTargetOutOfRange,
+      status,
+      heading: resolution.heading ?? attackRangeIssueHeading(violation ?? 'below'),
+      message: resolution.message ?? attackRangeErrorMessage(input.viewerNw, input.targetNw, 'intel'),
     };
   }
   if (resolution.issue === 'TARGET_UNAVAILABLE') {

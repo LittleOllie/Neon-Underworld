@@ -16,6 +16,7 @@ import {
   calculateThugHappiness,
 } from '@/lib/game-engine/happiness';
 import { DomainError, toUserMessage } from '@/lib/game-engine/errors';
+import { resolveRegistrationSeason } from '@/lib/game-engine/season-guard';
 import { snapshotPlayerState } from '@/lib/game-engine/state';
 import { signIn } from '@/lib/auth/config';
 
@@ -60,7 +61,7 @@ export async function registerAction(formData: FormData): Promise<ActionResult<{
       return { success: false, error: 'Selected district is not available' };
     }
 
-    const season = await prisma.season.findFirst({ where: { status: 'ACTIVE' } });
+    const season = await resolveRegistrationSeason();
     if (!season) {
       return { success: false, error: 'No active season. Registration is temporarily unavailable.' };
     }

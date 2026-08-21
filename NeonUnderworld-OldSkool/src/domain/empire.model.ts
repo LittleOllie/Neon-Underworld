@@ -141,8 +141,7 @@ export interface EmpireManagementData {
   supplySummary: {
     workers: {
       status: string;
-      hash: string;
-      condoms: string;
+      kits: string;
       protection: string;
       payout: string;
     };
@@ -151,6 +150,21 @@ export interface EmpireManagementData {
       weapons: string;
       beer: string;
       armed: string;
+    };
+  };
+
+  preferredSupplies: {
+    specialists: {
+      shopItemKey: 'condom';
+      label: string;
+      quantity: number;
+      readinessPercent: number;
+    };
+    enforcers: {
+      shopItemKey: 'beer';
+      label: string;
+      quantity: number;
+      readinessPercent: number;
     };
   };
 

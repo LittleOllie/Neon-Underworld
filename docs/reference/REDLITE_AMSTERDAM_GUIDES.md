@@ -1,3 +1,8 @@
+kill $(lsof -t -i:3302) 2>/dev/null; npm run dev
+
+
+
+
 # Redlite Distrikt Amsterdam Edition — Game Guides
 
 > **Source:** [Redlite Distrikt Amsterdam Guides Index](http://amsterdam.redlite.org/info/guides/index.php)  

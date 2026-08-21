@@ -302,11 +302,74 @@ const AVATAR_LIST: PlayerAvatarConfig[] = [
   },
 ];
 
+function parseHexRgb(hex: string): { r: number; g: number; b: number } {
+  const normalized = hex.replace('#', '');
+  return {
+    r: parseInt(normalized.slice(0, 2), 16) / 255,
+    g: parseInt(normalized.slice(2, 4), 16) / 255,
+    b: parseInt(normalized.slice(4, 6), 16) / 255,
+  };
+}
+
+/** Hue/sat/lightness for palette sorting in identity selection UI. */
+export function avatarPrimaryHsl(hex: string): { h: number; s: number; l: number; chroma: number } {
+  const { r, g, b } = parseHexRgb(hex);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const chroma = max - min;
+  const l = (max + min) / 2;
+
+  if (chroma === 0) {
+    return { h: 0, s: 0, l, chroma };
+  }
+
+  const s = l > 0.5 ? chroma / (2 - max - min) : chroma / (max + min);
+  let h = 0;
+
+  switch (max) {
+    case r:
+      h = ((g - b) / chroma + (g < b ? 6 : 0)) / 6;
+      break;
+    case g:
+      h = ((b - r) / chroma + 2) / 6;
+      break;
+    default:
+      h = ((r - g) / chroma + 4) / 6;
+      break;
+  }
+
+  return { h: h * 360, s, l, chroma };
+}
+
+/** Sort key — warm → cool rainbow, with greys/whites last. */
+export function compareAvatarsByPrimaryColor(
+  a: PlayerAvatarConfig,
+  b: PlayerAvatarConfig,
+): number {
+  const hslA = avatarPrimaryHsl(a.primary);
+  const hslB = avatarPrimaryHsl(b.primary);
+  const greyA = hslA.chroma < 0.1;
+  const greyB = hslB.chroma < 0.1;
+
+  if (greyA && !greyB) return 1;
+  if (!greyA && greyB) return -1;
+  if (greyA && greyB) return hslA.l - hslB.l;
+
+  if (hslA.h !== hslB.h) return hslA.h - hslB.h;
+  if (hslA.s !== hslB.s) return hslB.s - hslA.s;
+  return a.name.localeCompare(b.name);
+}
+
 export const PLAYER_AVATARS: Record<PlayerAvatarId, PlayerAvatarConfig> = Object.fromEntries(
   AVATAR_LIST.map((avatar) => [avatar.id, avatar]),
 ) as Record<PlayerAvatarId, PlayerAvatarConfig>;
 
 export const FOUNDING_PLAYER_AVATARS: PlayerAvatarConfig[] = AVATAR_LIST;
+
+/** Identity grid order — similar accent hues grouped left-to-right, row by row. */
+export const FOUNDING_PLAYER_AVATARS_BY_COLOR: PlayerAvatarConfig[] = [...AVATAR_LIST].sort(
+  compareAvatarsByPrimaryColor,
+);
 
 export function isPlayerAvatarId(value: string): value is PlayerAvatarId {
   return value in PLAYER_AVATARS;

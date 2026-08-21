@@ -154,8 +154,14 @@ describe('requested target resolution', () => {
     expect(issue.heading).toBe(GAMEPLAY_CONTEXT_MESSAGES.belowAttackRangeHeading);
   });
 
-  it('allows richer targets', () => {
-    const issue = resolveRequestedTargetIssue({ ...base, defenderNw: 5_000_000 });
+  it('flags above-range targets', () => {
+    const issue = resolveRequestedTargetIssue({ ...base, defenderNw: 1_700_001 });
+    expect(issue.issue).toBe('TARGET_OUT_OF_RANGE');
+    expect(issue.heading).toBe(GAMEPLAY_CONTEXT_MESSAGES.aboveAttackRangeHeading);
+  });
+
+  it('allows in-band richer targets', () => {
+    const issue = resolveRequestedTargetIssue({ ...base, defenderNw: 1_500_000 });
     expect(issue.issue).toBeNull();
   });
 
@@ -179,12 +185,16 @@ describe('requested target resolution', () => {
   });
 });
 
-describe('attack range floor for intel guard', () => {
-  it('accepts exactly 50% NW', () => {
-    expect(isWithinAttackRange(1_000_000, 500_000)).toBe(true);
+describe('attack range band for intel guard', () => {
+  it('accepts exactly 60% NW', () => {
+    expect(isWithinAttackRange(1_000_000, 600_000)).toBe(true);
   });
 
-  it('rejects one below 50% NW', () => {
-    expect(isWithinAttackRange(1_000_000, 499_999)).toBe(false);
+  it('rejects one below 60% NW', () => {
+    expect(isWithinAttackRange(1_000_000, 599_999)).toBe(false);
+  });
+
+  it('rejects above 170% NW', () => {
+    expect(isWithinAttackRange(1_000_000, 1_700_001)).toBe(false);
   });
 });

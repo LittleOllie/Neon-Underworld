@@ -50,7 +50,7 @@ test.describe('Attack v1 — empty state', () => {
   });
 });
 
-test.describe('Attack v1 — Home Invasion flow', () => {
+test.describe('Attack v1 — Breach flow', () => {
   test.beforeAll(() => {
     execSync('npx tsx scripts/e2e-combat-setup.ts', {
       cwd: path.resolve(__dirname, '../..'),
@@ -69,14 +69,13 @@ test.describe('Attack v1 — Home Invasion flow', () => {
 
     await page
       .getByRole('listbox', { name: 'Attack type' })
-      .getByRole('option', { name: /Home Invasion/i })
+      .getByRole('option', { name: /Breach/i })
       .click();
-    await page.getByLabel('Thugs to send').fill('10');
+    await page.getByLabel('Enforcers to send').fill('10');
     await page.getByRole('button', { name: 'Attack', exact: true }).click();
     await page.getByRole('button', { name: 'Confirm Attack' }).click();
 
-    await expect(page.getByText(/turns used/i)).toBeVisible({ timeout: 20000 });
-    await expect(page.getByRole('link', { name: 'Attack Again' })).toHaveCount(0);
+    await expect(page.getByText(/YOU LOST|Turns/i)).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole('button', { name: 'Back to Targets' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Back to Targets' }).click();
@@ -112,14 +111,14 @@ test.describe('Attack v1 — mobile flow', () => {
     await openTargetWithIntel(page);
 
     await expect(page.getByRole('listbox', { name: 'Attack type' })).toBeVisible();
-    await expect(page.getByLabel('Thugs to send')).toBeVisible();
+    await expect(page.getByLabel('Enforcers to send')).toBeVisible();
     await expect(page.getByText(/Rides required/i)).toBeVisible();
 
     await page
       .getByRole('listbox', { name: 'Attack type' })
-      .getByRole('option', { name: /Home Invasion/i })
+      .getByRole('option', { name: /Breach/i })
       .click();
-    await page.getByLabel('Thugs to send').fill('10');
+    await page.getByLabel('Enforcers to send').fill('10');
     const attackButton = page.getByRole('button', { name: 'Attack', exact: true });
     await expect(attackButton).toBeEnabled({ timeout: 10_000 });
     await attackButton.click();

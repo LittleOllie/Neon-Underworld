@@ -2,39 +2,58 @@ import Link from 'next/link';
 import { PageTitle } from '@local/components/game';
 import { PlayerAvatar } from '@local/components/game/PlayerAvatar';
 import { requireGameSession } from '@local/lib/game-context';
-import { resolvePlayerAvatarConfig } from '@core/lib/game-engine/resolve-player-avatar';
+import { resolvePlayerIdentity } from '@core/lib/game-engine/player-identity';
 import { auth } from '@local/lib/auth/config';
 import { LogoutLink } from '@local/components/oldskool/LogoutLink';
 import { WireToggleForm } from '@local/features/settings/WireToggleForm';
+import { FeedbackNote } from '@local/components/game/FeedbackNote';
 
 export default async function SettingsPage() {
   const { ctx } = await requireGameSession();
   const session = await auth();
-  const avatarConfig = resolvePlayerAvatarConfig(ctx.avatar);
+  const identity = resolvePlayerIdentity(ctx);
+  const identityLabel =
+    identity.avatarSource === 'UPLOAD'
+      ? 'Uploaded PFP'
+      : identity.avatarId
+        ? identity.avatarId.charAt(0).toUpperCase() + identity.avatarId.slice(1)
+        : 'Not set';
 
   return (
     <>
       <PageTitle icon="player">Settings</PageTitle>
 
+      <div className="g-gameplay-controls g-settings-chrome">
       <section className="g-settings-section" aria-labelledby="settings-identity">
         <h2 id="settings-identity" className="g-settings-heading">
           Identity
         </h2>
         <div className="g-settings-identity-card">
-          <PlayerAvatar avatarId={ctx.avatar} alt={ctx.alias} size="lg" priority />
+          <PlayerAvatar
+            identity={ctx}
+            alt={ctx.alias}
+            size="lg"
+            shape="square"
+            priority
+          />
           <div className="g-settings-identity-meta">
             <p className="g-settings-label">Alias</p>
             <p className="g-settings-value">{ctx.alias}</p>
-            <p className="g-settings-label">Accent preview</p>
+            <p className="g-settings-label">Portrait</p>
+            <p className="g-settings-value">{identityLabel}</p>
+            <p className="g-settings-label">Accent theme</p>
             <p className="g-settings-accent-swatch">
-              <span style={{ background: avatarConfig.primary }} aria-hidden />
-              <span style={{ background: avatarConfig.secondary }} aria-hidden />
+              <span style={{ background: identity.theme.primary }} aria-hidden />
+              <span style={{ background: identity.theme.secondary }} aria-hidden />
             </p>
             <Link href="/identity/select?from=settings" className="g-btn">
-              Change avatar
+              Change your identity
             </Link>
           </div>
         </div>
+        <FeedbackNote tone="info">
+          Your PFP and accent colours are visible to other Operators in Rankings, Intel, Factions, and Reports.
+        </FeedbackNote>
       </section>
 
       <section className="g-settings-section" aria-labelledby="settings-profile">
@@ -70,6 +89,7 @@ export default async function SettingsPage() {
           <LogoutLink />
         </p>
       </section>
+      </div>
     </>
   );
 }

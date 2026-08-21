@@ -1,4 +1,12 @@
 import type { ActionResultLine } from '@local/components/game/ActionResult';
+import { resourceLabel, OS_TERMS } from '@local/config/terminology';
+
+function resourceDisplayName(drugType: string): string {
+  if (drugType === 'hash' || drugType === 'shrooms' || drugType === 'coke' || drugType === 'heroin') {
+    return resourceLabel(drugType);
+  }
+  return drugType;
+}
 
 export function buildSupplyImpactLines(input: {
   drugType?: string;
@@ -15,23 +23,23 @@ export function buildSupplyImpactLines(input: {
 
   if (input.drugUnitsProduced != null && input.drugUnitsProduced > 0 && input.drugType) {
     lines.push({
-      text: `Produced: +${input.drugUnitsProduced.toLocaleString()} ${input.drugType}`,
+      text: `Output: +${input.drugUnitsProduced.toLocaleString()} ${resourceDisplayName(input.drugType)}`,
       tone: 'positive',
     });
   }
 
   if (used?.beer || used?.condoms || used?.hash) {
     const parts: string[] = [];
-    if (used.hash) parts.push(`Hash −${used.hash.toLocaleString()}`);
-    if (used.condoms) parts.push(`Condoms −${used.condoms.toLocaleString()}`);
-    if (used.beer) parts.push(`Beer −${used.beer.toLocaleString()}`);
+    if (used.hash) parts.push(`${OS_TERMS.hash} −${used.hash.toLocaleString()}`);
+    if (used.condoms) parts.push(`${OS_TERMS.kits} −${used.condoms.toLocaleString()}`);
+    if (used.beer) parts.push(`${OS_TERMS.rations} −${used.beer.toLocaleString()}`);
     lines.push({ text: `Supplies used: ${parts.join(' · ')}` });
   }
 
   if (input.drugType === 'hash' && input.hashNetChange != null) {
     const sign = input.hashNetChange >= 0 ? '+' : '';
     lines.push({
-      text: `Net Hash: ${sign}${input.hashNetChange.toLocaleString()}`,
+      text: `Net ${OS_TERMS.hash}: ${sign}${input.hashNetChange.toLocaleString()}`,
       tone: input.hashNetChange >= 0 ? 'positive' : 'negative',
     });
   }
@@ -42,7 +50,7 @@ export function buildSupplyImpactLines(input: {
     input.workerMoraleBefore !== input.workerMoraleAfter
   ) {
     lines.push({
-      text: `Worker morale ${input.workerMoraleBefore}% → ${input.workerMoraleAfter}%`,
+      text: `${OS_TERMS.specialist} morale ${input.workerMoraleBefore}% → ${input.workerMoraleAfter}%`,
     });
   }
   if (
@@ -51,7 +59,7 @@ export function buildSupplyImpactLines(input: {
     input.thugMoraleBefore !== input.thugMoraleAfter
   ) {
     lines.push({
-      text: `Thug morale ${input.thugMoraleBefore}% → ${input.thugMoraleAfter}%`,
+      text: `${OS_TERMS.enforcer} morale ${input.thugMoraleBefore}% → ${input.thugMoraleAfter}%`,
     });
   }
   return lines;

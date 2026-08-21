@@ -9,7 +9,7 @@ import {
   hireThugsTotalCost,
 } from '@/config/game/hire-thugs-rules';
 import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonical-net-worth';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { snapshotPlayerState } from '@/lib/game-engine/state';
@@ -55,7 +55,7 @@ export async function hireThugsAction(
         include: { season: true },
       });
 
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       const qty = parsed.data.quantity;

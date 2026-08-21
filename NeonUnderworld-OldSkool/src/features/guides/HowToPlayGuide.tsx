@@ -13,8 +13,14 @@ import {
   ATTACK_TYPE_LABELS,
   ATTACK_TYPE_PURPOSE,
 } from '@core/config/game/attack-rules';
+import {
+  formatAttackTypeOptionLabel,
+} from '@core/lib/game-engine/combat/attack-presentation';
 import { THUG_HIRE_PRICE } from '@core/config/game/hire-thugs-rules';
-import { MAX_BUSINESSES_PER_PLAYER } from '@core/config/game/business-rules';
+import {
+  MAX_BUSINESSES_PER_PLAYER,
+  BUSINESS_TYPE_RULES,
+} from '@core/config/game/business-rules';
 import { WORKER_POACHING_RULES } from '@core/config/game/worker-poaching-rules';
 import { MARKET_RULES } from '@core/config/game/market-rules';
 import {
@@ -23,6 +29,8 @@ import {
   OFFLINE_PROTECTION_RESET_ONLINE_MS,
 } from '@core/config/game/offline-protection';
 import { isPlaytestTurnsNavVisible } from '@core/config/game/playtest';
+import { TERMS } from '@core/config/game/terminology';
+import { OS_TERMS, resourceLabel } from '@local/config/terminology';
 
 export interface HowToPlayGuideProps {
   districtName: string;
@@ -93,16 +101,16 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
     { id: 'core', label: 'Core ideas' },
     { id: 'screens', label: 'Every screen' },
     { id: 'crew', label: 'Crew & supplies' },
-    { id: 'drugs', label: 'Drugs' },
-    { id: 'shop', label: 'Shop' },
+    { id: 'drugs', label: TERMS.technology },
+    { id: 'shop', label: OS_TERMS.shop },
     { id: 'economy', label: 'Making money' },
     { id: 'combat', label: 'Attacks' },
-    { id: 'market', label: 'Market' },
-    { id: 'cartels', label: 'Cartels' },
-    { id: 'travel', label: 'Travel' },
-    { id: 'businesses', label: 'Businesses' },
-    { id: 'wire', label: 'THE WIRE' },
-    { id: 'rankings', label: 'Rankings' },
+    { id: 'market', label: OS_TERMS.market },
+    { id: 'cartels', label: OS_TERMS.factions },
+    { id: 'travel', label: OS_TERMS.travel },
+    { id: 'businesses', label: OS_TERMS.businesses },
+    { id: 'wire', label: OS_TERMS.wire.toUpperCase() },
+    { id: 'rankings', label: OS_TERMS.rankings },
     { id: 'tips', label: 'Tips' },
     { id: 'reference', label: 'Your city' },
   ] as const;
@@ -110,9 +118,9 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
   return (
     <>
       <p className="g-note g-guide-body">
-        Neon Underworld is a turn-based street empire game. Spend turns to recruit crew, produce
-        drugs and cash, buy gear, and fight rivals in your city. Tap a topic below, then scroll to
-        read that section.
+        Neon Underworld is a turn-based underground empire game. You are an {OS_TERMS.operator} —
+        spend turns to recruit crew, run {TERMS.operations}, stock gear, and strike rivals in your
+        city. Tap a topic below, then scroll to read that section.
       </p>
 
       <nav className="g-guide-toc" aria-label="Guide sections">
@@ -125,7 +133,8 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
 
       <GuideSection id="quick-start" title="Quick start — your first hour">
         <p className="g-note g-guide-body">
-          New here? Follow this order. Each step links to the screen you need.
+          New {OS_TERMS.operator.toLowerCase()}? Follow this order. Each step links to the screen
+          you need.
         </p>
         <GuideList>
           <li>
@@ -133,28 +142,33 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
             turns, and unread reports.
           </li>
           <li>
-            <strong>Scout for crew</strong> — Go to <Link href="/scout">Scout</Link>, pick an area,
-            spend ~25 turns on <em>The Streets</em> to recruit Workers and Thugs.
+            <strong>Scout for crew</strong> — Go to <Link href="/scout">{OS_TERMS.scout}</Link>,
+            pick an area, spend ~25 turns on <em>The Streets</em> to recruit{' '}
+            {OS_TERMS.specialists} and {OS_TERMS.enforcers}.
           </li>
           <li>
-            <strong>Stock supplies</strong> — Visit <Link href="/shop">Shop</Link> for weapons (1
-            per Thug), beer, condoms, and hash.
+            <strong>Stock supplies</strong> — Visit <Link href="/shop">{OS_TERMS.shop}</Link> for
+            weapons (1 per {OS_TERMS.enforcer.toLowerCase()}), {OS_TERMS.rations.toLowerCase()},{' '}
+            {OS_TERMS.kits.toLowerCase()}, and {resourceLabel('hash').toLowerCase()}.
           </li>
           <li>
-            <strong>Produce</strong> — On <Link href="/produce">Produce</Link>, spend turns to earn
-            cash and drugs.
+            <strong>Run {TERMS.operations}</strong> — On{' '}
+            <Link href="/produce">{TERMS.operations}</Link>, spend turns to earn cash and{' '}
+            {OS_TERMS.technology.toLowerCase()}.
           </li>
           <li>
-            <strong>Set payout</strong> — On <Link href="/empire">Empire</Link>, adjust Worker
-            payout % (lower = more profit, higher = happier crew).
+            <strong>Set payout</strong> — On <Link href="/empire">{OS_TERMS.empire}</Link>, adjust{' '}
+            {OS_TERMS.specialist.toLowerCase()} payout % (lower = more profit, higher = steadier
+            crew).
           </li>
           <li>
-            <strong>When ready to fight</strong> — Use <Link href="/attack">Attack</Link> in the
-            More menu. Gather intel first, arm Thugs, bring rides.
+            <strong>When ready to fight</strong> — Use <Link href="/attack">{OS_TERMS.attack}</Link>{' '}
+            in the More menu. Gather intel first, arm {OS_TERMS.enforcers.toLowerCase()}, bring{' '}
+            {OS_TERMS.rides.toLowerCase()}.
           </li>
           <li>
-            <strong>Read results</strong> — Check <Link href="/reports">Reports</Link> after
-            attacks, market deals, and upgrades.
+            <strong>Read results</strong> — Check <Link href="/reports">{OS_TERMS.reports}</Link>{' '}
+            after attacks, market deals, and upgrades.
           </li>
         </GuideList>
       </GuideSection>
@@ -162,7 +176,7 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
       <GuideSection id="core" title="Core ideas">
         <GuideList>
           <li>
-            <strong>Turns</strong> — Most actions cost turns. You start with{' '}
+            <strong>{OS_TERMS.turns}</strong> — Most actions cost turns. You start with{' '}
             {REDLITE_TURNS.startingTurns.toLocaleString()} turns. You gain{' '}
             {REDLITE_TURNS.turnsPerInterval} every {REDLITE_TURNS.intervalMinutes} minutes, up to{' '}
             {REDLITE_TURNS.turnCap.toLocaleString()}.
@@ -174,213 +188,254 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
             ) : null}
           </li>
           <li>
-            <strong>Workers &amp; Thugs</strong> — Workers earn on Scout and Produce. Thugs fight,
-            help Produce, and protect Workers. Recruit via Scout, or hire Thugs in Shop for $
+            <strong>
+              {OS_TERMS.specialists} &amp; {OS_TERMS.enforcers}
+            </strong>{' '}
+            — {OS_TERMS.specialists} earn on Scout and {TERMS.operations}. {OS_TERMS.enforcers}{' '}
+            fight, support {TERMS.operations.toLowerCase()}, and protect{' '}
+            {OS_TERMS.specialists.toLowerCase()}. Recruit via Scout, or hire{' '}
+            {OS_TERMS.enforcers.toLowerCase()} in {OS_TERMS.shop} for $
             {THUG_HIRE_PRICE.toLocaleString()} each.
           </li>
           <li>
-            <strong>Street vs Business crew</strong> — Crew assigned to a Business leaves street
-            ops. Business Workers passively earn; Security Thugs protect the site.
+            <strong>Street vs business crew</strong> — Crew assigned to a {OS_TERMS.businesses.slice(0, -1).toLowerCase()}{' '}
+            leaves street ops. Business {OS_TERMS.specialists.toLowerCase()} passively earn; security{' '}
+            {OS_TERMS.enforcers.toLowerCase()} protect the site.
           </li>
           <li>
-            <strong>Net worth</strong> — Exposed empire value for rankings and attack eligibility.
-            Includes cash, street crew, rides, street drugs, and business asset value. Safe cash and
-            stored business drugs are hidden while stored in the business.
+            <strong>{OS_TERMS.influence}</strong> — Exposed empire value for rankings and attack
+            eligibility. Includes cash, street crew, {OS_TERMS.rides.toLowerCase()}, street{' '}
+            {OS_TERMS.technology.toLowerCase()}, and business asset value. Safe cash and stored
+            business {OS_TERMS.technology.toLowerCase()} are hidden while stored in the business.
           </li>
           <li>
-            <strong>Same city rule</strong> — Scout, Produce, and Attack only work in your current
-            city ({districtName}). Travel to switch cities.
+            <strong>Same city rule</strong> — Scout, {TERMS.operations}, and {OS_TERMS.attack} only
+            work in your current city ({districtName}). {OS_TERMS.travel} to switch cities.
           </li>
           <li>
-            <strong>While travelling</strong> — No Scout, Produce, or Attack until travel finishes (
-            {REDLITE_TURNS.travelTurnCost} turns).
+            <strong>While travelling</strong> — No Scout, {TERMS.operations}, or {OS_TERMS.attack}{' '}
+            until travel finishes ({REDLITE_TURNS.travelTurnCost} turns).
           </li>
         </GuideList>
         <p className="g-note g-guide-body">
-          <strong>Net worth per unit (street assets)</strong>
+          <strong>{OS_TERMS.influence} per unit (street assets)</strong>
         </p>
         <GuideList>
           <li>Cash — ${REDLITE_NET_WORTH.cash} each</li>
-          <li>Worker — ${REDLITE_NET_WORTH.prostitutes.toLocaleString()}</li>
-          <li>Thug — ${REDLITE_NET_WORTH.thugs.toLocaleString()}</li>
-          <li>Ride — ${REDLITE_NET_WORTH.rides.toLocaleString()}</li>
           <li>
-            Hash / Shrooms / Coke / Heroin — ${REDLITE_NET_WORTH.hash} unit value each on the street
+            {OS_TERMS.specialist} — ${REDLITE_NET_WORTH.prostitutes.toLocaleString()}
           </li>
-          <li>Weapons, beer, condoms — do not add to net worth</li>
+          <li>
+            {OS_TERMS.enforcer} — ${REDLITE_NET_WORTH.thugs.toLocaleString()}
+          </li>
+          <li>
+            {OS_TERMS.ride} — ${REDLITE_NET_WORTH.rides.toLocaleString()}
+          </li>
+          <li>
+            {resourceLabel('hash')} / {resourceLabel('shrooms')} / {resourceLabel('coke')} /{' '}
+            {resourceLabel('heroin')} — ${REDLITE_NET_WORTH.hash} unit value each on the street
+          </li>
+          <li>
+            {OS_TERMS.weapons}, {OS_TERMS.rations.toLowerCase()}, {OS_TERMS.kits.toLowerCase()} — do
+            not add to {OS_TERMS.influence.toLowerCase()}
+          </li>
         </GuideList>
       </GuideSection>
 
       <GuideSection id="screens" title="Every screen explained">
         <p className="g-note g-guide-body">
-          Bottom nav: Home, Empire, Scout, Produce, and More. Everything else is under More.
+          Bottom nav: Home, {OS_TERMS.empire}, {OS_TERMS.scout}, {TERMS.operations}, and More.
+          Everything else is under More.
         </p>
         <GuideScreen href="/command" title="Home">
-          Dashboard — cash, turns, alerts (attacks, raids, full Safes, cartel invites, supply
-          warnings), and quick links.
+          Command dashboard — cash, turns, alerts (attacks, raids, full Safes, faction invites,
+          supply warnings), and quick links.
         </GuideScreen>
-        <GuideScreen href="/empire" title="Empire">
-          Full inventory, crew split (street vs business), happiness meters, Worker payout control,
-          and net worth breakdown.
+        <GuideScreen href="/empire" title={OS_TERMS.empire}>
+          Full inventory, crew split (street vs business), morale meters, {OS_TERMS.specialist.toLowerCase()}{' '}
+          payout control, and {OS_TERMS.influence.toLowerCase()} breakdown.
         </GuideScreen>
-        <GuideScreen href="/scout" title="Scout">
-          Spend turns in city areas to recruit Workers and Thugs plus some cash.
+        <GuideScreen href="/scout" title={OS_TERMS.scout}>
+          Spend turns in city areas to recruit {OS_TERMS.specialists.toLowerCase()} and{' '}
+          {OS_TERMS.enforcers.toLowerCase()} plus some cash.
         </GuideScreen>
-        <GuideScreen href="/produce" title="Produce">
-          Spend turns to earn cash and drugs with your street crew.
+        <GuideScreen href="/produce" title={TERMS.operations}>
+          Spend turns to earn cash and {OS_TERMS.technology.toLowerCase()} with your street crew.
         </GuideScreen>
-        <GuideScreen href="/shop" title="Shop">
-          Buy gear, sell drugs, hire Thugs. Workers come from Scout or Market, not Shop buy.
+        <GuideScreen href="/shop" title={OS_TERMS.shop}>
+          Buy gear, sell {OS_TERMS.technology.toLowerCase()}, hire {OS_TERMS.enforcers.toLowerCase()}.{' '}
+          {OS_TERMS.specialists} come from Scout or {OS_TERMS.market}, not {OS_TERMS.shop} buy.
         </GuideScreen>
-        <GuideScreen href="/attack" title="Attack">
-          Intel, target pick, attack type, Thugs, rides, launch. Same city only.
+        <GuideScreen href="/attack" title={OS_TERMS.attack}>
+          Intel, target pick, attack type, {OS_TERMS.enforcers.toLowerCase()},{' '}
+          {OS_TERMS.rides.toLowerCase()}, launch. Same city only.
         </GuideScreen>
-        <GuideScreen href="/market" title="Market">
+        <GuideScreen href="/market" title={OS_TERMS.market}>
           Global auctions — browse, bid, list, My Auctions.
         </GuideScreen>
-        <GuideScreen href="/travel" title="Travel">
+        <GuideScreen href="/travel" title={OS_TERMS.travel}>
           Move to another city ({REDLITE_TURNS.travelTurnCost} turns).
         </GuideScreen>
-        <GuideScreen href="/businesses" title="Businesses">
+        <GuideScreen href="/businesses" title={OS_TERMS.businesses}>
           Buy and run up to {MAX_BUSINESSES_PER_PLAYER} businesses — income, storage, Safe.
         </GuideScreen>
-        <GuideScreen href="/cartels" title="Cartels">
+        <GuideScreen href="/cartels" title={OS_TERMS.factions}>
           Team treasury, armoury, join requests, defence bonuses.
         </GuideScreen>
-        <GuideScreen href="/rankings" title="Rankings">
-          City and global net worth leaderboards.
+        <GuideScreen href="/rankings" title={OS_TERMS.rankings}>
+          City and global {OS_TERMS.influence.toLowerCase()} leaderboards.
         </GuideScreen>
-        <GuideScreen href="/reports" title="Reports">
-          Inbox for combat, intel, market, raids, cartel, and business events.
+        <GuideScreen href="/reports" title={OS_TERMS.reports}>
+          Inbox for combat, intel, market, raids, faction, and business events.
         </GuideScreen>
         <GuideScreen href="/settings" title="Settings">
           Account and preferences.
         </GuideScreen>
         <p className="g-note g-guide-body">
-          Tap a rival&apos;s alias on Rankings or Attack to open their{' '}
-          <strong>player profile</strong> — public stats and online status.
+          Tap a rival&apos;s {OS_TERMS.alias.toLowerCase()} on {OS_TERMS.rankings} or {OS_TERMS.attack}{' '}
+          to open their <strong>player profile</strong> — public stats and online status.
         </p>
       </GuideSection>
 
       <GuideSection id="crew" title="Crew &amp; supplies">
         <p className="g-note g-guide-body">
-          <strong>Workers</strong> — Need condoms, hash (supplies), enough Thugs for protection, and
-          a fair payout %. Low happiness = walkouts, weak Produce/Scout, easier poaching. Set payout
-          on Empire: {REDLITE_PAYOUT.minPercent}% max profit ↔ {REDLITE_PAYOUT.maxPercent}%
-          protection.
+          <strong>{OS_TERMS.specialists}</strong> — Need {OS_TERMS.kits.toLowerCase()},{' '}
+          {resourceLabel('hash').toLowerCase()} (supplies), enough {OS_TERMS.enforcers.toLowerCase()}{' '}
+          for protection, and a fair payout %. Low morale = walkouts, weak {TERMS.operations.toLowerCase()}
+          /Scout, easier poaching. Set payout on {OS_TERMS.empire}: {REDLITE_PAYOUT.minPercent}%
+          max profit ↔ {REDLITE_PAYOUT.maxPercent}% protection.
         </p>
         <p className="g-note g-guide-body">
-          <strong>Thugs</strong> — Need 1 weapon each (Glock, Uzi, or AK) and beer. Unarmed or dry
-          Thugs leave. AKs hit hardest in combat.
+          <strong>{OS_TERMS.enforcers}</strong> — Need 1 weapon each ({OS_TERMS.glock},{' '}
+          {OS_TERMS.uzi}, or {OS_TERMS.ak}) and {OS_TERMS.rations.toLowerCase()}. Unarmed or dry{' '}
+          {OS_TERMS.enforcers.toLowerCase()} leave. {OS_TERMS.aks} hit hardest in combat.
         </p>
         <p className="g-note g-guide-body">
-          <strong>Rides</strong> — Required for attacks: 1 ride per {ATTACK_RULES.thugsPerRide}{' '}
-          attacking Thugs. Also used by cartel Response Force.
+          <strong>{OS_TERMS.rides}</strong> — Required for attacks: 1 ride per{' '}
+          {ATTACK_RULES.thugsPerRide} attacking {OS_TERMS.enforcers.toLowerCase()}. Also used by
+          faction Response Force.
         </p>
         <p className="g-note g-guide-body">
-          <strong>Protection ratio</strong> — More Thugs per Worker means safer scouting and
-          producing. Too few Thugs and you lose crew to rivals or walkouts.
-        </p>
-      </GuideSection>
-
-      <GuideSection id="drugs" title="Drugs — what each one is for">
-        <GuideList>
-          <li>
-            <strong>Hash</strong> — Worker supply drug and Produce output. Keeps Workers happy.
-            Large street stacks add net worth — do not hoard more than you need on the street.
-          </li>
-          <li>
-            <strong>Shrooms</strong> — Produce output; sell in Shop or list on Market for profit.
-          </li>
-          <li>
-            <strong>Coke</strong> — Higher-value Produce output; good for sales and business
-            storage.
-          </li>
-          <li>
-            <strong>Heroin</strong> — Highest-value drug from Produce; valuable but increases
-            exposure on the street.
-          </li>
-        </GuideList>
-        <p className="g-note g-guide-body">
-          On Produce, hash used as Worker upkeep is not consumed during that run. Move bulk drugs
-          into business storage or sell them — street drugs count toward net worth and raids.
+          <strong>Protection ratio</strong> — More {OS_TERMS.enforcers.toLowerCase()} per{' '}
+          {OS_TERMS.specialist.toLowerCase()} means safer scouting and operations. Too few{' '}
+          {OS_TERMS.enforcers.toLowerCase()} and you lose crew to rivals or walkouts.
         </p>
       </GuideSection>
 
-      <GuideSection id="shop" title="Shop — buy, sell, hire">
+      <GuideSection id="drugs" title={`${TERMS.technology} — what each resource is for`}>
         <GuideList>
           <li>
-            <strong>Buy</strong> — Glocks, Uzis, AKs, rides, beer, condoms, hash. Stock up before
-            big Scout/Produce sessions.
+            <strong>{resourceLabel('hash')}</strong> — {OS_TERMS.specialist.toLowerCase()} supply
+            and {TERMS.operations.toLowerCase()} output. Keeps {OS_TERMS.specialists.toLowerCase()}{' '}
+            steady. Large street stacks add {OS_TERMS.influence.toLowerCase()} — do not hoard more
+            than you need on the street.
           </li>
           <li>
-            <strong>Sell</strong> — Sell excess drugs to the Shop for instant cash (prices vary by
-            drug type).
+            <strong>{resourceLabel('shrooms')}</strong> — {TERMS.operations} output; sell in{' '}
+            {OS_TERMS.shop} or list on {OS_TERMS.market} for profit.
           </li>
           <li>
-            <strong>Hire Thugs</strong> — ${THUG_HIRE_PRICE.toLocaleString()} each when you need
-            muscle without scouting.
+            <strong>{resourceLabel('coke')}</strong> — Higher-value {TERMS.operations.toLowerCase()}{' '}
+            output; good for sales and business storage.
           </li>
           <li>
-            <strong>Workers</strong> — Not sold in Shop. Scout or buy on Market.
+            <strong>{resourceLabel('heroin')}</strong> — Highest-value output from{' '}
+            {TERMS.operations}; valuable but increases exposure on the street.
           </li>
         </GuideList>
         <p className="g-note g-guide-body">
-          <strong>Weapon power (combat)</strong> — AK strongest, then Uzi, then Glock. Arm every
-          Thug before attacking.
+          On {TERMS.operations}, {resourceLabel('hash').toLowerCase()} used as{' '}
+          {OS_TERMS.specialist.toLowerCase()} upkeep is not consumed during that run. Move bulk{' '}
+          {OS_TERMS.technology.toLowerCase()} into business storage or sell it — street{' '}
+          {OS_TERMS.technology.toLowerCase()} counts toward {OS_TERMS.influence.toLowerCase()} and
+          raids.
+        </p>
+      </GuideSection>
+
+      <GuideSection id="shop" title={`${OS_TERMS.shop} — buy, sell, hire`}>
+        <GuideList>
+          <li>
+            <strong>Buy</strong> — {OS_TERMS.glocks}, {OS_TERMS.uzis}, {OS_TERMS.aks},{' '}
+            {OS_TERMS.rides.toLowerCase()}, {OS_TERMS.rations.toLowerCase()},{' '}
+            {OS_TERMS.kits.toLowerCase()}, {resourceLabel('hash').toLowerCase()}. Stock up before
+            big Scout/{TERMS.operations} sessions.
+          </li>
+          <li>
+            <strong>Sell</strong> — Sell excess {OS_TERMS.technology.toLowerCase()} to the{' '}
+            {OS_TERMS.shop} for instant cash (prices vary by resource type).
+          </li>
+          <li>
+            <strong>Hire {OS_TERMS.enforcers}</strong> — ${THUG_HIRE_PRICE.toLocaleString()} each
+            when you need muscle without scouting.
+          </li>
+          <li>
+            <strong>{OS_TERMS.specialists}</strong> — Not sold in {OS_TERMS.shop}. Scout or buy on{' '}
+            {OS_TERMS.market}.
+          </li>
+        </GuideList>
+        <p className="g-note g-guide-body">
+          <strong>Weapon power (combat)</strong> — {OS_TERMS.ak} strongest, then {OS_TERMS.uzi}, then{' '}
+          {OS_TERMS.glock}. Arm every {OS_TERMS.enforcer.toLowerCase()} before attacking.
         </p>
       </GuideSection>
 
       <GuideSection id="economy" title="Making money">
         <GuideList>
           <li>
-            <strong>Scout</strong> — Fast crew + cash. Best first move every session.
+            <strong>{OS_TERMS.scout}</strong> — Fast crew + cash. Best first move every session.
           </li>
           <li>
-            <strong>Produce</strong> — Main loop: cash + drugs scale with Workers, Thugs, and turns
-            spent.
+            <strong>{TERMS.operations}</strong> — Main loop: cash + {OS_TERMS.technology.toLowerCase()}{' '}
+            scale with {OS_TERMS.specialists.toLowerCase()}, {OS_TERMS.enforcers.toLowerCase()}, and
+            turns spent.
           </li>
           <li>
-            <strong>Shop sell</strong> — Quick cash for spare drugs.
+            <strong>{OS_TERMS.shop} sell</strong> — Quick cash for spare{' '}
+            {OS_TERMS.technology.toLowerCase()}.
           </li>
           <li>
-            <strong>Market</strong> — Player trades — often better prices than Shop for bulk.
+            <strong>{OS_TERMS.market}</strong> — Player trades — often better prices than{' '}
+            {OS_TERMS.shop} for bulk.
           </li>
           <li>
-            <strong>Businesses</strong> — Passive income from assigned Workers; Safes hide cash from
-            net worth.
+            <strong>{OS_TERMS.businesses}</strong> — Passive income from assigned{' '}
+            {OS_TERMS.specialists.toLowerCase()}; Safes hide cash from{' '}
+            {OS_TERMS.influence.toLowerCase()}.
           </li>
         </GuideList>
       </GuideSection>
 
       <GuideSection id="combat" title="Attacks &amp; defence">
         <p className="g-note g-guide-body">
-          <strong>Who you can hit</strong> — Same city. Target net worth ≥{' '}
-          {Math.round(ATTACK_RULES.netWorthMinMultiplier * 100)}% of yours. No upper cap. Max{' '}
+          <strong>Who you can hit</strong> — Same city. Target {OS_TERMS.influence.toLowerCase()}{' '}
+          {Math.round(ATTACK_RULES.netWorthMinMultiplier * 100)}%–
+          {Math.round(ATTACK_RULES.netWorthMaxMultiplier * 100)}% of yours. Max{' '}
           {ATTACK_RULES.targetAttackCapPer24h} attacks per pair per 24 hours.
         </p>
         <p className="g-note g-guide-body">
-          <strong>Intel</strong> — {ATTACK_RULES.intelGatherTurnCost} turns Basic Intel (
-          {ATTACK_RULES.scoutReportExpiryHours}h report). Then {ATTACK_RULES.deepIntelTurnCost}{' '}
-          turns Deep Intel (cash/drug bands, cartel hints, poaching outlook).
+          <strong>{OS_TERMS.intel}</strong> — {ATTACK_RULES.intelGatherTurnCost} turns Basic{' '}
+          {OS_TERMS.intel} ({ATTACK_RULES.scoutReportExpiryHours}h report). Then{' '}
+          {ATTACK_RULES.deepIntelTurnCost} turns {OS_TERMS.deepIntel} (cash/technology bands, faction
+          hints, poaching outlook).
         </p>
         <p className="g-note g-guide-body">
-          <strong>Before you launch</strong> — Arm Thugs, assign rides (1 per{' '}
-          {ATTACK_RULES.thugsPerRide} Thugs), pick attack type.
+          <strong>Before you launch</strong> — Arm {OS_TERMS.enforcers.toLowerCase()}, assign{' '}
+          {OS_TERMS.rides.toLowerCase()} (1 per {ATTACK_RULES.thugsPerRide}{' '}
+          {OS_TERMS.enforcers.toLowerCase()}), pick attack type.
         </p>
         <GuideList>
           {(
             Object.keys(ATTACK_RULES.turnCosts) as Array<keyof typeof ATTACK_RULES.turnCosts>
           ).map((type) => (
             <li key={type}>
-              <strong>{ATTACK_TYPE_LABELS[type]}</strong> ({ATTACK_RULES.turnCosts[type]} turns) —{' '}
-              {ATTACK_TYPE_PURPOSE[type]}
+              <strong>{formatAttackTypeOptionLabel(type)}</strong> — {ATTACK_TYPE_PURPOSE[type]}
             </li>
           ))}
         </GuideList>
         <p className="g-note g-guide-body">
-          <strong>Poach Workers</strong> — Target needs ≥ {WORKER_POACHING_RULES.minWorkersToPoach}{' '}
-          street Workers. Steals crew, not cash/drugs.
+          <strong>{ATTACK_TYPE_LABELS.POACH_WORKERS}</strong> — Target needs ≥{' '}
+          {WORKER_POACHING_RULES.minWorkersToPoach} street {OS_TERMS.specialists.toLowerCase()}.
+          Steals crew, not cash or {OS_TERMS.technology.toLowerCase()}.
         </p>
         <p className="g-note g-guide-body">
           <strong>Offline protection</strong> — After {offlineMinutes} min offline, up to{' '}
@@ -388,20 +443,23 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
           Stay online {resetOnlineMinutes} min straight to reset.
         </p>
         <p className="g-note g-guide-body">
-          <strong>Cartel defence</strong> — Same-city cartel mates may add virtual defence Thugs +
-          Response Force when you are attacked at home (not while travelling).
+          <strong>Faction defence</strong> — Same-city faction mates may add virtual defence{' '}
+          {OS_TERMS.enforcers.toLowerCase()} + Response Force when you are attacked at home (not
+          while travelling).
         </p>
       </GuideSection>
 
-      <GuideSection id="market" title="Market — auctions">
+      <GuideSection id="market" title={`${OS_TERMS.market} — auctions`}>
         <GuideList>
           <li>
-            <strong>Global</strong> — All cities share one Market. Browse, filter by category, bid
-            on live listings.
+            <strong>Global</strong> — All cities share one {OS_TERMS.market}. Browse, filter by
+            category, bid on live listings.
           </li>
           <li>
-            <strong>List items</strong> — Weapons, rides, drugs, supplies, Workers, Thugs. Set start
-            price, quantity, duration ({formatMarketDurations()}).
+            <strong>List items</strong> — {OS_TERMS.weapons}, {OS_TERMS.rides.toLowerCase()},{' '}
+            {OS_TERMS.technology.toLowerCase()}, supplies, {OS_TERMS.specialists.toLowerCase()},{' '}
+            {OS_TERMS.enforcers.toLowerCase()}. Set start price, quantity, duration (
+            {formatMarketDurations()}).
           </li>
           <li>
             <strong>Bidding</strong> — Each bid raises price by {REDLITE_MARKET.bidIncrementPercent}
@@ -412,39 +470,44 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
             ended ones. Buying tab tracks bids you placed.
           </li>
           <li>
-            <strong>Settlement</strong> — Won items and sale cash arrive via Reports when the
-            auction ends.
+            <strong>Settlement</strong> — Won items and sale cash arrive via {OS_TERMS.reports} when
+            the auction ends.
           </li>
           <li>
-            <strong>Reference floors</strong> — Worker from $
-            {REDLITE_MARKET_STARTING_PRICES.whore.toLocaleString()}, Thug from $
-            {REDLITE_MARKET_STARTING_PRICES.thug.toLocaleString()}, Ride from $
-            {REDLITE_MARKET_STARTING_PRICES.ride.toLocaleString()} (players often bid above these).
+            <strong>Reference floors</strong> — {OS_TERMS.specialist} from $
+            {REDLITE_MARKET_STARTING_PRICES.whore.toLocaleString()},{' '}
+            {OS_TERMS.enforcer.toLowerCase()} from $
+            {REDLITE_MARKET_STARTING_PRICES.thug.toLocaleString()}, {OS_TERMS.ride.toLowerCase()}{' '}
+            from ${REDLITE_MARKET_STARTING_PRICES.ride.toLocaleString()} (players often bid above
+            these).
           </li>
         </GuideList>
         <p className="g-note g-guide-body g-note-warn">
-          Big cash on hand after winning an auction makes you a Home Invasion target — spend, Safe
-          it, or buy gear quickly.
+          Big cash on hand after winning an auction makes you a Breach target — spend, Safe it, or buy
+          gear quickly.
         </p>
       </GuideSection>
 
-      <GuideSection id="cartels" title="Cartels — teams">
+      <GuideSection id="cartels" title={`${OS_TERMS.factions} — teams`}>
         <GuideList>
           <li>
-            <strong>Join or create</strong> — Accept invites or request to join from the Cartels
-            page. Leaders approve join requests.
+            <strong>Join or create</strong> — Accept invites or request to join from the{' '}
+            {OS_TERMS.factions} page. Leaders approve join requests.
           </li>
           <li>
-            <strong>Treasury</strong> — Members deposit cash into a shared pool for cartel purchases.
+            <strong>Treasury</strong> — Members deposit cash into a shared pool for faction
+            purchases.
           </li>
           <li>
-            <strong>Armoury</strong> — Cartel buys shared Thugs, Glocks, Uzis, and rides. Stock
-            protects all members in same-city defence. Armoury gear is not lost like personal weapons
-            in some attack outcomes.
+            <strong>Armoury</strong> — Faction buys shared {OS_TERMS.enforcers.toLowerCase()},{' '}
+            {OS_TERMS.glocks.toLowerCase()}, {OS_TERMS.uzis.toLowerCase()}, and{' '}
+            {OS_TERMS.rides.toLowerCase()}. Stock protects all members in same-city defence. Armoury
+            gear is not lost like personal weapons in some attack outcomes.
           </li>
           <li>
-            <strong>Response Force</strong> — When a home member is attacked, the cartel may deploy
-            extra virtual Thugs (limited by pool, rides, and city presence).
+            <strong>Response Force</strong> — When a home member is attacked, the faction may
+            deploy extra virtual {OS_TERMS.enforcers.toLowerCase()} (limited by pool,{' '}
+            {OS_TERMS.rides.toLowerCase()}, and city presence).
           </li>
           <li>
             <strong>Leadership</strong> — HQ roles manage invites, treasury, and armoury purchases.
@@ -452,36 +515,47 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
         </GuideList>
       </GuideSection>
 
-      <GuideSection id="travel" title="Travel — change city">
+      <GuideSection id="travel" title={`${OS_TERMS.travel} — change city`}>
         <GuideList>
           <li>
             Costs <strong>{REDLITE_TURNS.travelTurnCost} turns</strong> to move to another city.
           </li>
-          <li>While travelling: no Scout, Produce, or Attack.</li>
+          <li>
+            While travelling: no {OS_TERMS.scout}, {TERMS.operations}, or {OS_TERMS.attack}.
+          </li>
           <li>Unlocks that city&apos;s scout areas and attack targets when you arrive.</li>
-          <li>Cartel defence only applies at home — travelling members fight alone.</li>
+          <li>
+            Faction defence only applies at home — travelling members fight alone.
+          </li>
         </GuideList>
       </GuideSection>
 
-      <GuideSection id="businesses" title="Businesses">
+      <GuideSection id="businesses" title={OS_TERMS.businesses}>
         <GuideList>
           <li>
-            <strong>Own up to {MAX_BUSINESSES_PER_PLAYER}</strong> — Nightclub (best passive income),
-            Warehouse (big storage, lower heat), Drug Lab (production storage).
+            <strong>Own up to {MAX_BUSINESSES_PER_PLAYER}</strong> —{' '}
+            {BUSINESS_TYPE_RULES.NIGHTCLUB.displayName} ({BUSINESS_TYPE_RULES.NIGHTCLUB.blurb}),
+            {BUSINESS_TYPE_RULES.WAREHOUSE.displayName} (
+            {BUSINESS_TYPE_RULES.WAREHOUSE.blurb}), {BUSINESS_TYPE_RULES.DRUG_LAB.displayName} (
+            {BUSINESS_TYPE_RULES.DRUG_LAB.blurb}).
           </li>
           <li>
-            <strong>Assign crew</strong> — Workers earn passively; Security Thugs reduce raid losses.
-            Assigned crew leave street Scout/Produce.
+            <strong>Assign crew</strong> — {OS_TERMS.specialists} earn passively; security{' '}
+            {OS_TERMS.enforcers.toLowerCase()} reduce raid losses. Assigned crew leave street
+            Scout/{TERMS.operations}.
           </li>
           <li>
-            <strong>Safe</strong> — Store cash inside; hidden from street net worth until collected.
+            <strong>Safe</strong> — Store cash inside; hidden from street{' '}
+            {OS_TERMS.influence.toLowerCase()} until collected.
           </li>
           <li>
-            <strong>Drug storage</strong> — Park bulk drugs off the street.
+            <strong>{OS_TERMS.technology} storage</strong> — Park bulk{' '}
+            {OS_TERMS.technology.toLowerCase()} off the street.
           </li>
           <li>
-            <strong>Heat</strong> — Rises with activity and stored value. High heat = police raid
-            risk (Report sent if hit).
+            <strong>{OS_TERMS.heat}</strong> — Rises with activity and stored value. High{' '}
+            {OS_TERMS.heat.toLowerCase()} = {OS_TERMS.securitySweep.toLowerCase()} risk (report sent
+            if hit).
           </li>
           <li>
             <strong>Upgrades</strong> — Levels 1–5: more capacity, bigger Safe, more storage. Cost
@@ -489,14 +563,16 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
           </li>
           <li>
             <strong>Business Network</strong> — Owning and upgrading expands your city connections,
-            improving Worker and/or Thug recruitment while Scouting. Warehouse favours Workers,
-            Nightclub helps both, Drug Lab favours Thugs. Recruitment bonuses do not increase Scout
-            cash.
+            improving {OS_TERMS.specialist.toLowerCase()} and/or {OS_TERMS.enforcer.toLowerCase()}{' '}
+            recruitment while Scouting. {BUSINESS_TYPE_RULES.WAREHOUSE.displayName} favours{' '}
+            {OS_TERMS.specialists.toLowerCase()}, {BUSINESS_TYPE_RULES.NIGHTCLUB.displayName} helps
+            both, {BUSINESS_TYPE_RULES.DRUG_LAB.displayName} favours{' '}
+            {OS_TERMS.enforcers.toLowerCase()}. Recruitment bonuses do not increase Scout cash.
           </li>
         </GuideList>
       </GuideSection>
 
-      <GuideSection id="wire" title="THE WIRE — voice &amp; typed commands">
+      <GuideSection id="wire" title={`${OS_TERMS.wire.toUpperCase()} — voice & typed commands`}>
         <p className="g-note g-guide-body">
           Optional on Home — tap the mic or type natural commands instead of clicking menus.
         </p>
@@ -514,44 +590,60 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
           </li>
         </GuideList>
         <p className="g-note g-guide-body">
-          THE WIRE is optional — every action is still available through normal menus.
+          {OS_TERMS.wire} is optional — every action is still available through normal menus.
         </p>
       </GuideSection>
 
-      <GuideSection id="rankings" title="Rankings &amp; reports">
+      <GuideSection id="rankings" title={`${OS_TERMS.rankings} & ${OS_TERMS.reports.toLowerCase()}`}>
         <p className="g-note g-guide-body">
-          <strong>Rankings</strong> — See city and global leaders by net worth. Growing fast climbs
-          the board but attracts attackers.
+          <strong>{OS_TERMS.rankings}</strong> — See city and global leaders by{' '}
+          {OS_TERMS.influence.toLowerCase()}. Growing fast climbs the board but attracts attackers.
         </p>
         <p className="g-note g-guide-body">
-          <strong>Reports</strong> — Permanent inbox: attacks, intel, market results, cartel events,
-          police raids, upgrade completions. Unread count on Home and More menu. Open each report for
-          full detail — outcomes are not always shown on the action screen.
+          <strong>{OS_TERMS.reports}</strong> — Permanent inbox: attacks, intel, market results,
+          faction events, {OS_TERMS.securitySweep.toLowerCase()}s, upgrade completions. Unread count
+          on Home and More menu. Open each report for full detail — outcomes are not always shown on
+          the action screen.
         </p>
       </GuideSection>
 
       <GuideSection id="tips" title="Tips &amp; common mistakes">
         <GuideList>
-          <li>Scout before Produce — no crew means no income.</li>
-          <li>Buy weapons + beer before your first big Produce run.</li>
-          <li>Check Empire happiness meters every session.</li>
-          <li>Do not leave huge cash on the street after Market sales.</li>
+          <li>
+            Scout before {TERMS.operations} — no crew means no income.
+          </li>
+          <li>
+            Buy {OS_TERMS.weapons.toLowerCase()} + {OS_TERMS.rations.toLowerCase()} before your first
+            big {TERMS.operations} run.
+          </li>
+          <li>Check {OS_TERMS.empire} morale meters every session.</li>
+          <li>
+            Do not leave huge cash on the street after {OS_TERMS.market} sales.
+          </li>
           <li>Gather intel before attacking stronger rivals.</li>
-          <li>Assign Security before storing big Safe or drug balances.</li>
-          <li>Join a cartel before your net worth spikes.</li>
-          <li>Read Reports — that is where wins, losses, and loot are recorded.</li>
+          <li>
+            Assign security before storing big Safe or {OS_TERMS.technology.toLowerCase()} balances.
+          </li>
+          <li>
+            Join a {OS_TERMS.faction.toLowerCase()} before your {OS_TERMS.influence.toLowerCase()}{' '}
+            spikes.
+          </li>
+          <li>
+            Read {OS_TERMS.reports} — that is where wins, losses, and loot are recorded.
+          </li>
           <li>Scroll this whole page — every topic in the menu above has a section below.</li>
         </GuideList>
       </GuideSection>
 
       <GuideSection id="reference" title={`Scout areas in ${districtName}`}>
         <p className="g-note g-guide-body">
-          Five areas per city. Pick based on whether you need Workers or Thugs.
+          Five areas per city. Pick based on whether you need {OS_TERMS.specialists.toLowerCase()} or{' '}
+          {OS_TERMS.enforcers.toLowerCase()}.
         </p>
         {scoutAreas.map((area) => (
           <p key={area.slug} className="g-note g-guide-body">
-            <strong>{area.name}</strong> — Workers: {area.workers}, Thugs: {area.thugs}, Risk:{' '}
-            {area.risk}
+            <strong>{area.name}</strong> — {OS_TERMS.specialists}: {area.workers},{' '}
+            {OS_TERMS.enforcers}: {area.thugs}, Risk: {area.risk}
           </p>
         ))}
       </GuideSection>
@@ -559,23 +651,23 @@ export function HowToPlayGuide({ districtName, districtSlug }: HowToPlayGuidePro
       <p className="g-note g-guide-body g-guide-footer">
         <Link href="/command">Home</Link>
         {' · '}
-        <Link href="/empire">Empire</Link>
+        <Link href="/empire">{OS_TERMS.empire}</Link>
         {' · '}
-        <Link href="/scout">Scout</Link>
+        <Link href="/scout">{OS_TERMS.scout}</Link>
         {' · '}
-        <Link href="/produce">Produce</Link>
+        <Link href="/produce">{TERMS.operations}</Link>
         {' · '}
-        <Link href="/shop">Shop</Link>
+        <Link href="/shop">{OS_TERMS.shop}</Link>
         {' · '}
-        <Link href="/attack">Attack</Link>
+        <Link href="/attack">{OS_TERMS.attack}</Link>
         {' · '}
-        <Link href="/market">Market</Link>
+        <Link href="/market">{OS_TERMS.market}</Link>
         {' · '}
-        <Link href="/businesses">Businesses</Link>
+        <Link href="/businesses">{OS_TERMS.businesses}</Link>
         {' · '}
-        <Link href="/cartels">Cartels</Link>
+        <Link href="/cartels">{OS_TERMS.factions}</Link>
         {' · '}
-        <Link href="/reports">Reports</Link>
+        <Link href="/reports">{OS_TERMS.reports}</Link>
       </p>
     </>
   );

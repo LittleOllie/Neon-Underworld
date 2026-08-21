@@ -15,6 +15,7 @@ export const NPC_MANAGED_EMAIL_PREFIXES = [
   'system+',
   'playtest-npc+',
   'dev-pvp+',
+  'local-npc+',
 ] as const;
 
 /**

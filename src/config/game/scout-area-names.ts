@@ -23,7 +23,7 @@ export const DISTRICT_SCOUT_AREA_NAMES: Record<
     clubs: 'Harbor Lights Club',
     docks: 'Container Yard',
     alleys: 'Crane Alley',
-    markets: "Smuggler's Exchange",
+    markets: 'Dock Exchange',
   },
   'old-quarter': {
     streets: 'Cobblestone Lane',

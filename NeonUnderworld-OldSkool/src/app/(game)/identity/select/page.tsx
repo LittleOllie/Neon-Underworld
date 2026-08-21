@@ -1,6 +1,6 @@
 import { requireGameSession } from '@local/lib/game-context';
-import { AvatarSelectionClient } from '@local/features/identity/AvatarSelectionClient';
-import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
+import { IdentitySetupClient } from '@local/features/identity/IdentitySetupClient';
+import type { PlayerIdentityRecord } from '@core/lib/game-engine/player-identity';
 
 interface Props {
   searchParams: Promise<{ from?: string }>;
@@ -11,11 +11,19 @@ export default async function IdentitySelectPage({ searchParams }: Props) {
   const { ctx } = await requireGameSession();
   const fromSettings = params.from === 'settings';
 
+  const initial: PlayerIdentityRecord = {
+    avatar: ctx.avatar,
+    avatarSource: ctx.avatarSource,
+    pfpUrl: ctx.pfpUrl,
+    themePrimary: ctx.themePrimary,
+    themeSecondary: ctx.themeSecondary,
+  };
+
   return (
-    <AvatarSelectionClient
+    <IdentitySetupClient
       alias={ctx.alias}
-      initialAvatarId={ctx.avatar ? resolvePlayerAvatarId(ctx.avatar) : null}
-      mode={fromSettings ? 'settings' : 'onboarding'}
+      initial={initial}
+      flow={fromSettings ? 'settings' : 'onboarding'}
       returnTo={fromSettings ? '/settings' : '/command'}
     />
   );

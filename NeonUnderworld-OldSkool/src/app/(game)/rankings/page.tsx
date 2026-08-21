@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { PageTitle } from '@local/components/game';
+import { EmptyState } from '@local/components/game/EmptyState';
+import { OS_TERMS } from '@local/config/terminology';
 import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
 import {
@@ -59,6 +61,8 @@ export default async function RankingsPage({ searchParams }: Props) {
   return (
     <>
       <PageTitle icon="rankings">Rankings</PageTitle>
+
+      <div className="g-gameplay-controls g-rankings-chrome">
       {filter === 'overall' ? (
         <p className="g-note">
           Season-wide ranking — your header shows District Rank in {ctx.district.name}. Switch to a
@@ -83,6 +87,21 @@ export default async function RankingsPage({ searchParams }: Props) {
         ))}
       </div>
 
+      <div className="g-rank-header" aria-hidden="true">
+        <span className="g-rank-num">#</span>
+        <span className="g-rank-name">Operator</span>
+        <span className="g-rank-worth">{OS_TERMS.influence}</span>
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState
+          title="No rankings yet"
+          body="Operators will appear here as the season progresses. Scout and build your empire to climb the standings."
+          actionHref="/scout"
+          actionLabel="Start scouting"
+        />
+      ) : null}
+
       {rows.map((p) => {
         const isYou = p.id === playerId;
         const status = lastSeenLabel(p.online, p.lastSeen);
@@ -95,12 +114,17 @@ export default async function RankingsPage({ searchParams }: Props) {
                 <PlayerIdentity
                   player={{
                     alias: p.alias,
-                    avatarId: p.avatarId,
+                    avatar: p.identity.avatar,
+                    avatarSource: p.identity.avatarSource,
+                    pfpUrl: p.identity.pfpUrl,
+                    themePrimary: p.identity.themePrimary,
+                    themeSecondary: p.identity.themeSecondary,
                     aliasNormalized: p.aliasNormalized,
                     cartelTag: p.cartelTag,
                     city: p.city,
                   }}
-                  avatarSize="sm"
+                  avatarSize="rank"
+                  shape="square"
                   showCartel
                   showCity
                   static
@@ -123,12 +147,13 @@ export default async function RankingsPage({ searchParams }: Props) {
               <PlayerIdentity
                 player={{
                   alias: p.alias,
-                  avatarId: p.avatarId,
+                  ...p.identity,
                   aliasNormalized: p.aliasNormalized,
                   cartelTag: p.cartelTag,
                   city: p.city,
                 }}
-                avatarSize="sm"
+                avatarSize="rank"
+                shape="square"
                 showCartel
                 static
               />
@@ -138,6 +163,7 @@ export default async function RankingsPage({ searchParams }: Props) {
           </Link>
         );
       })}
+      </div>
     </>
   );
 }

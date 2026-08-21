@@ -16,7 +16,7 @@ import {
   loadBusinessNwRowsInTx,
 } from '@/lib/game-engine/business/net-worth';
 import { CartelService } from '@/server/services/cartel.service';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { ActionResult } from './auth.actions';
@@ -74,7 +74,7 @@ export async function deepIntelTargetAction(
         include: { turnState: true, season: true },
       });
       if (!scout.turnState) throw new Error('Turn state missing');
-      if (scout.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(scout.season);
       assertPlayerCanPerformAction(scout);
 
       const target = await tx.player.findFirst({

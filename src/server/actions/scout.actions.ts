@@ -27,8 +27,8 @@ import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state'
 import {
   DuplicateActionError,
   InvalidScoutAmountError,
-  SeasonInactiveError,
 } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { DistrictModifiers } from '@/config/game/balance';
@@ -98,9 +98,7 @@ export async function scoutAction(
         include: { turnState: true, district: true, season: true },
       });
 
-      if (player.season.status !== 'ACTIVE') {
-        throw new SeasonInactiveError();
-      }
+      assertGameplaySeasonActive(player.season);
 
       assertPlayerCanPerformAction(player);
 

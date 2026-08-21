@@ -1,9 +1,14 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@core/lib/db/prisma';
+import { listActivatedHumanPlayerIds } from '@core/lib/db/admin-analytics-db';
+import { isAdminSchemaReady } from '@core/lib/db/admin-schema-readiness';
 import { NetWorthService, type PlayerNetWorthRecord } from './net-worth.service';
 import { PlayerStatusService } from './player-status.service';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
+import { identityViewFromPlayer } from '@core/lib/game-engine/player-identity-fields';
+import type { PlayerIdentityView } from '@core/lib/game-engine/player-identity-fields';
+import { isVisibleSeasonParticipant } from '@core/lib/game-engine/human-player';
 import {
   playerRankCacheTag,
   seasonRankingsCacheTag,
@@ -17,6 +22,7 @@ export interface RankingRow {
   alias: string;
   aliasNormalized: string;
   avatarId: string;
+  identity: PlayerIdentityView;
   city: string;
   citySlug: string;
   cartelId: string | null;
@@ -97,15 +103,26 @@ async function computeSeasonRankings(
     include: {
       district: true,
       cartel: { select: { tag: true } },
-      user: { select: { lastLoginAt: true } },
+      user: { select: { lastLoginAt: true, email: true } },
       statusExt: true,
     },
     orderBy: { createdAt: 'asc' },
   });
 
-  const netWorthMap = await NetWorthService.calculateForPlayers(players as PlayerNetWorthRecord[]);
+  let visiblePlayers = players;
+  if (await isAdminSchemaReady()) {
+    const activatedIds = new Set(await listActivatedHumanPlayerIds(seasonId));
+    visiblePlayers = players.filter((p) =>
+      isVisibleSeasonParticipant(
+        { id: p.id, isSystemPlayer: p.isSystemPlayer, email: p.user.email },
+        activatedIds,
+      ),
+    );
+  }
 
-  const enriched = players.map((p) => {
+  const netWorthMap = await NetWorthService.calculateForPlayers(visiblePlayers as PlayerNetWorthRecord[]);
+
+  const enriched = visiblePlayers.map((p) => {
     const lastSeen = PlayerStatusService.resolveLastSeen(
       p.user.lastLoginAt,
       p.statusExt?.lastSeenAt,
@@ -116,6 +133,7 @@ async function computeSeasonRankings(
       alias: p.alias,
       aliasNormalized: p.aliasNormalized,
       avatarId: resolvePlayerAvatarId(p.avatar),
+      identity: identityViewFromPlayer(p),
       city: p.district.name,
       citySlug: p.district.slug,
       cartelId: p.cartelId,

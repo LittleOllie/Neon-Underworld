@@ -2,7 +2,7 @@
 export const APP_BRANDING = {
   fullName: 'Neon Underworld',
   shortName: 'Neon Underworld',
-  description: 'Classic browser strategy interface for Neon Underworld',
+  description: 'Competitive underground strategy game — build your Empire, compete for Influence',
   themeColor: '#050506',
   /** Source art — public/images/game-backgrounds/NUPFPLogo.PNG */
   logoSrc: '/images/game-backgrounds/NUPFPLogo.PNG',

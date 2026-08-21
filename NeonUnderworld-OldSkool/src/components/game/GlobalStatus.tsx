@@ -1,3 +1,4 @@
+import { OS_TERMS } from '@local/config/terminology';
 import { formatTurnsExact } from '@local/server/domain/status-presentation';
 import { formatRank } from '@local/lib/format-rank';
 import { GameLabel, GameValue } from './GameValue';
@@ -30,7 +31,7 @@ export function GlobalStatus({ stats }: { stats: GlobalStats }) {
   const items = [
     { label: 'Cash', value: `$${stats.cash.toLocaleString()}`, className: undefined as string | undefined },
     { label: 'Turns', value: formatTurnsExact(stats.turns, stats.turnCap), className: undefined as string | undefined },
-    { label: 'Net Worth', value: `$${stats.netWorth.toLocaleString()}`, className: undefined as string | undefined },
+    { label: OS_TERMS.influence, value: `$${stats.netWorth.toLocaleString()}`, className: undefined as string | undefined },
     {
       label: 'District Rank',
       shortLabel: 'Dist. Rank',

@@ -27,6 +27,7 @@ In **Settings → Environment Variables** (Production + Preview):
 | `APP_URL` | `https://neon-underworld-kappa.vercel.app` |
 | `PLAYTEST_TURNS` | **Must be omitted or `false` in production.** Dev/test only — enables `/playtest/turns`. Production build **rejects** `true`. |
 | `NEXT_PUBLIC_PLAYTEST_TURNS` | **Must be omitted or `false` in production.** Client nav for Add Turns. Production build **rejects** `true`. |
+| `BLOB_READ_WRITE_TOKEN` | **Required for player PFP uploads in production.** Create a Vercel Blob store (Project → Storage → Blob), copy the read/write token, and install `@vercel/blob` in `NeonUnderworld-OldSkool`. Without this, uploads return 503 in production. Local dev uses `.data/pfp-uploads/` automatically. |
 
 ### Production security (required)
 

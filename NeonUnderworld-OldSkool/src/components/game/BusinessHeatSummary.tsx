@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { BusinessOperationsSummary } from '@local/lib/business-heat-display';
+import { OS_TERMS } from '@local/config/terminology';
 import { HeatStatusBar } from './HeatStatusBar';
 
 type Props = {
@@ -15,7 +16,7 @@ export function BusinessHeatSummary({ operations, variant = 'home' }: Props) {
     variant === 'home' ? 'g-business-heat-summary g-business-heat-summary--home' : 'g-business-heat-summary';
 
   return (
-    <section className={sectionClass} aria-label="Business heat">
+    <section className={sectionClass} aria-label="Business trace">
       <div className="g-business-heat-summary__head">
         <p className="g-business-heat-summary__label">Businesses</p>
         <p className="g-business-heat-summary__count">{operations.owned.toLocaleString()}</p>
@@ -23,7 +24,7 @@ export function BusinessHeatSummary({ operations, variant = 'home' }: Props) {
 
       {showPortfolioHeat ? (
         <HeatStatusBar
-          label="Overall heat"
+          label={`Overall ${OS_TERMS.heat.toLowerCase()}`}
           score={operations.overallHeatScore}
           right={operations.overallHeat}
         />
@@ -32,7 +33,7 @@ export function BusinessHeatSummary({ operations, variant = 'home' }: Props) {
       {operations.sites.map((site) => (
         <div key={site.id} className="g-business-heat-row">
           <p className="g-business-heat-name">{site.name}</p>
-          <HeatStatusBar label="Heat" score={site.heatScore} right={site.heatLabel} />
+          <HeatStatusBar label={OS_TERMS.heat} score={site.heatScore} right={site.heatLabel} />
         </div>
       ))}
 

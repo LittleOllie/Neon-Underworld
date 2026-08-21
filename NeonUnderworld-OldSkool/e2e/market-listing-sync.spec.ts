@@ -45,12 +45,22 @@ test.describe('Market listing sync', () => {
     await dismissDevOverlay(page);
     await page.getByRole('button', { name: /List Item/i }).click();
 
-    await expect(page.getByText(/Listed 2× Hash on the Market/i)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/Listed 2× Components on the Market/i)).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole('tab', { name: 'My Auctions' }).click();
+    await expect(
+      page
+        .locator('.g-row')
+        .filter({ hasText: 'Components × 2' })
+        .filter({ hasText: new RegExp(`${priceLabel.replace('$', '\\$')} · ACTIVE`) })
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('tab', { name: 'Browse' }).click();
+    await page.getByRole('button', { name: 'All', exact: true }).click();
     const browseCard = page
       .locator('.g-listing-card')
-      .filter({ hasText: 'Hash × 2' })
+      .filter({ hasText: /Components × 2/i })
       .filter({ hasText: `Starting: ${priceLabel}` })
       .first();
     await expect(browseCard).toBeVisible({ timeout: 15_000 });
@@ -61,19 +71,18 @@ test.describe('Market listing sync', () => {
     await expect(
       page
         .locator('.g-row')
-        .filter({ hasText: 'hash × 2' })
+        .filter({ hasText: 'Components × 2' })
         .filter({ hasText: new RegExp(`${priceLabel.replace('$', '\\$')} · ACTIVE`) })
         .first(),
     ).toBeVisible({ timeout: 15_000 });
 
-    await page.evaluate(() => sessionStorage.setItem('nu-boot-dismissed', '1'));
-    await page.goto('/market');
+    await gotoGame(page, '/market');
     await expect(page.getByRole('heading', { name: 'Market' })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('tab', { name: 'My Auctions' }).click();
     await expect(
       page
         .locator('.g-row')
-        .filter({ hasText: 'hash × 2' })
+        .filter({ hasText: 'Components × 2' })
         .filter({ hasText: new RegExp(`${priceLabel.replace('$', '\\$')} · ACTIVE`) })
         .first(),
     ).toBeVisible({ timeout: 15_000 });
@@ -96,13 +105,13 @@ test.describe('Market listing sync', () => {
     await seller.locator('#market-qty').fill('1');
     await seller.locator('#market-price').fill(String(listingPrice));
     await seller.getByRole('button', { name: /List Item/i }).click();
-    await expect(seller.getByText(/Listed 1× Hash on the Market/i)).toBeVisible({ timeout: 20_000 });
+    await expect(seller.getByText(/Listed 1× Components on the Market/i)).toBeVisible({ timeout: 20_000 });
 
     await gotoGame(bidder, '/market');
     const listing = bidder
       .locator('.g-listing-card')
       .filter({ hasText: `Starting: ${priceLabel}` })
-      .filter({ hasText: /Hash × 1/i })
+      .filter({ hasText: /Components × 1/i })
       .first();
     await expect(listing).toBeVisible({ timeout: 15_000 });
 
@@ -115,7 +124,7 @@ test.describe('Market listing sync', () => {
     await gotoGame(seller, '/market');
     await seller.getByRole('tab', { name: 'My Auctions' }).click();
     await expect(
-      seller.locator('.g-row').filter({ hasText: 'hash × 1' }).filter({ hasText: /ACTIVE/i }).first(),
+      seller.locator('.g-row').filter({ hasText: 'Components × 1' }).filter({ hasText: /ACTIVE/i }).first(),
     ).toBeVisible();
 
     await seller.close();
@@ -143,13 +152,13 @@ test.describe('Market listing with heavy history', () => {
     await page.locator('#market-qty').fill('1');
     await page.locator('#market-price').fill(String(listingPrice));
     await page.getByRole('button', { name: /List Item/i }).click();
-    await expect(page.getByText(/Listed 1× Hash on the Market/i)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/Listed 1× Components on the Market/i)).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole('tab', { name: 'My Auctions' }).click();
     await expect(
       page
         .locator('.g-row')
-        .filter({ hasText: 'hash × 1' })
+        .filter({ hasText: 'Components × 1' })
         .filter({ hasText: new RegExp(`${priceLabel.replace('$', '\\$')} · ACTIVE`) })
         .first(),
     ).toBeVisible({ timeout: 15_000 });

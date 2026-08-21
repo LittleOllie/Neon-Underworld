@@ -31,11 +31,11 @@ test.describe('Onboarding polish — desktop', () => {
     }
     if (scoutAmount > 0) {
       await expect(page.getByLabel('Turns to scout')).toHaveValue(String(scoutAmount));
-      await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
+      await page.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
       await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 30000 });
       const scoutResult = page.locator('main');
       await expect(scoutResult.getByRole('link', { name: 'Shop' })).toBeVisible();
-      await expect(scoutResult.getByRole('link', { name: 'Produce' })).toBeVisible();
+      await expect(scoutResult.getByRole('link', { name: 'Operations' })).toBeVisible();
       await expect(scoutResult.getByRole('link', { name: 'Home' })).toBeVisible();
 
       await scoutResult.getByRole('link', { name: 'Shop' }).click();
@@ -54,25 +54,25 @@ test.describe('Onboarding polish — desktop', () => {
     }
 
     await gotoGame(page, '/produce');
-    await expect(page.getByLabel('Turns to produce')).toHaveValue('25');
+    await expect(page.getByLabel('Turns to run')).toHaveValue('25');
     await expect(page.getByRole('group', { name: 'Quick turn amounts' })).toBeVisible();
     const produceTurns = parseTurnsUsed(await headerTurnsLocator(page).textContent());
     const produceAmount = Math.min(100, Math.max(0, produceTurns));
     if (produceAmount >= 100) {
       await page.getByRole('button', { name: '100', exact: true }).click();
-      await expect(page.getByLabel('Turns to produce')).toHaveValue('100');
+      await expect(page.getByLabel('Turns to run')).toHaveValue('100');
     } else if (produceAmount > 0) {
-      await page.getByLabel('Turns to produce').fill(String(Math.min(25, produceAmount)));
+      await page.getByLabel('Turns to run').fill(String(Math.min(25, produceAmount)));
     }
     if (produceAmount > 0) {
-      await page.getByRole('button', { name: 'Produce', exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Production Complete' })).toBeVisible({
+      await page.getByRole('button', { name: /^Run .+ · \d[\d,]* turns?$/ }).click();
+      await expect(page.getByRole('heading', { name: 'Operations Complete' })).toBeVisible({
         timeout: 15000,
       });
     }
 
     await gotoGame(page, '/empire');
-    await expect(page.getByText('Net Worth', { exact: true })).toBeVisible();
+    await expect(page.getByText('Influence', { exact: true })).toBeVisible();
 
     await gotoGame(page, '/rankings');
     await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible();
@@ -100,17 +100,17 @@ test.describe('Onboarding polish — mobile 390×844', () => {
       await page.getByLabel('Turns to scout').fill(String(mobileScout));
     }
     if (mobileScout > 0) {
-      await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
+      await page.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
       await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 30000 });
       await assertNoHorizontalOverflow(page);
       await expect(page.locator('main').getByRole('link', { name: 'Shop' })).toBeVisible();
     }
 
     await gotoGame(page, '/produce');
-    await expect(page.getByLabel('Turns to produce')).toHaveValue('25');
+    await expect(page.getByLabel('Turns to run')).toHaveValue('25');
     await assertNoHorizontalOverflow(page);
     await page.getByRole('button', { name: '250', exact: true }).click();
-    await expect(page.getByLabel('Turns to produce')).toHaveValue('250');
+    await expect(page.getByLabel('Turns to run')).toHaveValue('250');
     await assertNoHorizontalOverflow(page);
   });
 });

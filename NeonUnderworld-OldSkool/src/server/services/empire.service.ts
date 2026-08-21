@@ -9,6 +9,7 @@ import {
   buildBusinessesBreakdown,
   buildDrugsBreakdown,
   buildEmpireSupplySummary,
+  buildPreferredCrewSupplies,
   buildVehiclesBreakdown,
   buildWeaponsBreakdown,
   calculateOperationalReadiness,
@@ -208,6 +209,7 @@ export const EmpireService = {
     const businessOperations = await getBusinessEmpireSummary(ctx.id).catch(() => null);
     const morale = estimateWorkerMorale(inventory);
     const supplySummary = buildEmpireSupplySummary(inventory);
+    const preferredSupplies = buildPreferredCrewSupplies(inventory);
     const readiness = calculateOperationalReadiness({
       workers: inventory.prostitutes,
       thugs: inventory.thugs,
@@ -268,6 +270,7 @@ export const EmpireService = {
       },
       readiness,
       supplySummary,
+      preferredSupplies,
       statusMeters: buildEmpireStatusMeters(inventory),
       recentActivity: [],
     };
@@ -295,6 +298,7 @@ export const EmpireService = {
     const businessOperations = await getBusinessEmpireSummary(playerId).catch(() => null);
     const morale = estimateWorkerMorale(inventory);
     const supplySummary = buildEmpireSupplySummary(inventory);
+    const preferredSupplies = buildPreferredCrewSupplies(inventory);
     const readiness = calculateOperationalReadiness({
       workers: inventory.prostitutes,
       thugs: inventory.thugs,
@@ -361,6 +365,7 @@ export const EmpireService = {
       },
       readiness,
       supplySummary,
+      preferredSupplies,
       statusMeters: buildEmpireStatusMeters(inventory),
       recentActivity: [],
     };

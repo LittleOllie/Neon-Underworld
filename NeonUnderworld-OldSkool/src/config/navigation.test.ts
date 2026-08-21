@@ -4,15 +4,17 @@ import {
   DESKTOP_NAV,
   buildMoreMenuSections,
   navIsActive,
+  isMoreRouteActive,
 } from '@local/config/navigation';
 
 describe('primary navigation', () => {
-  it('mobile nav uses Home, Empire, Scout, Produce, More', () => {
+  it('mobile nav uses Home, Empire, Scout, Operations, Shop, More', () => {
     expect(MOBILE_NAV.map((item) => item.label)).toEqual([
       'Home',
       'Empire',
       'Scout',
-      'Produce',
+      'Operations',
+      'Shop',
       'More',
     ]);
   });
@@ -26,7 +28,7 @@ describe('primary navigation', () => {
       'Home',
       'Empire',
       'Scout',
-      'Produce',
+      'Operations',
       'Shop',
       'More',
     ]);
@@ -34,6 +36,22 @@ describe('primary navigation', () => {
 
   it('marks produce route active', () => {
     expect(navIsActive('/produce', '/produce')).toBe(true);
+  });
+
+  it('marks More active on underworld routes', () => {
+    expect(navIsActive('/rankings', '#more')).toBe(true);
+    expect(navIsActive('/attack', '#more')).toBe(true);
+    expect(navIsActive('/settings', '#more')).toBe(true);
+    expect(navIsActive('/how-to-play', '#more')).toBe(true);
+  });
+
+  it('does not mark More active for Shop (primary nav)', () => {
+    expect(navIsActive('/shop', '#more')).toBe(false);
+    expect(isMoreRouteActive('/shop')).toBe(false);
+  });
+
+  it('marks Shop active on shop route', () => {
+    expect(navIsActive('/shop', '/shop')).toBe(true);
   });
 });
 
@@ -54,7 +72,7 @@ describe('MORE menu structure', () => {
     ]);
     expect(sections[1]?.items.map((item) => item.label)).toEqual([
       'Businesses',
-      'Cartels',
+      'Factions',
       'Rankings',
       'Reports',
     ]);

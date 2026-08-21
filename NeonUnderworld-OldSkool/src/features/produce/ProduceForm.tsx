@@ -12,14 +12,15 @@ import { estimateProducePreview } from '@core/lib/game-engine/produce-economy';
 import { TurnQuickAmounts } from '@local/components/game/TurnQuickAmounts';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
-import { OptionGrid } from '@local/components/game/OptionGrid';
 import { ActionResult, type ActionResultLine } from '@local/components/game/ActionResult';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
-import { workersLabel, thugsLabel } from '@local/config/terminology';
+import { resourceLabel, OS_TERMS, workersLabel, thugsLabel } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
+import { PRODUCE_RESULT_SECONDARY_ACTIONS } from '@local/lib/produce-result-actions';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
+import { OperationsResourceCard } from '@local/features/produce/OperationsResourceCard';
 
 interface ProduceFormProps {
   initialTurns: number;
@@ -30,15 +31,31 @@ interface ProduceFormProps {
   drugLabBonus?: number;
 }
 
-const DRUGS: { key: ProductionDrug; label: string; hint: string }[] = [
-  { key: 'hash', label: 'Hash', hint: 'High output · No hash upkeep during production' },
-  { key: 'shrooms', label: 'Shrooms', hint: 'Reliable yield' },
-  { key: 'coke', label: 'Coke', hint: 'High street value' },
-  { key: 'heroin', label: 'Heroin', hint: 'Premium street value · Lower output' },
+const OPERATION_RESOURCES: { key: ProductionDrug; label: string; hint: string }[] = [
+  {
+    key: 'hash',
+    label: resourceLabel('hash'),
+    hint: 'High output · steady baseline manufacturing',
+  },
+  {
+    key: 'shrooms',
+    label: resourceLabel('shrooms'),
+    hint: 'Reliable yield',
+  },
+  {
+    key: 'coke',
+    label: resourceLabel('coke'),
+    hint: 'Strong street value',
+  },
+  {
+    key: 'heroin',
+    label: resourceLabel('heroin'),
+    hint: 'Premium value · lower output',
+  },
 ];
 
-function formatDrugLabel(drugType: ProductionDrug): string {
-  return DRUGS.find((d) => d.key === drugType)?.label ?? drugType;
+function formatResourceLabel(drugType: ProductionDrug): string {
+  return OPERATION_RESOURCES.find((d) => d.key === drugType)?.label ?? drugType;
 }
 
 export function ProduceForm({
@@ -101,7 +118,7 @@ export function ProduceForm({
       return;
     }
     if (effectiveThugs === 0) {
-      setError('You need thugs to produce. Scout to recruit personnel.');
+      setError(`You need ${OS_TERMS.enforcers.toLowerCase()} to run Operations. Scout to recruit crew.`);
       return;
     }
     await run('produce', async () => {
@@ -159,16 +176,17 @@ export function ProduceForm({
 
     return (
       <ActionResult
-        title="Production Complete"
+        title="Operations Complete"
         lines={lines}
         actions={[
           {
-            label: 'Produce Again',
+            label: 'Run Again',
             primary: true,
             icon: 'produce',
             onClick: () => setResult(null),
           },
         ]}
+        secondaryActions={PRODUCE_RESULT_SECONDARY_ACTIONS}
       />
     );
   }
@@ -181,79 +199,102 @@ export function ProduceForm({
     effectiveThugs,
   );
 
-  const drugLabel = formatDrugLabel(drugType);
+  const resourceLabelText = formatResourceLabel(drugType);
 
   return (
-    <div aria-busy={pending || undefined}>
-      {effectiveThugs === 0 && (
-        <p className="g-note">
-          Need thugs? <Link href="/scout">Scout to recruit</Link>
-        </p>
-      )}
+    <div className="g-scout-page" aria-busy={pending || undefined}>
+      <div className="g-scout-areas" role="listbox" aria-label="Technology type">
+        {OPERATION_RESOURCES.map((resource) => (
+          <OperationsResourceCard
+            key={resource.key}
+            label={resource.label}
+            hint={resource.hint}
+            selected={drugType === resource.key}
+            disabled={pending}
+            onSelect={() => setDrugType(resource.key)}
+          />
+        ))}
+      </div>
 
-      {drugLabBonus > 0 && (
-        <p className="g-note">
-          <strong>Business Bonus</strong> — Drug Labs: +{Math.round(drugLabBonus * 100)}% Production
-        </p>
-      )}
+      <div className="g-scout-action-panel g-gameplay-controls">
+        <div className="g-scout-turns-header">
+          <div className="g-scout-turns-header__main">
+            <span className="g-scout-turns-header__label">Turns to spend</span>
+            <TurnQuickAmounts
+              value={amount}
+              onSelect={selectQuickAmount}
+              disabled={pending}
+              middleSlot={
+                <NumericInput
+                  id="produce-turns"
+                  label="Turns to run"
+                  value={amountRaw}
+                  onChange={handleAmountChange}
+                  suffix="turns"
+                  className="g-scout-custom-turns g-turn-spend-input"
+                  disabled={pending}
+                />
+              }
+            />
+          </div>
+          <div className="g-scout-turns-header__count" aria-label={`${turns.toLocaleString()} turns available`}>
+            <span className="g-scout-turns-header__value">{turns.toLocaleString()}</span>
+            <span className="g-scout-turns-header__sub">available</span>
+          </div>
+        </div>
 
-      <OptionGrid
-        ariaLabel="Drug type"
-        options={DRUGS.map((d) => ({ id: d.key, label: d.label }))}
-        value={drugType}
-        onChange={setDrugType}
-        disabled={pending}
-      />
+        {effectiveThugs === 0 ? (
+          <p className="g-scout-alert g-scout-alert--critical" role="alert">
+            Need {OS_TERMS.enforcers.toLowerCase()}?{' '}
+            <Link href="/scout" className="g-link-inline">
+              Scout to recruit
+            </Link>
+          </p>
+        ) : drugLabBonus > 0 ? (
+          <p className="g-scout-network-chip">
+            <span className="g-scout-network-chip__label">Workshops</span>
+            <span className="g-scout-network-chip__value">
+              +{Math.round(drugLabBonus * 100)}% output bonus
+            </span>
+          </p>
+        ) : (
+          <p className="g-scout-network-chip g-scout-network-chip--muted">
+            <span className="g-scout-network-chip__label">Output</span>
+            <span className="g-scout-network-chip__value">Street operation</span>
+          </p>
+        )}
 
-      {(() => {
-        const selected = DRUGS.find((d) => d.key === drugType);
-        return selected ? <p className="g-note">{selected.hint}</p> : null;
-      })()}
+        {preview && preview.drugMax > 0 ? (
+          <p className="g-scout-network-chip">
+            <span className="g-scout-network-chip__label">Estimate</span>
+            <span className="g-scout-network-chip__value">
+              {preview.drugMin.toLocaleString()}–{preview.drugMax.toLocaleString()} {resourceLabelText}
+              {preview.playerCash > 0 ? ` · ~$${preview.playerCash.toLocaleString()} cash` : ''}
+            </span>
+          </p>
+        ) : null}
 
-      <NumericInput
-        id="produce-turns"
-        label="Turns to produce"
-        value={amountRaw}
-        onChange={handleAmountChange}
-        suffix="turns"
-        disabled={pending}
-      />
+        {walkout.level !== 'none' ? (
+          <p className={`g-scout-alert${walkout.level === 'critical' ? ' g-scout-alert--critical' : ''}`} role="alert">
+            {walkout.level === 'critical' ? 'Low morale — ' : ''}
+            {walkout.message}
+          </p>
+        ) : null}
 
-      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} disabled={pending} />
+        {error ? <p className="g-error">{error}</p> : null}
 
-      <p className="g-note">Supplies help keep your crew loyal and effective.</p>
-
-      {preview && preview.drugMax > 0 && (
-        <p className="g-note">
-          Estimated output: {preview.drugMin.toLocaleString()}–{preview.drugMax.toLocaleString()}{' '}
-          {drugLabel}
-          {preview.playerCash > 0 && (
-            <>
-              {' '}
-              · ~${preview.playerCash.toLocaleString()} cash
-            </>
-          )}
-        </p>
-      )}
-
-      {error && <p className="g-error">{error}</p>}
-
-      {walkout.level !== 'none' && (
-        <p className={`g-note${walkout.level === 'critical' ? ' g-error' : ''}`} role="alert">
-          {walkout.level === 'critical' ? 'LOW MORALE — ' : ''}
-          {walkout.message}
-        </p>
-      )}
-
-      <PrimaryButton
-        className="g-btn-full"
-        icon="produce"
-        onClick={handleProduce}
-        disabled={pending || effectiveThugs === 0}
-        pending={pending}
-      >
-        {pending ? ACTION_PENDING.produce : 'Produce'}
-      </PrimaryButton>
+        <PrimaryButton
+          className="g-btn-full g-scout-submit"
+          icon="produce"
+          onClick={handleProduce}
+          disabled={pending || effectiveThugs === 0}
+          pending={pending}
+        >
+          {pending
+            ? ACTION_PENDING.produce
+            : `Run ${resourceLabelText} · ${amount.toLocaleString()} turn${amount === 1 ? '' : 's'}`}
+        </PrimaryButton>
+      </div>
     </div>
   );
 }

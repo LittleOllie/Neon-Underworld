@@ -59,6 +59,10 @@ export interface CanonicalPlayerContext {
   cartelName: string | null;
   cartelTag: string | null;
   avatar: string | null;
+  avatarSource: import('@prisma/client').PlayerAvatarSource | null;
+  pfpUrl: string | null;
+  themePrimary: string | null;
+  themeSecondary: string | null;
   wireEnabled: boolean;
   health: number;
   lifeStatus: string;
@@ -169,6 +173,10 @@ function buildCanonicalContext(
     cartelName: player.cartel?.name ?? null,
     cartelTag: player.cartel?.tag ?? null,
     avatar: player.avatar,
+    avatarSource: player.avatarSource,
+    pfpUrl: player.pfpUrl,
+    themePrimary: player.themePrimary,
+    themeSecondary: player.themeSecondary,
     wireEnabled: player.wireEnabled,
     health: player.health,
     lifeStatus: player.lifeStatus,

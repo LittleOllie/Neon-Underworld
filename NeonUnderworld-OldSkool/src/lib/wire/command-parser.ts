@@ -1,4 +1,5 @@
 import type { WireCommand, WireStatKind } from './types';
+import { OS_TERMS } from '@local/config/terminology';
 import {
   isThugPurchaseTerm,
   isWorkerPurchaseTerm,
@@ -113,7 +114,7 @@ function parseBuy(normalized: string): WireCommand | null {
   if (maxMatch) {
     const itemTerm = maxMatch[2]!.trim();
     if (isWorkerPurchaseTerm(itemTerm)) {
-      return unknown('Workers cannot be purchased from the City Shop. Use Scout to recruit personnel.');
+      return unknown(`${OS_TERMS.specialists} cannot be purchased from the City Shop. Use Scout to recruit personnel.`);
     }
     if (isThugPurchaseTerm(itemTerm)) {
       return { kind: 'HIRE_THUGS', mode: 'max' };
@@ -127,7 +128,7 @@ function parseBuy(normalized: string): WireCommand | null {
   if (!leading) return unknown('Could not parse buy quantity.');
 
   if (isWorkerPurchaseTerm(leading.rest)) {
-    return unknown('Workers cannot be purchased from the City Shop. Use Scout to recruit personnel.');
+    return unknown(`${OS_TERMS.specialists} cannot be purchased from the City Shop. Use Scout to recruit personnel.`);
   }
   if (isThugPurchaseTerm(leading.rest)) {
     return { kind: 'HIRE_THUGS', mode: 'fixed', quantity: leading.quantity };

@@ -40,7 +40,7 @@ describe('collectAttentionItems — onboarding pass 2', () => {
       brief: { ...baseBrief, unarmedThugs: 3 },
       unreadCount: 0,
     });
-    expect(items.some((i) => i.value === '3' && i.label?.includes('street thug'))).toBe(true);
+    expect(items.some((i) => i.value === '3' && i.label?.includes('unarmed'))).toBe(true);
   });
 
   it('prioritizes attack alerts before unread reports', () => {

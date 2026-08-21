@@ -5,6 +5,7 @@ const mockFindMany = vi.fn();
 const mockFindUnique = vi.fn();
 const mockTransaction = vi.fn();
 const mockUpdateMany = vi.fn();
+const mockSeasonFindFirst = vi.fn();
 const mockGameActionFindUnique = vi.fn();
 const mockMarketBidFindUnique = vi.fn();
 
@@ -58,6 +59,9 @@ vi.mock('@/lib/db/prisma', () => ({
     },
     marketBid: {
       findUnique: (...args: unknown[]) => mockMarketBidFindUnique(...args),
+    },
+    season: {
+      findFirst: (...args: unknown[]) => mockSeasonFindFirst(...args),
     },
     $transaction: (...args: unknown[]) => mockTransaction(...args),
   },
@@ -150,6 +154,7 @@ function wireMarketMocks() {
   mockUpdateMany.mockResolvedValue({ count: 1 });
   mockGameActionFindUnique.mockResolvedValue(null);
   mockMarketBidFindUnique.mockResolvedValue(null);
+  mockSeasonFindFirst.mockResolvedValue({ id: 'season-1' });
 
   mockTransaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
     fn({

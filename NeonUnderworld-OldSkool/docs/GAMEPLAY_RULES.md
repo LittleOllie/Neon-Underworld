@@ -120,7 +120,7 @@ Central config: `@core/config/game/attack-rules.ts`
 
 - Gather **Basic Intel** on the target before attacking (5 turns; report valid 48 hours). Deep Intel is optional.
 - Basic Intel does not lock eligibility — attack range is checked again live when you launch.
-- Target net worth must be **≥ 50% of your** canonical net worth. **There is no upper limit.**
+- Target net worth must be **60%–170% of your** canonical net worth.
 - You cannot gather Basic Intel on players below your attack range (turns are not spent).
 - Sufficient turns, thugs, and rides
 

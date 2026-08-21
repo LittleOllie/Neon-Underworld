@@ -66,15 +66,15 @@ test.describe('Navigation transition / network loader', () => {
 
     await delayRoute(page, /\/scout(\?|$)/);
     await page.getByRole('navigation').getByRole('link', { name: 'Scout', exact: true }).click();
-    await expect(page.getByText('SCANNING THE STREETS...')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('OPENING INTEL...')).toBeVisible({ timeout: 5_000 });
     await expect(page).toHaveURL(/\/scout/, { timeout: 20_000 });
     await expect(page.locator('.g-nav-network-overlay')).toHaveCount(0, { timeout: 5_000 });
 
     await gotoGame(page, '/command');
     await delayRoute(page, /\/cartels(\?|$)/);
     await page.getByRole('button', { name: 'More menu' }).click();
-    await page.getByRole('link', { name: 'Cartels', exact: true }).click();
-    await expect(page.getByText('OPENING CARTEL NETWORK...')).toBeVisible({ timeout: 5_000 });
+    await page.getByRole('link', { name: 'Factions', exact: true }).click();
+    await expect(page.getByText('ENTERING FACTIONS...')).toBeVisible({ timeout: 5_000 });
     await expect(page).toHaveURL(/\/cartels/, { timeout: 20_000 });
     await assertNoStuckLoading(page);
   });

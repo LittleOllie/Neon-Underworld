@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getBootCopy,
   BOOT_SCREEN,
-  BOOT_PHONE_MAX_WIDTH,
   bootBackgroundUrl,
-  bootPhoneBackgroundUrl,
-  bootPhoneMediaQuery,
 } from '@local/config/boot-screen';
 
 describe('boot screen copy', () => {
@@ -31,14 +28,12 @@ describe('boot screen copy', () => {
     expect(copy.enterLabel).toBe('SIGN IN');
   });
 
-  it('uses NUIntroScreen artwork on desktop', () => {
-    expect(BOOT_SCREEN.backgroundSrc).toContain('NUIntroScreen.webp');
-    expect(bootBackgroundUrl()).toMatch(/NUIntroScreen\.webp\?v=/);
+  it('uses approved NU intro artwork', () => {
+    expect(BOOT_SCREEN.backgroundSrc).toContain('/images/nu/backgrounds/intro.webp');
+    expect(bootBackgroundUrl()).toMatch(/intro\.webp\?v=/);
   });
 
-  it('uses NUIntroPhone artwork on phone', () => {
-    expect(BOOT_SCREEN.phoneBackgroundSrc).toContain('NUIntroPhone.webp');
-    expect(bootPhoneBackgroundUrl()).toMatch(/NUIntroPhone\.webp\?v=/);
-    expect(bootPhoneMediaQuery()).toBe(`(max-width: ${BOOT_PHONE_MAX_WIDTH}px)`);
+  it('uses approved NU brand logo', () => {
+    expect(BOOT_SCREEN.logoSrc).toContain('/images/nu/brand/nu-logo.webp');
   });
 });

@@ -1,8 +1,8 @@
 /** Worker Poaching — centralized rules (Attack type POACH_WORKERS). */
 
 export const WORKER_POACHING_RULES = {
-  /** Turn cost — between Drive-By (2) and Home Invasion (3). */
-  turnCost: 4,
+  /** Turn cost — canonical value in ATTACK_RULES.turnCosts.POACH_WORKERS (12). */
+  turnCost: 12,
 
   /** Targets below this Worker count cannot be poached. */
   minWorkersToPoach: 25,

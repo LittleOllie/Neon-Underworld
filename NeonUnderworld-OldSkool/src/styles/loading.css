@@ -571,6 +571,13 @@
   color: var(--os-text-dim, #7a7872);
 }
 
+/* App shell preloads behind boot — hidden until intro dismisses (avoids unmount hook errors). */
+.nu-boot-app--pending {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Boot screen ── */
 .nu-boot {
   position: fixed;
@@ -607,17 +614,6 @@
   opacity: 0.42;
 }
 
-.nu-boot--intro-art .nu-boot__art-img {
-  opacity: 1;
-  object-position: center center;
-}
-
-@media (max-width: 768px) {
-  .nu-boot--intro-art .nu-boot__art-img {
-    object-position: center top;
-  }
-}
-
 .nu-boot__art-scrim {
   position: absolute;
   inset: 0;
@@ -629,13 +625,31 @@
   );
 }
 
+.nu-boot--intro-art .nu-boot__art-img {
+  opacity: 1;
+  /* Slight zoom so horizontal pan can center silhouette under NU logo without edge gaps */
+  width: 112%;
+  height: 112%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .nu-boot--intro-art .nu-boot__art-scrim {
   background: linear-gradient(
+    105deg,
+    rgba(5, 4, 10, 0.18) 0%,
+    rgba(5, 4, 10, 0.06) 42%,
+    rgba(5, 4, 10, 0.1) 58%,
+    rgba(5, 4, 10, 0.28) 100%
+  ),
+  linear-gradient(
     180deg,
-    rgba(5, 5, 6, 0.08) 0%,
-    rgba(5, 5, 6, 0.15) 50%,
-    rgba(5, 5, 6, 0.82) 82%,
-    rgba(5, 5, 6, 0.95) 100%
+    rgba(5, 4, 10, 0.1) 0%,
+    transparent 30%,
+    transparent 55%,
+    rgba(5, 4, 10, 0.78) 82%,
+    rgba(5, 4, 10, 0.92) 100%
   );
 }
 
@@ -791,7 +805,7 @@
 
 .nu-boot__panel {
   position: absolute;
-  z-index: 1;
+  z-index: 5;
   bottom: max(28px, env(safe-area-inset-bottom));
   left: 0;
   right: 0;
@@ -805,6 +819,20 @@
 
 .nu-boot--intro-art .nu-boot__welcome {
   margin-top: 0;
+}
+
+.nu-boot__brand-mark {
+  position: absolute;
+  z-index: 1;
+  top: max(20px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(403px, 88vw);
+  pointer-events: none;
+}
+
+.nu-boot__brand-mark .nu-brand-logo {
+  margin: 0 auto;
 }
 
 .nu-boot__logo-wrap {
@@ -859,6 +887,8 @@
 }
 
 .nu-boot__enter {
+  position: relative;
+  z-index: 6;
   margin-top: 14px;
   padding: 14px 36px;
   min-width: 200px;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isProgressionNpcAccount,
   isProgressionNpcEmail,
+  isLocalNpcProgressionEnabled,
 } from '@/lib/game-engine/npc-progression/identification';
 import {
   interpolateNpcLadderBand,
@@ -18,6 +19,15 @@ import {
   reconcileTowardTarget,
   compoundRecoveryRate,
 } from '@/lib/game-engine/npc-progression/reconcile';
+import {
+  applyNpcProgressionTicks,
+  applySingleNpcProgressionTick,
+  computeDueTickCount,
+} from '@/lib/game-engine/npc-progression/tick';
+import {
+  NPC_PROGRESSION_MAX_CATCHUP_HOURS,
+  NPC_PROGRESSION_TICK_HOURS,
+} from '@/config/game/npc-progression-rules';
 import { getSeasonRoundDay } from '@/lib/game-engine/npc-progression/round-age';
 import { progressionMetaForDevPvp } from '@/lib/game-engine/npc-progression/initialize';
 import { minAttackTargetNetWorth } from '@/config/game/redlite-rules';
@@ -50,12 +60,22 @@ describe('NPC identification', () => {
       }),
     ).toBe(false);
   });
+
+  it('excludes local-npc fixtures unless NPC_PROGRESSION_INCLUDE_LOCAL=true', () => {
+    const prev = process.env.NPC_PROGRESSION_INCLUDE_LOCAL;
+    process.env.NPC_PROGRESSION_INCLUDE_LOCAL = 'false';
+    expect(isProgressionNpcEmail('local-npc+fixture01@neonunderworld.local')).toBe(false);
+    process.env.NPC_PROGRESSION_INCLUDE_LOCAL = 'true';
+    expect(isProgressionNpcEmail('local-npc+fixture01@neonunderworld.local')).toBe(true);
+    process.env.NPC_PROGRESSION_INCLUDE_LOCAL = prev;
+    expect(typeof isLocalNpcProgressionEnabled()).toBe('boolean');
+  });
 });
 
 describe('NW ladder bands', () => {
   it('interpolates round-age checkpoints', () => {
-    expect(interpolateNpcLadderBand(1).minNw).toBe(50_000);
-    expect(interpolateNpcLadderBand(1).maxNw).toBe(2_000_000);
+    expect(interpolateNpcLadderBand(1).minNw).toBe(10_000);
+    expect(interpolateNpcLadderBand(1).maxNw).toBe(240_000);
     const d7 = interpolateNpcLadderBand(7);
     expect(d7.minNw).toBe(100_000);
     expect(d7.maxNw).toBe(8_000_000);
@@ -185,8 +205,131 @@ describe('fresh scout baseline unchanged', () => {
       totalSlots: 50,
     });
     const nw = canonicalNwForTargetState(target);
-    expect(nw).toBeGreaterThan(40_000);
-    expect(nw).toBeLessThan(500_000);
+    expect(nw).toBeGreaterThan(20_000);
+    expect(nw).toBeLessThan(200_000);
     expect(NPC_ARCHETYPE_PROFILES.STREET_HUSTLER.businessTier).toBe(0);
+  });
+});
+
+describe('dynamic tick progression', () => {
+  it('computes due ticks from elapsed hours with catch-up cap', () => {
+    const last = new Date('2026-01-01T00:00:00Z');
+    const now18h = new Date(last.getTime() + 18 * 3_600_000);
+    expect(computeDueTickCount({ lastProgressedAt: last, now: now18h })).toBe(3);
+    const now72h = new Date(last.getTime() + 72 * 3_600_000);
+    expect(computeDueTickCount({ lastProgressedAt: last, now: now72h })).toBe(
+      Math.floor(NPC_PROGRESSION_MAX_CATCHUP_HOURS / NPC_PROGRESSION_TICK_HOURS),
+    );
+    expect(computeDueTickCount({ lastProgressedAt: last, now: now72h, force: true })).toBe(1);
+  });
+
+  it('allows NPC net worth to grow over multiple ticks', () => {
+    const base = buildNpcTargetState({
+      archetype: 'OPERATOR',
+      roundDay: 5,
+      ladderSlot: 20,
+      growthSeed: 777,
+      totalSlots: 50,
+    });
+    const after = applyNpcProgressionTicks(
+      base,
+      { archetype: 'OPERATOR', roundDay: 5, ladderSlot: 20, growthSeed: 777, totalSlots: 50 },
+      8,
+    );
+    expect(canonicalNwForTargetState(after)).toBeGreaterThanOrEqual(canonicalNwForTargetState(base) * 0.85);
+  });
+
+  it('allows NPC net worth to decline during setback ticks', () => {
+    let state = buildNpcTargetState({
+      archetype: 'STREET_HUSTLER',
+      roundDay: 10,
+      ladderSlot: 5,
+      growthSeed: 42,
+      totalSlots: 50,
+    });
+    let sawDecline = false;
+    for (let i = 0; i < 40; i++) {
+      const before = canonicalNwForTargetState(state);
+      state = applySingleNpcProgressionTick({
+        state,
+        archetype: 'STREET_HUSTLER',
+        roundDay: 10,
+        ladderSlot: 5,
+        growthSeed: 42,
+        totalSlots: 50,
+        tickIndex: i,
+      });
+      if (canonicalNwForTargetState(state) < before) sawDecline = true;
+    }
+    expect(sawDecline).toBe(true);
+  });
+
+  it('preserves attacked state as progression baseline (no snap to target)', () => {
+    const target = buildNpcTargetState({
+      archetype: 'OPERATOR',
+      roundDay: 15,
+      ladderSlot: 25,
+      growthSeed: 555,
+      totalSlots: 50,
+    });
+    const damaged = {
+      ...target,
+      thugs: Math.floor(target.thugs * 0.35),
+      cash: Math.floor(target.cash * 0.25),
+      prostitutes: Math.floor(target.prostitutes * 0.45),
+    };
+    const afterOne = applySingleNpcProgressionTick({
+      state: damaged,
+      archetype: 'OPERATOR',
+      roundDay: 15,
+      ladderSlot: 25,
+      growthSeed: 555,
+      totalSlots: 50,
+      tickIndex: 0,
+    });
+    expect(afterOne.thugs).toBeLessThan(target.thugs);
+    expect(afterOne.cash).toBeLessThan(target.cash);
+  });
+
+  it('diverges archetypes over time', () => {
+    const ctx = { roundDay: 14, totalSlots: 50 as const };
+    const hustler = applyNpcProgressionTicks(
+      buildNpcTargetState({ archetype: 'STREET_HUSTLER', ladderSlot: 2, growthSeed: 100, ...ctx }),
+      { archetype: 'STREET_HUSTLER', ladderSlot: 2, growthSeed: 100, ...ctx },
+      16,
+    );
+    const enforcer = applyNpcProgressionTicks(
+      buildNpcTargetState({ archetype: 'ENFORCER', ladderSlot: 15, growthSeed: 200, ...ctx }),
+      { archetype: 'ENFORCER', ladderSlot: 15, growthSeed: 200, ...ctx },
+      16,
+    );
+    expect(enforcer.thugs / Math.max(1, enforcer.prostitutes)).toBeGreaterThan(
+      hustler.thugs / Math.max(1, hustler.prostitutes),
+    );
+  });
+
+  it('large NPC does not explode from a single tick batch', () => {
+    const big = buildNpcTargetState({
+      archetype: 'SYNDICATE_BOSS',
+      roundDay: 25,
+      ladderSlot: 48,
+      growthSeed: 999,
+      totalSlots: 50,
+    });
+    const nwBefore = canonicalNwForTargetState(big);
+    const after = applyNpcProgressionTicks(
+      big,
+      {
+        archetype: 'SYNDICATE_BOSS',
+        roundDay: 25,
+        ladderSlot: 48,
+        growthSeed: 999,
+        totalSlots: 50,
+      },
+      8,
+    );
+    const nwAfter = canonicalNwForTargetState(after);
+    expect(nwAfter).toBeLessThan(nwBefore * 1.35);
+    expect(nwAfter).toBeGreaterThan(nwBefore * 0.65);
   });
 });

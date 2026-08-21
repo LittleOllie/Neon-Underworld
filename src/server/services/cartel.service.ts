@@ -21,9 +21,11 @@ import {
 } from '@/lib/game-engine/cartel-response-force';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonical-net-worth';
 import { formatMemberPresence } from '@/lib/game-engine/cartel-presence';
 import { resolvePlayerAvatarId } from '@/lib/game-engine/resolve-player-avatar';
+import { identityViewFromPlayer } from '@/lib/game-engine/player-identity-fields';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -107,6 +109,10 @@ export const CartelService = {
                 id: true,
                 alias: true,
                 avatar: true,
+                avatarSource: true,
+                pfpUrl: true,
+                themePrimary: true,
+                themeSecondary: true,
                 cash: true,
                 bankCash: true,
                 prostitutes: true,
@@ -168,6 +174,7 @@ export const CartelService = {
           id: m.id,
           alias: m.alias,
           avatarId: resolvePlayerAvatarId(m.avatar),
+          identity: identityViewFromPlayer(m),
           netWorth: calculateCanonicalNetWorthFromPlayer(m),
           donationPercent: m.cartelDonationPercent,
           city: m.district.name,
@@ -700,7 +707,7 @@ export const CartelService = {
       assertPlayerCanPerformAction(leader);
       if (!leader.cartelId || !leader.cartel) throw new GameplayError('CARTEL_ALREADY_MEMBER');
       if (leader.cartel.leaderId !== leaderId) throw new GameplayError('CARTEL_NOT_LEADER');
-      if (leader.season.status !== 'ACTIVE') throw new GameplayError('SEASON_INACTIVE');
+      assertGameplaySeasonActive(leader.season);
 
       if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) {
         throw new GameplayError('INVALID_QUANTITY');

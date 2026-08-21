@@ -97,7 +97,7 @@ describe('attack error messages', () => {
       "You don't have enough rides for this.",
     );
     expect(toUserMessage(new GameplayError('TARGET_OUT_OF_RANGE'))).toBe(
-      'That player is below your attack range.',
+      'That Operator is outside your attack range.',
     );
   });
 
@@ -123,14 +123,30 @@ describe('attack target preview', () => {
     expect(preview.code).toBe('TARGET_OUT_OF_RANGE');
   });
 
-  it('allows vastly richer targets', () => {
+  it('blocks targets above maximum net worth', () => {
     const preview = evaluateAttackTargetPreview({
       attackerId: 'a1',
       defenderId: 'd1',
       attackerDistrictId: 'dist1',
       defenderDistrictId: 'dist1',
       attackerNw: 200_000,
-      defenderNw: 10_000_000,
+      defenderNw: 340_001,
+      defenderLifeStatus: 'ACTIVE',
+      defenderTravelling: false,
+      attacksOnTargetLast24h: 0,
+    });
+    expect(preview.eligible).toBe(false);
+    expect(preview.code).toBe('TARGET_OUT_OF_RANGE');
+  });
+
+  it('allows in-band richer targets', () => {
+    const preview = evaluateAttackTargetPreview({
+      attackerId: 'a1',
+      defenderId: 'd1',
+      attackerDistrictId: 'dist1',
+      defenderDistrictId: 'dist1',
+      attackerNw: 200_000,
+      defenderNw: 300_000,
       defenderLifeStatus: 'ACTIVE',
       defenderTravelling: false,
       attacksOnTargetLast24h: 0,

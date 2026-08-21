@@ -22,3 +22,16 @@ describe('Scout area selection', () => {
     expect(areas.some((area) => area.slug === 'streets')).toBe(true);
   });
 });
+
+describe('Scout tier display helpers', () => {
+  it('maps recruitment tiers to bar fill percentages', async () => {
+    const { scoutRecruitmentTierPercent, scoutRiskTierPercent } = await import(
+      '@core/lib/game-engine/scout-display'
+    );
+    expect(scoutRecruitmentTierPercent('High')).toBe(100);
+    expect(scoutRecruitmentTierPercent('Medium')).toBe(55);
+    expect(scoutRecruitmentTierPercent('Low')).toBe(28);
+    expect(scoutRiskTierPercent('Low')).toBe(28);
+    expect(scoutRiskTierPercent('High')).toBe(100);
+  });
+});

@@ -1,6 +1,7 @@
 import { calculateProstituteHappiness, calculateThugHappiness } from '@core/lib/game-engine/happiness';
 import { SCOUTING_CONFIG } from '@core/config/game/balance';
 import { happinessBand, supplyBand, payoutTradeOffDescription } from '@core/lib/game-engine/supply-status';
+import { supplyReadinessToPercent } from '@local/server/domain/status-presentation';
 import {
   EMPIRE_BANK_RULES,
   EMPIRE_BUSINESS_TYPES,
@@ -14,6 +15,7 @@ import {
   type WeaponKey,
 } from '@local/config/empire-rules';
 import { businessNetWorth } from '@local/config/valuations';
+import { OS_TERMS } from '@local/config/terminology';
 import type { ReadinessDetail } from '@local/domain/empire.model';
 
 export type PlayerInventoryRow = {
@@ -144,8 +146,7 @@ export function buildEmpireSupplySummary(player: PlayerInventoryRow) {
   return {
     workers: {
       status: happinessBand(workerHappy.score),
-      hash: supplyBand(workerHappy.hashReadiness),
-      condoms: supplyBand(workerHappy.condomReadiness),
+      kits: supplyBand(workerHappy.condomReadiness),
       protection: supplyBand(workerHappy.protectionReadiness),
       payout: `${player.prostitutePayoutPercent}%`,
     },
@@ -154,6 +155,38 @@ export function buildEmpireSupplySummary(player: PlayerInventoryRow) {
       weapons: arming.unarmedThugs > 0 ? `${arming.unarmedThugs} short` : 'Adequate',
       beer: supplyBand(thugHappy.beerReadiness),
       armed: `${arming.armedThugs} / ${player.thugs}`,
+    },
+  };
+}
+
+export function buildPreferredCrewSupplies(player: PlayerInventoryRow) {
+  const workerHappy = calculateProstituteHappiness({
+    prostitutes: player.prostitutes,
+    thugs: player.thugs,
+    hash: player.hash,
+    condoms: player.condoms,
+    prostitutePayoutPercent: player.prostitutePayoutPercent,
+  });
+  const thugHappy = calculateThugHappiness({
+    thugs: player.thugs,
+    glocks: player.glocks,
+    uzis: player.uzis,
+    aks: player.aks,
+    beer: player.beer,
+  });
+
+  return {
+    specialists: {
+      shopItemKey: 'condom' as const,
+      label: OS_TERMS.kits,
+      quantity: player.condoms,
+      readinessPercent: supplyReadinessToPercent(workerHappy.condomReadiness),
+    },
+    enforcers: {
+      shopItemKey: 'beer' as const,
+      label: OS_TERMS.rations,
+      quantity: player.beer,
+      readinessPercent: supplyReadinessToPercent(thugHappy.beerReadiness),
     },
   };
 }
@@ -179,18 +212,18 @@ export function previewPayoutMorale(
     effects.push('You will keep more worker-generated cash when using turns.');
     effects.push(proposedTrade.playerRetention);
   } else if (proposedPayout > player.prostitutePayoutPercent) {
-    effects.push('You will keep less worker-generated cash when using turns.');
+    effects.push(`You will keep less ${OS_TERMS.specialist.toLowerCase()}-generated cash when using turns.`);
     effects.push(proposedTrade.workerStability);
   }
 
   if (proposedPayout >= 100) {
-    effects.push('At 100% payout you retain no worker income — fully defensive.');
+    effects.push(`At 100% payout you retain no ${OS_TERMS.specialist.toLowerCase()} income — fully defensive.`);
   }
 
   if (proposedMorale < SCOUTING_CONFIG.prostituteHappinessWarningThreshold) {
-    effects.push('Worker supplies are low — morale at risk when using turns.');
+    effects.push(`${OS_TERMS.specialist} supplies are low — morale at risk when using turns.`);
   } else if (proposedMorale >= 80) {
-    effects.push('Worker supplies support stable operations.');
+    effects.push(`${OS_TERMS.specialist} supplies support stable operations.`);
   }
 
   if (effects.length === 0) {
@@ -261,7 +294,7 @@ export function calculateOperationalReadiness(input: ReadinessInput) {
   let productionReady =
     input.workers >= rules.production.minWorkers && input.turns >= rules.production.minTurns;
   if (input.workers < rules.production.minWorkers) {
-    productionNotes.push('Workers required');
+    productionNotes.push(`${OS_TERMS.specialists} required`);
   }
   if (input.turns < rules.production.minTurns) {
     productionNotes.push('Turns required');
@@ -276,11 +309,11 @@ export function calculateOperationalReadiness(input: ReadinessInput) {
     input.totalVehicles >= rules.attack.minVehicles;
   if (!isActive) attackNotes.push('Must be active');
   if (input.travelling) attackNotes.push('Cannot attack while travelling');
-  if (input.thugs < rules.attack.minThugs) attackNotes.push('Thugs required');
+  if (input.thugs < rules.attack.minThugs) attackNotes.push(`${OS_TERMS.enforcers} required`);
   if (input.usableWeapons < rules.attack.minWeapons) attackNotes.push('Usable weapons required');
   if (input.totalVehicles < rules.attack.minVehicles) attackNotes.push('Vehicles required');
   if (input.unarmedThugs > 0) {
-    attackNotes.push(`${input.unarmedThugs} thugs are unarmed`);
+    attackNotes.push(`${input.unarmedThugs} ${input.unarmedThugs === 1 ? OS_TERMS.enforcer.toLowerCase() : OS_TERMS.enforcers.toLowerCase()} are unarmed`);
   }
   attackNotes.push('Attack — coming soon');
 
@@ -321,10 +354,10 @@ export function calculateOperationalReadiness(input: ReadinessInput) {
   const details = {
     production: {
       ready: productionReady,
-      label: 'Production',
+      label: 'Operations',
       status: productionReady ? 'Ready' : 'Not ready',
       notes: productionReady
-        ? [`Workers available: ${input.workers}`, `Turns available: ${input.turns}`, 'Use Operations → Produce']
+        ? [`${OS_TERMS.specialists} available: ${input.workers}`, `Turns available: ${input.turns}`, 'Use Operations to run turns']
         : productionNotes,
     } satisfies ReadinessDetail,
     attack: {

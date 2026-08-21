@@ -49,6 +49,11 @@ vi.mock('@local/lib/auth/config', () => ({
   auth: () => mockAuth(),
 }));
 
+vi.mock('@local/server/services/gameplay-analytics-hook', () => ({
+  recordPostGameplayAnalytics: vi.fn(async () => {}),
+  GAMEPLAY_ANALYTICS_EVENTS: { SCOUT_COMPLETED: 'SCOUT_COMPLETED' },
+}));
+
 describe('scoutAction — district scout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,6 +81,8 @@ describe('scoutAction — district scout', () => {
       coke: 0,
       heroin: 0,
       businesses: 0,
+      districtId: 'district-1',
+      season: { startsAt: new Date(), endsAt: new Date(Date.now() + 7 * 86400000) },
     });
     mockCoreScout.mockResolvedValue({
       success: true,

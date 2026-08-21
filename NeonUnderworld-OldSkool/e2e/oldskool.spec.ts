@@ -1,22 +1,22 @@
 import { test, expect } from '@playwright/test';
-import { dismissBootScreen, login } from './helpers';
+import { dismissBootScreen, login, gotoPath } from './helpers';
 
 test.describe('OldSkool gameplay flow', () => {
   test('login → home → scout → report → empire → rankings consistency', async ({ page }) => {
     await login(page);
 
-    await page.goto('/scout');
+    await gotoPath(page, '/scout');
     await page.getByLabel('Turns to scout').fill('5');
-    await page.getByRole('button', { name: 'Scout', exact: true }).click();
+    await page.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 15000 });
 
-    await page.goto('/reports');
+    await gotoPath(page, '/reports');
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
 
-    await page.goto('/empire');
+    await gotoPath(page, '/empire');
     await expect(page.getByRole('heading', { name: 'Empire' })).toBeVisible();
 
-    await page.goto('/rankings');
+    await gotoPath(page, '/rankings');
     await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible();
     const youRow = page.locator('.g-rank-you');
     if (await youRow.count()) {
@@ -24,14 +24,14 @@ test.describe('OldSkool gameplay flow', () => {
       expect(rankNw).toBeTruthy();
     }
 
-    await page.goto('/command');
-    await expect(page.getByText('Net Worth').first()).toBeVisible();
+    await gotoPath(page, '/command');
+    await expect(page.getByText('Influence').first()).toBeVisible();
   });
 });
 
 test.describe('OldSkool public pages', () => {
   test('login page loads', async ({ page }) => {
-    await page.goto('/login');
+    await gotoPath(page, '/login');
     await expect(page.getByRole('button', { name: 'SIGN IN' })).toBeVisible();
     await dismissBootScreen(page);
     await expect(page.getByRole('link', { name: 'NEON UNDERWORLD' })).toBeVisible();
@@ -48,8 +48,8 @@ test.describe('OldSkool public pages', () => {
   test('home smoke — core sections render when authenticated', async ({ page }) => {
     await login(page);
     await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
-    await expect(page.getByText('Workers', { exact: true })).toBeVisible();
-    await expect(page.getByText('Thugs', { exact: true })).toBeVisible();
+    await expect(page.getByText('Specialists', { exact: true })).toBeVisible();
+    await expect(page.getByText('Enforcers', { exact: true })).toBeVisible();
     await expect(page.getByText('Health')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Scout' }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Rankings' }).first()).toBeVisible();

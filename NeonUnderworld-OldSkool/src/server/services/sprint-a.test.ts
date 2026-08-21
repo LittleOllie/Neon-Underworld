@@ -66,11 +66,11 @@ describe('Rankings tie-break order', () => {
 });
 
 describe('Terminology', () => {
-  it('maps prostitutes count label to Workers, never Prostitutes', () => {
+  it('maps prostitutes count label to Specialists, never Prostitutes', () => {
     expect(workersLabel(1)).toBe(OS_TERMS.worker);
     expect(workersLabel(5)).toBe(OS_TERMS.workers);
     expect(workersLabel(5)).not.toContain('Prostitute');
-    expect(OS_TERMS.workers).toBe('Workers');
+    expect(OS_TERMS.workers).toBe('Specialists');
   });
 });
 

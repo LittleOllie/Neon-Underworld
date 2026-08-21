@@ -62,12 +62,12 @@ describe('Attack eligibility', () => {
     expect(baseEligibility({ attackerId: 'same', defenderId: 'same' })).toMatch(/cannot be found/i);
   });
 
-  it('rejects below 50% net worth floor', () => {
-    expect(baseEligibility({ defenderNw: 400_000 })).toMatch(/below your attack range/i);
+  it('rejects below 60% net worth floor', () => {
+    expect(baseEligibility({ defenderNw: 400_000 })).toMatch(/outside your attack range/i);
   });
 
-  it('rejects target just below 50% floor', () => {
-    expect(baseEligibility({ defenderNw: 499_999 })).toMatch(/below your attack range/i);
+  it('rejects target just below 60% floor (59.9%)', () => {
+    expect(baseEligibility({ defenderNw: 599_999 })).toMatch(/outside your attack range/i);
   });
 
   it('rejects different district', () => {
@@ -76,13 +76,17 @@ describe('Attack eligibility', () => {
     ).toMatch(/only attack players in your district/i);
   });
 
-  it('allows targets above attacker net worth (no upper cap)', () => {
-    expect(baseEligibility({ defenderNw: 2_500_000 })).toBeNull();
-    expect(baseEligibility({ defenderNw: 10_000_000 })).toBeNull();
+  it('rejects targets above 170% net worth ceiling', () => {
+    expect(baseEligibility({ defenderNw: 1_700_001 })).toMatch(/outside your attack range/i);
+    expect(baseEligibility({ defenderNw: 2_500_000 })).toMatch(/outside your attack range/i);
   });
 
-  it('accepts exact lower boundary', () => {
-    expect(baseEligibility({ defenderNw: 500_000 })).toBeNull();
+  it('accepts exact lower boundary (60%)', () => {
+    expect(baseEligibility({ defenderNw: 600_000 })).toBeNull();
+  });
+
+  it('accepts exact upper boundary (170%)', () => {
+    expect(baseEligibility({ defenderNw: 1_700_000 })).toBeNull();
   });
 
   it('accepts equal net worth', () => {
@@ -105,8 +109,11 @@ describe('Attack eligibility', () => {
     expect(baseEligibility({ intelReport: null, allowDirectAttack: true })).toBeNull();
   });
 
-  it('rejects insufficient turns', () => {
-    expect(baseEligibility({ attackerTurns: 1 })).toMatch(/enough turns/i);
+  it('rejects insufficient turns with attack-specific wording', () => {
+    expect(baseEligibility({ attackerTurns: 1 })).toMatch(/Breach requires 8 Turns/i);
+    expect(
+      baseEligibility({ attackType: 'POACH_WORKERS', attackerTurns: 7, defenderWorkers: 50 }),
+    ).toBe('Extraction requires 12 Turns. You currently have 7.');
   });
 
   it('rejects travelling attacker', () => {
@@ -326,12 +333,13 @@ describe('Economy conservation', () => {
 });
 
 describe('Attack range helper', () => {
-  it('requires target at least 50% of attacker net worth with no upper cap', () => {
-    expect(isWithinAttackRange(1_000_000, 500_000)).toBe(true);
-    expect(isWithinAttackRange(1_000_000, 499_999)).toBe(false);
-    expect(isWithinAttackRange(1_000_000, 2_000_000)).toBe(true);
-    expect(isWithinAttackRange(1_000_000, 10_000_000)).toBe(true);
-    expect(isWithinAttackRange(200_000, 100_000)).toBe(true);
-    expect(isWithinAttackRange(200_000, 99_999)).toBe(false);
+  it('requires target between 60% and 170% of attacker net worth', () => {
+    expect(isWithinAttackRange(1_000_000, 600_000)).toBe(true);
+    expect(isWithinAttackRange(1_000_000, 599_999)).toBe(false);
+    expect(isWithinAttackRange(1_000_000, 1_000_000)).toBe(true);
+    expect(isWithinAttackRange(1_000_000, 1_700_000)).toBe(true);
+    expect(isWithinAttackRange(1_000_000, 1_700_001)).toBe(false);
+    expect(isWithinAttackRange(200_000, 120_000)).toBe(true);
+    expect(isWithinAttackRange(200_000, 119_999)).toBe(false);
   });
 });

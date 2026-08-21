@@ -8,6 +8,7 @@ import type { AttackLaunchResult } from '@core/server/actions/attack.actions';
 import type { ActionResult } from '@core/server/actions/auth.actions';
 import type { AttackType } from '@core/config/game/attack-rules';
 import { ATTACK_TYPE_LABELS, ATTACK_RULES } from '@core/config/game/attack-rules';
+import { resolveCombatOutcomeLabel } from '@core/lib/game-engine/combat/attack-result-presentation';
 import { attackLaunchSchema, directAttackLaunchSchema } from '@core/lib/validation/schemas';
 import { requireActivePlayerSession } from '@local/lib/auth/active-session';
 import { assertSessionMatchesPlayer } from '@local/lib/auth/session-player';
@@ -28,14 +29,23 @@ import {
 } from '@core/lib/game-engine/gameplay-errors';
 import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
 import { evaluateAttackTargetPreview, resolveRequestedTargetIssue } from '@core/lib/game-engine/combat/eligibility';
-import { minAttackTargetNetWorth } from '@core/config/game/redlite-rules';
+import { minAttackTargetNetWorth, maxAttackTargetNetWorth } from '@core/config/game/redlite-rules';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
 import {
   RankingsService,
   defaultRankingsFilterForDistrict,
 } from '@local/server/services/rankings.service';
 import { OfflineProtectionService } from '@core/server/services/offline-protection.service';
+import { attackCapWindowStart } from '@core/server/services/round-rollover.service';
+import { listActivatedHumanPlayerIds } from '@core/lib/db/admin-analytics-db';
+import { isAdminSchemaReady } from '@core/lib/db/admin-schema-readiness';
+import { isHumanPlayer, isVisibleSeasonParticipant } from '@core/lib/game-engine/human-player';
+import {
+  recordPostGameplayAnalytics,
+  GAMEPLAY_ANALYTICS_EVENTS,
+} from '@local/server/services/gameplay-analytics-hook';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
+import { identityViewFromPlayer } from '@core/lib/game-engine/player-identity-fields';
 import { revalidatePath } from 'next/cache';
 import { revalidatePlayersGameplayCache } from '@local/server/services/gameplay-cache';
 import {
@@ -107,7 +117,12 @@ function buildLaunchResultFromEncounter(
     encounterId: encounter.id,
     attackType: encounter.attackType as AttackType,
     outcome: encounter.outcome,
-    outcomeLabel: encounter.outcome,
+    outcomeLabel: resolveCombatOutcomeLabel({
+      attackType: encounter.attackType as AttackType,
+      outcome: encounter.outcome,
+      outcomeLabel: encounter.outcome,
+      workersStolen: encounter.workersStolen ?? 0,
+    }),
     attackingThugs: encounter.attackingThugs,
     attackerLosses: encounter.attackerLosses,
     defenderLosses: encounter.defenderLosses,
@@ -323,8 +338,32 @@ async function finalizeAttackLaunchInner(
 
   const attackerUpdated = await prisma.player.findUniqueOrThrow({
     where: { id: attackerId },
-    include: { district: true, turnState: true },
+    include: { district: true, turnState: true, user: { select: { email: true } } },
   });
+  const defenderUser = await prisma.user.findUnique({
+    where: { id: defender.userId },
+    select: { email: true },
+  });
+  const humanTarget = isHumanPlayer({
+    isSystemPlayer: defender.isSystemPlayer,
+    email: defenderUser?.email,
+  });
+  await recordPostGameplayAnalytics(
+    { ...attackerUpdated, seasonId: attackerUpdated.seasonId },
+    GAMEPLAY_ANALYTICS_EVENTS.ATTACK_COMPLETED,
+    {
+      attackType,
+      outcome: result.data.outcome,
+      turnsSpent: result.data.turnsSpent,
+      attackingThugs: result.data.attackingThugs,
+      attackerLosses: result.data.attackerLosses,
+      defenderLosses: result.data.defenderLosses,
+      humanTarget,
+      cashStolen: result.data.cashStolen,
+      workersStolen: result.data.workersStolen,
+    },
+  );
+
   const shell = await finalizeLocalMutationShell(
     attackerId,
     attackerUpdated,
@@ -520,10 +559,14 @@ export async function getAttackPageData(
   });
 
   const attackerNw = ctx.netWorth;
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const capSince = attackCapWindowStart(ctx.season.startsAt);
+  const activatedHumanIds =
+    (await isAdminSchemaReady())
+      ? new Set(await listActivatedHumanPlayerIds(ctx.seasonId))
+      : null;
 
   const districtFilter = defaultRankingsFilterForDistrict(ctx.district.slug);
-  const [districtRankings, candidates, intelBundle] = await Promise.all([
+  const [districtRankings, rawCandidates, intelBundle] = await Promise.all([
     RankingsService.getSeasonRankings(ctx.seasonId, districtFilter),
     prisma.player.findMany({
       where: {
@@ -534,12 +577,18 @@ export async function getAttackPageData(
       },
       include: {
         district: true,
-        user: { select: { lastLoginAt: true } },
+        user: { select: { lastLoginAt: true, email: true } },
         statusExt: true,
       },
     }),
     ReportService.listScoutTargetIntelReports(ctx.id),
   ]);
+  const candidates = rawCandidates.filter((player) =>
+    isVisibleSeasonParticipant(
+      { id: player.id, isSystemPlayer: player.isSystemPlayer, email: player.user.email },
+      activatedHumanIds,
+    ),
+  );
   const intelReports = intelBundle.basicIntelReports;
   const deepIntelReports = intelBundle.deepIntelReports;
 
@@ -561,7 +610,7 @@ export async function getAttackPageData(
           where: {
             attackerId: ctx.id,
             defenderId: { in: candidateIds },
-            createdAt: { gte: since24h },
+            createdAt: { gte: capSince },
           },
           _count: { _all: true },
         })
@@ -627,6 +676,7 @@ export async function getAttackPageData(
       alias: player.alias,
       aliasNormalized: player.aliasNormalized,
       avatarId: resolvePlayerAvatarId(player.avatar),
+      identity: identityViewFromPlayer(player),
       rank: rankById.get(player.id) ?? 0,
       netWorth: targetNw,
       online,
@@ -731,6 +781,7 @@ export async function getAttackPageData(
     staleIntelNotice,
     requestedTargetNotice,
     attackRangeMinNetWorth: minAttackTargetNetWorth(attackerNw),
+    attackRangeMaxNetWorth: maxAttackTargetNetWorth(attackerNw),
     intelTurnCost: ATTACK_RULES.intelGatherTurnCost,
     deepIntelTurnCost: ATTACK_RULES.deepIntelTurnCost,
     viewerCity: ctx.district.name,

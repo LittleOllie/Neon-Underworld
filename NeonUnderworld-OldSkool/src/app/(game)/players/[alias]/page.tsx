@@ -70,10 +70,11 @@ export default async function PlayerProfilePage({ params }: Props) {
   return (
     <>
       <div className="g-profile-header">
-        <PlayerAvatar avatarId={profile.avatarId} alt={profile.alias} size="xl" priority />
+        <PlayerAvatar identity={profile.identity} alt={profile.alias} size="xl" shape="square" priority />
         <PageTitle icon="player">{profile.alias}</PageTitle>
       </div>
 
+      <div className="g-gameplay-controls g-intel-chrome">
       <StatRow label={OS_TERMS.districtRank} value={formatRank(profile.rank)} />
       <StatRow label={OS_TERMS.netWorth} value={`$${profile.netWorth.toLocaleString()}`} />
       <StatRow label={OS_TERMS.city} value={profile.city} />
@@ -108,6 +109,7 @@ export default async function PlayerProfilePage({ params }: Props) {
       <p className="g-note">
         <Link href="/rankings">Rankings</Link>
       </p>
+      </div>
     </>
   );
 }

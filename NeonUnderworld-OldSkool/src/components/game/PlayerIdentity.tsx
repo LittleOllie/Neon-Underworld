@@ -1,10 +1,9 @@
 import Link from 'next/link';
-import { PlayerAvatar, type PlayerAvatarSize } from './PlayerAvatar';
+import { PlayerAvatar, type PlayerIdentityView, type PlayerAvatarSize } from './PlayerAvatar';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
 
-export interface PlayerIdentityData {
+export interface PlayerIdentityData extends PlayerIdentityView {
   alias: string;
-  avatarId?: string | null;
   aliasNormalized?: string;
   cartelTag?: string | null;
   netWorth?: number;
@@ -66,9 +65,9 @@ export function PlayerIdentity({
   return (
     <span
       className={['g-player-identity', className ?? ''].filter(Boolean).join(' ')}
-      data-avatar-id={resolvePlayerAvatarId(player.avatarId)}
+      data-avatar-id={player.avatarSource === 'UPLOAD' ? 'upload' : resolvePlayerAvatarId(player.avatar)}
     >
-      <PlayerAvatar avatarId={player.avatarId} alt={player.alias} size={avatarSize} shape={shape} />
+      <PlayerAvatar identity={player} alt={player.alias} size={avatarSize} shape={shape} />
       <span className="g-player-identity__text">
         {!isStatic && resolvedHref ? (
           <Link href={resolvedHref} className="g-player-identity__link">

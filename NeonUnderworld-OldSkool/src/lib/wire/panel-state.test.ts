@@ -19,7 +19,7 @@ describe('resolveWirePanelPhase', () => {
     const phase = resolveWirePanelPhase("what's my cash", parsed, baseStats);
     expect(phase.phase).toBe('stat');
     if (phase.phase === 'stat') {
-      expect(phase.label).toBe('STREET CASH');
+      expect(phase.label).toBe('CASH');
       expect(phase.value).toBe('$1,000,000');
     }
   });

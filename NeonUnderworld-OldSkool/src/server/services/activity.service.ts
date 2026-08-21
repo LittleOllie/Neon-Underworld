@@ -6,6 +6,7 @@ import {
   normalizeActivityCategory,
   type ActivityType,
 } from '@local/config/activity-types';
+import { enforcersLabel, specialistsLabel } from '@local/config/terminology';
 
 export class ActivityFeedError extends Error {
   constructor(message: string, cause?: unknown) {
@@ -109,7 +110,7 @@ export const ActivityService = {
       data: scouts.map((s) => ({
         playerId,
         category: ACTIVITY_TYPES.SCOUT,
-        message: `Scouted ${s.district.name}: +${s.prostitutesFound} workers, +${s.thugsFound} thugs, +$${s.cashEarned.toLocaleString()}`,
+        message: `Scouted ${s.district.name}: +${s.prostitutesFound} ${specialistsLabel(s.prostitutesFound).toLowerCase()}, +${s.thugsFound} ${enforcersLabel(s.thugsFound).toLowerCase()}, +$${s.cashEarned.toLocaleString()}`,
         metadata: { scoutResultId: s.id },
       })),
     });

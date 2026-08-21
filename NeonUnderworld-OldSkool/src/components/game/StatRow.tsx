@@ -11,7 +11,7 @@ export function StatRow({
 }) {
   return (
     <div className="g-row">
-      <span className="g-label">{label}</span>
+      <span className="g-row-label">{label}</span>
       {valueTone === 'inherit' ? (
         <span className="g-row-value">{value}</span>
       ) : (

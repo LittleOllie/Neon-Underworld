@@ -9,6 +9,7 @@
  * Production: invoke explicitly only when needed (does not run automatically).
  */
 import { PrismaClient } from '@prisma/client';
+import { PlayerAvatarSource } from '@prisma/client';
 import {
   assignNpcAvatar,
   isNpcManagedAccount,
@@ -65,7 +66,10 @@ export async function backfillNpcAvatars(options?: { dryRun?: boolean }) {
     if (!dryRun) {
       await prisma.player.update({
         where: { id: player.id },
-        data: { avatar: nextAvatar },
+        data: {
+          avatar: nextAvatar,
+          avatarSource: PlayerAvatarSource.CHARACTER,
+        },
       });
     }
 

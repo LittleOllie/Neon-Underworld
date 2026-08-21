@@ -104,7 +104,7 @@ test.describe('Session persistence — cookie survives BootScreen', () => {
 });
 
 test.describe('BootScreen loading race — delayed session', () => {
-  test('delayed /api/auth/session does not route to /login while loading', async ({ page }) => {
+  test('delayed /api/auth/session keeps Enter hidden on game routes until ready', async ({ page }) => {
     let releaseSession: (() => void) | null = null;
     const sessionGate = new Promise<void>((resolve) => {
       releaseSession = resolve;
@@ -115,13 +115,16 @@ test.describe('BootScreen loading race — delayed session', () => {
       await route.continue();
     });
 
-    await page.goto('/login');
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.evaluate(() => sessionStorage.removeItem('nu-boot-dismissed'));
+    await page.goto('/command');
+
     await expect(page.locator('.nu-boot')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('CONNECTING TO THE NETWORK…')).toBeVisible();
     await expect(page.locator('.nu-boot__enter')).toHaveCount(0);
 
     await page.waitForTimeout(1500);
-    await expect(page).not.toHaveURL(/\/login\?/);
+    await expect(page).toHaveURL(/\/command/);
     await expect(page.locator('.nu-boot__enter')).toHaveCount(0);
 
     releaseSession?.();

@@ -8,7 +8,12 @@ import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import {
+  recordPostGameplayAnalytics,
+  GAMEPLAY_ANALYTICS_EVENTS,
+} from '@local/server/services/gameplay-analytics-hook';
 import type { WithPlayerShell } from '@local/domain/player-shell.model';
+import { resourceLabel } from '@local/config/terminology';
 import type { ProductionDrug } from '@core/lib/game-engine/production';
 
 export type { ProduceResultData };
@@ -32,7 +37,7 @@ export async function produceAction(
   await EmpireService.syncInventory(playerId);
   const updated = await prisma.player.findUniqueOrThrow({
     where: { id: playerId },
-    include: { district: true, turnState: true },
+    include: { district: true, turnState: true, season: { select: { startsAt: true, endsAt: true } } },
   });
   const shell = await finalizeLocalMutationShell(playerId, updated, ['/produce', '/command'], {
     turns: result.data.newTurns,
@@ -42,9 +47,14 @@ export async function produceAction(
   await ActivityService.record(
     playerId,
     ACTIVITY_TYPES.PRODUCTION,
-    `Production complete: +${result.data.drugUnitsProduced} ${result.data.drugType}, +$${result.data.cashEarned.toLocaleString()} cash.`,
+    `Operations complete: +${result.data.drugUnitsProduced} ${resourceLabel(result.data.drugType as ProductionDrug)}, +$${result.data.cashEarned.toLocaleString()} cash.`,
     { production: result.data },
   );
+
+  await recordPostGameplayAnalytics(updated, GAMEPLAY_ANALYTICS_EVENTS.PRODUCE_COMPLETED, {
+    turns,
+    drugType,
+  });
 
   return {
     success: true,

@@ -10,15 +10,18 @@ import {
   settleTurnRegeneration,
 } from '@/lib/game-engine/turns';
 import { buildPlayerIntelSnapshot, deriveIntelSeed } from '@/lib/game-engine/combat/build-intel-snapshot';
-import type { PlayerIntelSnapshot } from '@/lib/game-engine/combat/eligibility';
+import {
+  attackRangeErrorMessage,
+  type PlayerIntelSnapshot,
+} from '@/lib/game-engine/combat/eligibility';
 import { isWithinAttackRange } from '@/config/game/redlite-rules';
 import {
   calculatePlayerCanonicalNetWorthWithBusinesses,
   loadBusinessNwRowsInTx,
 } from '@/lib/game-engine/business/net-worth';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
-import { GameplayError, GAMEPLAY_CONTEXT_MESSAGES, toUserMessage } from '@/lib/game-engine/gameplay-errors';
+import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import type { ActionResult } from './auth.actions';
 
 export interface ScoutTargetResultData {
@@ -56,7 +59,7 @@ export async function scoutTargetAction(
         include: { turnState: true, season: true },
       });
       if (!scout.turnState) throw new Error('Turn state missing');
-      if (scout.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(scout.season);
       assertPlayerCanPerformAction(scout);
 
       const target = await tx.player.findFirst({
@@ -84,7 +87,7 @@ export async function scoutTargetAction(
       if (!isWithinAttackRange(attackerNw, targetNw)) {
         throw new GameplayError(
           'TARGET_OUT_OF_RANGE',
-          GAMEPLAY_CONTEXT_MESSAGES.intelTargetOutOfRange,
+          attackRangeErrorMessage(attackerNw, targetNw, 'intel'),
         );
       }
 

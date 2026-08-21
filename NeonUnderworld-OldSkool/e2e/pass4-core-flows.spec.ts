@@ -6,7 +6,7 @@ import {
   headerCashLocator,
   headerTurnsLocator,
   headerPlayerLine,
-  catalogBuyButton,
+  purchaseViaSupplyOrder,
   ensureTravelRides,
   parseMoney,
   parseTurnsUsed,
@@ -30,10 +30,7 @@ test.describe('Pass 4 — core gameplay flows', () => {
     await gotoGame(page, '/shop');
 
     const cashBefore = parseMoney(await headerCashLocator(page).textContent());
-    await catalogBuyButton(page).click();
-    await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({
-      timeout: 15_000,
-    });
+    await purchaseViaSupplyOrder(page, { tab: 'Supplies', itemLabel: /Quantity of Rations/i, quantity: '1' });
 
     const cashAfter = parseMoney(await headerCashLocator(page).textContent());
     expect(cashAfter).toBeLessThan(cashBefore);
@@ -43,29 +40,25 @@ test.describe('Pass 4 — core gameplay flows', () => {
   test('rapid buy clicks do not overspend (pending guard)', async ({ page }) => {
     await login(page);
     await gotoGame(page, '/shop');
+    await page.getByRole('button', { name: 'Supplies' }).click();
 
     const cashBefore = parseMoney(await headerCashLocator(page).textContent());
-    const buyBtn = catalogBuyButton(page);
-    const totalText = await page.locator('.g-shop-controls .g-shop-total').first().textContent();
-    const unitCost = parseMoney(totalText?.match(/\$([\d,]+)/)?.[0] ?? '0');
-
-    await buyBtn.click({ clickCount: 2, delay: 0 });
+    await page.getByLabel(/Quantity of Rations/i).fill('1');
+    const lineTotal = parseMoney(
+      (await page.locator('.g-shop-controls .g-shop-total').first().textContent())?.match(/\$([\d,]+)/)?.[0] ??
+        '0',
+    );
+    await page.locator('.g-shop-controls').getByRole('button', { name: 'Add to order' }).first().click();
+    await page.getByRole('button', { name: 'Review' }).click();
+    const checkoutBtn = page.getByRole('button', { name: 'BUY EVERYTHING' });
+    await checkoutBtn.click({ clickCount: 2, delay: 0 });
     await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({
       timeout: 15_000,
     });
 
     const cashAfterOne = parseMoney(await headerCashLocator(page).textContent());
     expect(cashAfterOne).toBeLessThan(cashBefore);
-    expect(cashBefore - cashAfterOne).toBe(unitCost);
-
-    await page.getByRole('button', { name: 'Shop Again', exact: true }).click();
-    const cashBeforeSecond = parseMoney(await headerCashLocator(page).textContent());
-    await catalogBuyButton(page).click();
-    await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({
-      timeout: 15_000,
-    });
-    const cashAfterTwo = parseMoney(await headerCashLocator(page).textContent());
-    expect(cashBeforeSecond - cashAfterTwo).toBeGreaterThan(0);
+    expect(cashBefore - cashAfterOne).toBe(lineTotal);
     await assertNoStuckLoading(page);
   });
 
@@ -74,9 +67,9 @@ test.describe('Pass 4 — core gameplay flows', () => {
     await gotoGame(page, '/produce');
 
     const turnsBefore = parseTurnsUsed(await headerTurnsLocator(page).textContent());
-    await page.getByLabel('Turns to produce').fill('3');
-    await page.getByRole('button', { name: 'Produce', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Production Complete' })).toBeVisible({
+    await page.getByLabel('Turns to run').fill('3');
+    await page.getByRole('button', { name: /^Run .+ · \d[\d,]* turns?$/ }).click();
+    await expect(page.getByRole('heading', { name: 'Operations Complete' })).toBeVisible({
       timeout: 15_000,
     });
 

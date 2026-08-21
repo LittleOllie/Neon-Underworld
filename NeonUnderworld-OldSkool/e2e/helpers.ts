@@ -39,16 +39,11 @@ export function parseTurnsUsed(text: string | null): number {
 
 /** Grant playtest turns when the dev account is depleted (E2E stability). */
 export async function ensureMinTurns(page: Page, minimum = 100) {
-  await dismissBootScreen(page);
+  await ensureGameReady(page);
   const current = parseTurnsUsed(await headerTurnsLocator(page).textContent());
   if (current >= minimum) return;
 
-  await page.goto('/playtest/turns');
-  const boot = page.locator('.nu-boot');
-  if (await boot.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await page.locator('.nu-boot__enter').click({ force: true });
-    await boot.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
-  }
+  await gotoPath(page, '/playtest/turns');
 
   const grantBtn = page.getByRole('button', { name: '+500 turns' });
   if (!(await grantBtn.isVisible({ timeout: 5000 }).catch(() => false))) return;
@@ -61,9 +56,32 @@ export async function ensureMinTurns(page: Page, minimum = 100) {
   expect(after).toBeGreaterThanOrEqual(minimum);
 }
 
-/** Buy button on a shop catalog row (not the Buy/Sell mode toggle). */
+/** Buy button on a shop catalog row (legacy — prefer purchaseViaSupplyOrder). */
 export function catalogBuyButton(page: Page, index = 0) {
-  return page.locator('.g-shop-controls').getByRole('button', { name: 'Buy', exact: true }).nth(index);
+  return page.locator('.g-shop-controls').getByRole('button', { name: 'Buy now', exact: true }).nth(index);
+}
+
+/** Add first affordable catalog line to supply order, review, and checkout. */
+export async function purchaseViaSupplyOrder(
+  page: Page,
+  options?: { tab?: string; itemLabel?: RegExp | string; quantity?: string },
+) {
+  await ensureGameReady(page);
+  if (options?.tab) {
+    await page.getByRole('button', { name: options.tab }).click();
+  }
+  const qtyField = options?.itemLabel
+    ? page.getByLabel(options.itemLabel)
+    : page.getByLabel(/Quantity of/i).first();
+  if (options?.quantity) {
+    await qtyField.fill(options.quantity);
+  }
+  await page.locator('.g-shop-controls').getByRole('button', { name: 'Add to order' }).first().click();
+  await page.getByRole('button', { name: 'Review' }).click();
+  await page.getByRole('button', { name: 'BUY EVERYTHING' }).click();
+  await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 /** Buy enough rides on the Vehicles tab so travel is unblocked. */
@@ -77,16 +95,12 @@ export async function ensureTravelRides(page: Page) {
 
   await gotoGame(page, '/shop');
   await page.getByRole('button', { name: 'Vehicles' }).click();
-  await page.getByLabel(/Quantity of Ride/i).fill(String(needed));
-  await catalogBuyButton(page).click();
-  await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({
-    timeout: 15_000,
-  });
+  await purchaseViaSupplyOrder(page, { itemLabel: /Quantity of Ride/i, quantity: String(needed) });
   await page.getByRole('button', { name: 'Shop Again', exact: true }).click();
 }
 
 export async function assertNoStuckLoading(page: Page) {
-  await expect(page.locator('.nu-boot')).toHaveCount(0);
+  await ensureGameReady(page);
   await expect(page.locator('.g-travel-overlay')).toHaveCount(0);
   await expect(page.locator('.g-route-loading')).toHaveCount(0);
 }
@@ -103,7 +117,7 @@ const PRIMARY_NAV: Record<string, string> = {
   '/command': 'Home',
   '/empire': 'Empire',
   '/scout': 'Scout',
-  '/produce': 'Produce',
+  '/produce': 'Operations',
   '/shop': 'Shop',
 };
 
@@ -112,56 +126,93 @@ const MORE_NAV: Record<string, string> = {
   '/market': 'Market',
   '/travel': 'Travel',
   '/businesses': 'Businesses',
-  '/cartels': 'Cartels',
+  '/cartels': 'Factions',
   '/rankings': 'Rankings',
   '/reports': 'Reports',
   '/settings': 'Settings',
 };
 
-/** Dismiss intro screen — clicks the boot overlay primary action when visible. */
+/** Dismiss intro screen — waits for boot ready, clicks Enter, waits for overlay gone. */
 export async function dismissBootScreen(page: Page) {
   const boot = page.locator('.nu-boot');
-  if (!(await boot.count())) return;
-
-  try {
-    await boot.waitFor({ state: 'visible', timeout: 5_000 });
-  } catch {
-    return;
-  }
+  if ((await boot.count()) === 0) return;
+  if (!(await boot.isVisible().catch(() => false))) return;
 
   const enter = boot.locator('.nu-boot__enter');
   try {
-    await Promise.race([
-      enter.waitFor({ state: 'visible', timeout: 45_000 }),
-      boot.waitFor({ state: 'hidden', timeout: 45_000 }),
-    ]);
+    await enter.waitFor({ state: 'visible', timeout: 45_000 });
+    await enter.click({ timeout: 10_000 });
   } catch {
+    if (!(await boot.isVisible().catch(() => false))) return;
+    await boot.waitFor({ state: 'hidden', timeout: 45_000 }).catch(() => {});
     return;
   }
 
-  if (await enter.isVisible().catch(() => false)) {
-    await enter.click();
-  }
-  await boot.waitFor({ state: 'hidden', timeout: 20_000 }).catch(async () => {
-    await boot.waitFor({ state: 'detached', timeout: 20_000 });
+  await boot.waitFor({ state: 'hidden', timeout: 25_000 }).catch(async () => {
+    await boot.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {});
   });
+
+  await page.evaluate(() => {
+    try {
+      sessionStorage.setItem('nu-boot-dismissed', '1');
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+/** Boot overlay dismissed and dev tooling out of the way — call before gameplay clicks. */
+export async function ensureGameReady(page: Page) {
+  await dismissBootScreen(page);
+  await dismissDevOverlay(page);
+  const boot = page.locator('.nu-boot');
+  if ((await boot.count()) > 0) {
+    await expect(boot).toBeHidden({ timeout: 20_000 });
+  }
 }
 
 /**
  * Canonical hard navigation: load route, dismiss boot overlay, wait for URL, ensure overlay gone.
  * Use for deep links and post-reload navigation in E2E.
  */
-export async function gotoPath(page: Page, path: string) {
+export async function gotoPath(page: Page, path: string, options?: { allowRedirect?: boolean }) {
   const base =
     page.url().startsWith('http') ? page.url() : `http://127.0.0.1:${process.env.PW_TEST_PORT ?? '3310'}`;
   const target = new URL(path, base);
+  // Hard reloads remount boot — preserve per-tab dismissal for authenticated gameplay flows.
+  await page.evaluate(() => {
+    try {
+      if (sessionStorage.getItem('nu-boot-dismissed') === '1') return;
+      const path = window.location.pathname;
+      const gameRoute =
+        path.startsWith('/command') ||
+        path.startsWith('/empire') ||
+        path.startsWith('/scout') ||
+        path.startsWith('/produce') ||
+        path.startsWith('/shop') ||
+        path.startsWith('/attack') ||
+        path.startsWith('/market') ||
+        path.startsWith('/travel') ||
+        path.startsWith('/businesses') ||
+        path.startsWith('/cartels') ||
+        path.startsWith('/rankings') ||
+        path.startsWith('/reports') ||
+        path.startsWith('/settings');
+      if (gameRoute) {
+        sessionStorage.setItem('nu-boot-dismissed', '1');
+      }
+    } catch {
+      /* ignore */
+    }
+  });
   await page.goto(`${target.pathname}${target.search}`);
-  await dismissBootScreen(page);
-  await page.waitForURL(
-    new RegExp(`${target.pathname.replace(/\//g, '\\/')}(\\?|$)`),
-    { timeout: 15_000 },
-  );
-  await expect(page.locator('.nu-boot')).toBeHidden({ timeout: 20_000 }).catch(() => {});
+  if (!options?.allowRedirect) {
+    await page.waitForURL(
+      new RegExp(`${target.pathname.replace(/\//g, '\\/')}(\\?|$)`),
+      { timeout: 15_000 },
+    );
+  }
+  await ensureGameReady(page);
 }
 
 /** @deprecated Use dismissBootScreen */
@@ -170,7 +221,7 @@ export async function waitForBootScreen(page: Page) {
 }
 
 async function clickNavLink(page: Page, label: string) {
-  await dismissBootScreen(page);
+  await ensureGameReady(page);
   const nav = page.getByRole('navigation');
   const primary = nav.getByRole('link', { name: label, exact: true });
   if (await primary.first().isVisible().catch(() => false)) {
@@ -201,6 +252,7 @@ export async function gotoGame(page: Page, path: string) {
     if (target.search && !page.url().includes(target.search.slice(1))) {
       await gotoPath(page, `${target.pathname}${target.search}`);
     }
+    await ensureGameReady(page);
     return;
   }
 
@@ -208,20 +260,31 @@ export async function gotoGame(page: Page, path: string) {
 }
 
 export async function loginAs(page: Page, email: string, password: string) {
-  await page.goto('/login');
-  await dismissBootScreen(page);
+  await gotoPath(page, '/login');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: /^Sign in$/i }).click();
   await expect(page).toHaveURL(/\/command/, { timeout: 15_000 });
   await dismissBootScreen(page);
+  await page.evaluate(() => {
+    try {
+      sessionStorage.setItem('nu-boot-dismissed', '1');
+    } catch {
+      /* ignore */
+    }
+  });
+  await dismissDevOverlay(page);
+  const boot = page.locator('.nu-boot');
+  if ((await boot.count()) > 0) {
+    await expect(boot).toBeHidden({ timeout: 20_000 });
+  }
 }
 
 export async function login(page: Page) {
   await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 }
 
-/** Empire accordion section by exact title (WORKERS, THUGS, etc.). */
+/** Empire accordion section by exact title (SPECIALISTS, ENFORCERS, etc.). */
 export function empireSection(page: Page, title: string) {
   return page.locator('details.g-empire-section').filter({
     has: page.locator('.g-business-section-title', { hasText: new RegExp(`^${title}$`) }),

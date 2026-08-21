@@ -25,8 +25,8 @@ import { getBusinessDrugProductionBonus } from '@/config/game/business-rules';
 import { workerCashBreakdown } from '@/lib/game-engine/worker-economics';
 import {
   InvalidScoutAmountError,
-  SeasonInactiveError,
 } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { CartelService } from '@/server/services/cartel.service';
@@ -92,7 +92,7 @@ export async function produceAction(
         include: { turnState: true, season: true },
       });
 
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
       if (player.thugs < 1) throw new GameplayError('INVALID_FORCE', 'You need thugs to produce.');
       if (!player.turnState) throw new Error('Turn state not found');

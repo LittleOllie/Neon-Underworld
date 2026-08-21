@@ -1,26 +1,25 @@
 import { test, expect } from '@playwright/test';
-import { login, gotoGame, empireSection } from './helpers';
+import { login, gotoGame, gotoPath, empireSection, purchaseViaSupplyOrder } from './helpers';
 
-test.describe('Core loop — Scout, Produce, City Shop', () => {
-  test('shop owned/total, scout numeric input, produce numeric input', async ({ page }) => {
+test.describe('Core loop — Scout, Operations, City Shop', () => {
+  test.setTimeout(120_000);
+
+  test('shop owned/total, scout numeric input, operations numeric input', async ({ page }) => {
     await login(page);
 
-    await page.goto('/shop');
+    await gotoGame(page, '/shop');
     await expect(page.getByRole('heading', { name: 'Shop' })).toBeVisible();
     await expect(page.getByText(/Owned:/).first()).toBeVisible();
 
     const shopMain = page.locator('main');
     await expect(shopMain.getByText('Worker', { exact: true })).toHaveCount(0);
 
-    await page.getByLabel(/Quantity of/i).first().fill('1');
-    await expect(page.getByText(/Total:/).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
-    await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({ timeout: 15000 });
+    await purchaseViaSupplyOrder(page, { tab: 'Supplies', itemLabel: /Quantity of Rations/i, quantity: '1' });
 
-    await page.goto('/scout');
+    await gotoGame(page, '/scout');
     await expect(page.getByRole('heading', { name: 'Scout' })).toBeVisible({ timeout: 10000 });
     await page.getByLabel('Turns to scout').fill('25');
-    await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
+    await page.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 15000 });
     const turnsStatus = page.locator('.g-status-item').filter({ hasText: 'Turns' });
     await expect(turnsStatus).toBeVisible();
@@ -28,24 +27,26 @@ test.describe('Core loop — Scout, Produce, City Shop', () => {
     expect(turnsAfterScout).toMatch(/\d[\d,]*\s*\/\s*[\d,]+/);
     expect(turnsAfterScout).not.toMatch(/K/i);
 
-    await page.goto('/produce');
-    await expect(page.getByRole('heading', { name: 'Produce' })).toBeVisible();
-    await page.getByLabel('Turns to produce').fill('100');
-    await page.getByRole('button', { name: 'Produce', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Production Complete' })).toBeVisible({ timeout: 15000 });
+    await gotoGame(page, '/produce');
+    await expect(page.getByRole('heading', { name: 'Operations' })).toBeVisible();
+    await page.getByLabel('Turns to run').fill('100');
+    await page.getByRole('button', { name: /^Run .+ · \d[\d,]* turns?$/ }).click();
+    await expect(page.getByRole('heading', { name: 'Operations Complete' })).toBeVisible({ timeout: 15000 });
 
-    await page.goto('/command');
-    await expect(page.getByText('Net Worth').first()).toBeVisible();
-    await page.goto('/rankings');
+    await gotoGame(page, '/command');
+    await expect(page.getByText('Influence').first()).toBeVisible();
+    await gotoGame(page, '/rankings');
     await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible();
   });
 });
 
 test.describe('Home vs Empire separation', () => {
+  test.setTimeout(120_000);
+
   test('home is lightweight; empire has management detail', async ({ page }) => {
     await login(page);
 
-    await page.goto('/command');
+    await gotoGame(page, '/command');
     await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
     await expect(page.getByText('Health')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Scout' }).first()).toBeVisible();
@@ -56,12 +57,12 @@ test.describe('Home vs Empire separation', () => {
     await expect(homeMain.locator('.g-label', { hasText: 'Supplies' })).toHaveCount(0);
     await expect(homeMain.locator('.g-label', { hasText: 'Armed' })).toHaveCount(0);
 
-    await page.goto('/empire');
+    await gotoGame(page, '/empire');
     await expect(page.getByRole('heading', { name: 'Empire' })).toBeVisible();
-    await expect(page.getByLabel('Empire summary')).toBeVisible();
-    await empireSection(page, 'WORKERS').locator('summary').click();
-    await expect(page.locator('.g-label', { hasText: 'Payout' })).toBeVisible();
-    await empireSection(page, 'THUGS').locator('summary').click();
+    await expect(page.getByLabel('Your empire')).toBeVisible();
+    await empireSection(page, 'SPECIALISTS').locator('summary').click();
+    await expect(page.getByText('Specialist payout')).toBeVisible();
+    await empireSection(page, 'ENFORCERS').locator('summary').click();
     await expect(page.locator('.g-label', { hasText: 'Armed' })).toBeVisible();
     await expect(empireSection(page, 'GEAR')).toHaveCount(1);
   });

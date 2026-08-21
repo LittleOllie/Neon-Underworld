@@ -37,10 +37,10 @@ async function rankingsYouRank(page: import('@playwright/test').Page): Promise<n
 
 async function empireDistrictRank(page: import('@playwright/test').Page): Promise<number> {
   await gotoGame(page, '/empire');
-  const summary = page.getByLabel('Empire summary');
-  await expect(summary).toBeVisible();
-  const rankRow = summary.locator('.g-row').filter({ hasText: 'District Rank' });
-  return parseDistrictRank((await rankRow.textContent()) ?? '');
+  const hero = page.getByLabel('Your empire');
+  await expect(hero).toBeVisible();
+  const rankValue = hero.locator('.g-empire-hero__value').nth(1);
+  return parseDistrictRank((await rankValue.textContent()) ?? '');
 }
 
 test.describe('District rank consistency @ 390px', () => {

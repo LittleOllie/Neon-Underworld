@@ -26,10 +26,15 @@ import type { ActionResult } from '@core/server/actions/auth.actions';
 import type { WithPlayerShell } from '@local/domain/player-shell.model';
 import { ActivityService } from '@local/server/services/activity.service';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
+import { OS_TERMS, resourceLabel } from '@local/config/terminology';
 import { EmpireService } from '@local/server/services/empire.service';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import { assertSessionMatchesPlayer } from '@local/lib/auth/session-player';
+import {
+  recordPostGameplayAnalytics,
+  GAMEPLAY_ANALYTICS_EVENTS,
+} from '@local/server/services/gameplay-analytics-hook';
 
 export type { BusinessesPageData };
 
@@ -52,6 +57,8 @@ async function wrapMutation<T extends { canonicalNetWorth: number; newCash: numb
   result: ActionResult<T>,
   activityMessage: string,
   paths: string[],
+  analyticsEvent?: (typeof GAMEPLAY_ANALYTICS_EVENTS)[keyof typeof GAMEPLAY_ANALYTICS_EVENTS],
+  analyticsMetadata?: Record<string, string | number | boolean | null>,
 ): Promise<ActionResult<WithPlayerShell<T>>> {
   if (!result.success) return result;
 
@@ -68,6 +75,10 @@ async function wrapMutation<T extends { canonicalNetWorth: number; newCash: numb
     });
 
     await ActivityService.record(playerId, ACTIVITY_TYPES.BUSINESS, activityMessage);
+
+    if (analyticsEvent) {
+      await recordPostGameplayAnalytics(updated, analyticsEvent, analyticsMetadata);
+    }
 
     return {
       success: true,
@@ -107,6 +118,8 @@ export async function purchaseBusinessAction(
     result,
     `Acquired ${result.data.businessName} for $${result.data.purchasePrice.toLocaleString()}.`,
     ['/businesses', '/empire', '/command'],
+    GAMEPLAY_ANALYTICS_EVENTS.BUSINESS_PURCHASED,
+    { businessType, purchasePrice: result.data.purchasePrice },
   );
 }
 
@@ -123,8 +136,10 @@ export async function assignBusinessWorkersAction(
   return wrapMutation(
     playerId,
     result,
-    `Assigned ${quantity.toLocaleString()} Workers to a business.`,
+    `Assigned ${quantity.toLocaleString()} ${OS_TERMS.specialists} to a business.`,
     ['/businesses', '/empire'],
+    GAMEPLAY_ANALYTICS_EVENTS.BUSINESS_WORKERS_ASSIGNED,
+    { businessId, quantity },
   );
 }
 
@@ -141,8 +156,10 @@ export async function removeBusinessWorkersAction(
   return wrapMutation(
     playerId,
     result,
-    `Removed ${quantity.toLocaleString()} Workers from a business.`,
+    `Removed ${quantity.toLocaleString()} ${OS_TERMS.specialists} from a business.`,
     ['/businesses', '/empire'],
+    GAMEPLAY_ANALYTICS_EVENTS.BUSINESS_WORKERS_REMOVED,
+    { businessId, quantity },
   );
 }
 
@@ -179,7 +196,7 @@ export async function storeBusinessDrugsAction(
   return wrapMutation(
     playerId,
     result,
-    `Stored ${quantity.toLocaleString()} ${drug} in business storage.`,
+    `Stored ${quantity.toLocaleString()} ${resourceLabel(drug as 'hash' | 'shrooms' | 'coke' | 'heroin')} in business storage.`,
     ['/businesses', '/empire'],
   );
 }
@@ -198,7 +215,7 @@ export async function withdrawBusinessDrugsAction(
   return wrapMutation(
     playerId,
     result,
-    `Withdrew ${quantity.toLocaleString()} ${drug} from business storage.`,
+    `Withdrew ${quantity.toLocaleString()} ${resourceLabel(drug as 'hash' | 'shrooms' | 'coke' | 'heroin')} from business storage.`,
     ['/businesses', '/empire'],
   );
 }
@@ -219,6 +236,8 @@ export async function upgradeBusinessAction(
     result,
     `Upgraded business to Level ${result.data.upgradeTargetLevel} (construction started).`,
     ['/businesses', '/empire', '/command'],
+    GAMEPLAY_ANALYTICS_EVENTS.BUSINESS_UPGRADED,
+    { businessId, targetLevel: result.data.upgradeTargetLevel },
   );
 }
 
@@ -235,7 +254,7 @@ export async function assignBusinessSecurityAction(
   return wrapMutation(
     playerId,
     result,
-    `Assigned ${quantity.toLocaleString()} Thugs to business security.`,
+    `Assigned ${quantity.toLocaleString()} ${OS_TERMS.enforcers} to business security.`,
     ['/businesses', '/empire', '/attack', '/produce'],
   );
 }
@@ -253,7 +272,7 @@ export async function removeBusinessSecurityAction(
   return wrapMutation(
     playerId,
     result,
-    `Removed ${quantity.toLocaleString()} Thugs from business security.`,
+    `Removed ${quantity.toLocaleString()} ${OS_TERMS.enforcers} from business security.`,
     ['/businesses', '/empire', '/attack', '/produce'],
   );
 }

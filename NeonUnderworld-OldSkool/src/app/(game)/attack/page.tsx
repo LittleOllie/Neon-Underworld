@@ -21,7 +21,8 @@ export default async function AttackPage({ searchParams }: Props) {
   return (
     <>
       <PageTitle icon="attack">Attack</PageTitle>
-      <AttackForm
+      <div className="g-gameplay-controls g-attack-chrome">
+        <AttackForm
         thugs={data.thugs}
         rides={data.rides}
         glocks={data.glocks}
@@ -34,10 +35,12 @@ export default async function AttackPage({ searchParams }: Props) {
         staleIntelNotice={data.staleIntelNotice}
         requestedTargetNotice={data.requestedTargetNotice}
         attackRangeMinNetWorth={data.attackRangeMinNetWorth}
+        attackRangeMaxNetWorth={data.attackRangeMaxNetWorth}
         intelTurnCost={data.intelTurnCost}
         deepIntelTurnCost={data.deepIntelTurnCost}
         viewerCity={data.viewerCity}
       />
+      </div>
     </>
   );
 }

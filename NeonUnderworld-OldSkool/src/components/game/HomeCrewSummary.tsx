@@ -17,12 +17,12 @@ export function HomeCrewSummary({
       <div className="g-crew-summary__col">
         <p className="g-crew-summary__label">{OS_TERMS.workers}</p>
         <p className="g-crew-summary__count">{workers.toLocaleString()}</p>
-        <StatusBar label="Happiness" percent={workerHappiness} />
+        <StatusBar label="Morale" percent={workerHappiness} />
       </div>
       <div className="g-crew-summary__col">
         <p className="g-crew-summary__label">{OS_TERMS.thugs}</p>
         <p className="g-crew-summary__count">{thugs.toLocaleString()}</p>
-        <StatusBar label="Happiness" percent={thugHappiness} />
+        <StatusBar label="Morale" percent={thugHappiness} />
       </div>
     </section>
   );

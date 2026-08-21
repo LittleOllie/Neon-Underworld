@@ -7,6 +7,7 @@ import { useGameplayReconcile } from '@local/hooks/useGameplayReconcile';
 import { useMutationLock } from '@local/hooks/useMutationLock';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { ATTACK_RULES } from '@core/config/game/attack-rules';
+import { OS_TERMS } from '@local/config/terminology';
 import {
   thugBand,
   weaponStrengthBand,
@@ -96,10 +97,10 @@ function IntelReportStats({ intel }: { intel: PlayerIntelDisplay }) {
     <>
       <p className="g-section-label">INTEL REPORT</p>
       <StatRow label="Intel quality" value={`${intel.bands.confidence}%`} />
-      <StatRow label="Thug presence" value={intel.bands.thugs} />
+      <StatRow label="Enforcer presence" value={intel.bands.thugs} />
       <StatRow label="Weapon coverage" value={intel.bands.weapons} />
       <StatRow label="Cash exposure" value={intel.bands.cash} />
-      <StatRow label="Drug exposure" value={intel.bands.drugs} />
+      <StatRow label="Technology exposure" value={intel.bands.drugs} />
       <p className="g-note">
         <Link href={`/reports/${intel.reportId}`}>View in Reports</Link>
       </p>
@@ -112,21 +113,21 @@ function DeepIntelReportStats({ deepIntel }: { deepIntel: PlayerDeepIntelDisplay
     <>
       <p className="g-section-label">DEEP INTEL</p>
       <StatRow
-        label="Estimated Thugs"
+        label={`Estimated ${OS_TERMS.enforcers}`}
         value={formatCountEstimateRange(deepIntel.estimatedThugMin, deepIntel.estimatedThugMax)}
       />
       <StatRow
-        label="Estimated Workers"
+        label={`Estimated ${OS_TERMS.specialists}`}
         value={formatCountEstimateRange(deepIntel.estimatedWorkerMin, deepIntel.estimatedWorkerMax)}
       />
       <StatRow label="Weapon Readiness" value={deepIntel.weaponReadinessBand} />
       <StatRow label="Workforce Stability" value={deepIntel.workforceStabilityBand} />
       <StatRow label="Protection" value={deepIntel.workforceProtectionBand} />
-      <StatRow label="Poaching Outlook" value={deepIntel.poachingOutlook} />
+      <StatRow label="Extraction Outlook" value={deepIntel.poachingOutlook} />
       <StatRow label="Cash Exposure" value={deepIntel.cashExposureBand} />
-      <StatRow label="Drug Exposure" value={deepIntel.drugExposureBand} />
+      <StatRow label="Technology Exposure" value={deepIntel.drugExposureBand} />
       {deepIntel.cartelPresence && (
-        <StatRow label="Cartel" value={deepIntel.cartelPresence} />
+        <StatRow label={OS_TERMS.faction} value={deepIntel.cartelPresence.replace(/Cartel/gi, OS_TERMS.faction)} />
       )}
       <StatRow label="Intel age" value={formatIntelAge(deepIntel.gatheredAt)} />
       <p className="g-note">
@@ -201,7 +202,7 @@ export function PlayerProfilePanel({
     );
   }
 
-  if (attackEligibility.status === 'below_range') {
+  if (attackEligibility.status === 'below_range' || attackEligibility.status === 'above_range') {
     return (
       <>
         <Divider />

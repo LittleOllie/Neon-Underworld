@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { EmpireSimpleView } from './EmpireSimpleView';
 import type { EmpireManagementData } from '@local/domain/empire.model';
 import { buildEmpireStatusMeters } from '@local/server/domain/status-presentation';
+import { buildPreferredCrewSupplies } from '@local/server/domain/empire-calculations';
+import { OS_TERMS } from '@local/config/terminology';
 
 vi.mock('next/link', () => ({
   default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
@@ -75,9 +77,9 @@ function buildMockData(): EmpireManagementData {
       surplusWeapons: 0,
       shortage: 0,
       byType: [
-        { key: 'glocks', name: 'Glocks', quantity: 112, combatValue: 1 },
-        { key: 'uzis', name: 'Uzis', quantity: 50, combatValue: 1 },
-        { key: 'aks', name: 'AKs', quantity: 28, combatValue: 1 },
+        { key: 'glocks', name: OS_TERMS.glocks, quantity: 112, combatValue: 1 },
+        { key: 'uzis', name: OS_TERMS.uzis, quantity: 50, combatValue: 1 },
+        { key: 'aks', name: OS_TERMS.aks, quantity: 28, combatValue: 1 },
       ],
     },
     vehicles: {
@@ -91,10 +93,10 @@ function buildMockData(): EmpireManagementData {
       totalUnits: 4457,
       estimatedValue: 0,
       byType: [
-        { key: 'hash', name: 'Hash', quantity: 4000, valuationEach: 1 },
-        { key: 'shrooms', name: 'Shrooms', quantity: 457, valuationEach: 1 },
-        { key: 'coke', name: 'Coke', quantity: 0, valuationEach: 1 },
-        { key: 'heroin', name: 'Heroin', quantity: 0, valuationEach: 1 },
+        { key: 'hash', name: OS_TERMS.hash, quantity: 4000, valuationEach: 1 },
+        { key: 'shrooms', name: OS_TERMS.shrooms, quantity: 457, valuationEach: 1 },
+        { key: 'coke', name: OS_TERMS.coke, quantity: 0, valuationEach: 1 },
+        { key: 'heroin', name: OS_TERMS.heroin, quantity: 0, valuationEach: 1 },
       ],
     },
     businesses: {
@@ -137,38 +139,78 @@ function buildMockData(): EmpireManagementData {
       },
     },
     supplySummary: {
-      workers: { status: 'Stable', hash: 'Adequate', condoms: 'Low', protection: 'Adequate', payout: '21%' },
+      workers: { status: 'Stable', kits: 'Low', protection: 'Adequate', payout: '21%' },
       thugs: { status: 'Stable', weapons: 'Adequate', beer: 'Adequate', armed: '750 / 800' },
     },
+    preferredSupplies: buildPreferredCrewSupplies(inventory),
     statusMeters: buildEmpireStatusMeters(inventory),
     recentActivity: [],
   };
 }
 
 describe('EmpireSimpleView accordion layout', () => {
-  it('renders collapsed sections closed by default with informative headers', () => {
+  it('renders empire hero and collapsed sections with informative headers', () => {
     const html = renderToStaticMarkup(<EmpireSimpleView data={buildMockData()} />);
 
-    expect(html).toContain('g-empire-summary');
-    expect(html).toContain('District Rank');
+    expect(html).toContain('g-empire-hero');
+    expect(html).toContain('YOUR EMPIRE');
+    expect(html).toContain('$18.4M');
     expect(html).toContain('#7');
+    expect(html).toContain('OLD QUARTER');
+    expect(html).toContain('2,330');
+    expect(html).toContain('District force');
 
     const sections = html.match(/<details class="g-business-section g-empire-section">/g);
     expect(sections?.length).toBe(5);
 
     expect(html).not.toMatch(/<details[^>]*open=/);
-    expect(html).toContain('1,465 TOTAL');
-    expect(html).toContain('865 TOTAL');
-    expect(html).toContain('4,457 STREET UNITS');
-    expect(html).toContain('190 WEAPONS · 78 RIDES');
-    expect(html).toContain('2 OWNED');
+    expect(html).toContain('g-empire-section-count');
+    expect(html).toContain('g-empire-section-count__value');
+    expect(html).toContain('1,465');
+    expect(html).toContain(`>${OS_TERMS.workers.toUpperCase()}<`);
+    expect(html).toContain('865');
+    expect(html).toContain(`>${OS_TERMS.thugs.toUpperCase()}<`);
+    expect(html).toContain('4,457');
+    expect(html).toContain('>TECH UNITS<');
+    expect(html).toContain('190');
+    expect(html).toContain('>WEAPONS<');
+    expect(html).toContain('78 RIDES');
+    expect(html).toContain('>2<');
+    expect(html).toContain('>OWNED<');
+    expect(html).toContain('Workforce');
+    expect(html).toContain('Muscle');
+    expect(html).not.toContain('1,200 Active · 265 Business');
+    expect(html).toContain('g-empire-supply-bar');
+    expect(html).toContain('8 in stock');
+    expect(html).toContain('/shop?tab=supplies&amp;item=condom');
+    expect(html).toContain('/shop?tab=supplies&amp;item=beer');
+    expect(html).toContain('Components');
+    expect(html).toContain('Sidearms');
   });
 
-  it('places payout inside Workers and removes standalone payout section', () => {
+  it('places payout inside Workers with compact panel styling', () => {
     const html = renderToStaticMarkup(<EmpireSimpleView data={buildMockData()} />);
 
     expect(html).toContain('PayoutForm 21%');
+    expect(html).toContain('g-empire-payout-panel');
     expect(html).not.toMatch(/<\/details>[\s\S]*<div class="g-section-label">PAYOUT<\/div>/);
+  });
+
+  it('shows aspirational empty state when no businesses owned', () => {
+    const data = buildMockData();
+    data.businessOperations = {
+      ...data.businessOperations!,
+      owned: 0,
+      assignedWorkers: 0,
+      assignedSecurityThugs: 0,
+    };
+    data.businesses.total = 0;
+
+    const html = renderToStaticMarkup(<EmpireSimpleView data={data} />);
+
+    expect(html).toContain('No legitimate fronts yet');
+    expect(html).toContain('Build your first business');
+    expect(html).toContain('href="/businesses"');
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { requirePlayer } from '@/lib/auth/session';
-import { shopPurchaseSchema, shopSellSchema } from '@/lib/validation/schemas';
+import { shopPurchaseSchema, shopSellSchema, shopCartCheckoutSchema } from '@/lib/validation/schemas';
 import {
   CITY_SHOP_ITEMS,
   getCityShopItem,
@@ -17,12 +17,22 @@ import {
 import { calculateNetWorth } from '@/lib/game-engine/net-worth';
 import { calculateCanonicalNetWorthFromPlayer } from '@/lib/game-engine/canonical-net-worth';
 import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { throwIfValidationMessage, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import { runSerializableTransaction } from '@/lib/db/serializable-transaction';
 import { GameplayError } from '@/lib/game-engine/gameplay-errors';
+import {
+  buildShopCartPlayerUpdate,
+  shopCartAnalyticsFlags,
+  validateShopCartOrder,
+  type ResolvedShopCartLine,
+  type ShopCartLineInput,
+  type ShopCartLineKey,
+} from '@/lib/game-engine/shop-cart';
 import type { ActionResult } from './auth.actions';
+
+export type { ShopCartLineKey, ShopCartLineInput, ResolvedShopCartLine };
 
 export type { ShopItemKey };
 
@@ -46,6 +56,22 @@ export interface ShopSellResult {
   newNetWorth: number;
   newOwnedQuantity: number;
   canonicalNetWorth: number;
+}
+
+export interface ShopCartCheckoutResult {
+  lines: Array<{
+    itemId: ShopCartLineKey;
+    displayName: string;
+    quantity: number;
+    unitPrice: number;
+    lineCost: number;
+    newOwnedQuantity: number;
+  }>;
+  totalCost: number;
+  totalUnits: number;
+  itemTypeCount: number;
+  newCash: number;
+  newNetWorth: number;
 }
 
 export interface ShopPurchaseResult {
@@ -157,7 +183,7 @@ export async function shopPurchaseAction(
         include: { season: true },
       });
 
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
 
       assertPlayerCanPerformAction(player);
 
@@ -227,6 +253,133 @@ export async function shopPurchaseAction(
     return { success: true, data: result };
   } catch (error) {
     console.error('Shop purchase error:', error);
+    return { success: false, error: toUserMessage(error) };
+  }
+}
+
+export async function shopCartCheckoutAction(
+  lines: ShopCartLineInput[],
+  idempotencyKey: string,
+): Promise<ActionResult<ShopCartCheckoutResult>> {
+  try {
+    const session = await requirePlayer();
+    const parsed = shopCartCheckoutSchema.safeParse({ lines, idempotencyKey });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    const playerId = session.user.playerId!;
+
+    const existing = await prisma.gameAction.findUnique({
+      where: { playerId_idempotencyKey: { playerId, idempotencyKey } },
+    });
+    if (existing?.resultPayload) {
+      return { success: true, data: existing.resultPayload as unknown as ShopCartCheckoutResult };
+    }
+
+    const result = await runSerializableTransaction(async (tx) => {
+      const player = await tx.player.findUniqueOrThrow({
+        where: { id: playerId },
+        include: { season: true },
+      });
+
+      assertGameplaySeasonActive(player.season);
+      assertPlayerCanPerformAction(player);
+
+      const validation = validateShopCartOrder(player, parsed.data.lines);
+      if (!validation.ok) {
+        throw new GameplayError('INVALID_QUANTITY', validation.error);
+      }
+
+      const { lines: resolvedLines, totalCost } = validation;
+      const updateData = buildShopCartPlayerUpdate(resolvedLines, totalCost);
+
+      const updatedCount = await tx.player.updateMany({
+        where: { id: playerId, cash: { gte: totalCost } },
+        data: updateData,
+      });
+      if (updatedCount.count === 0) {
+        throw new GameplayError(
+          'INSUFFICIENT_CASH',
+          `Your order costs $${totalCost.toLocaleString()}. You currently have $${player.cash.toLocaleString()}.`,
+        );
+      }
+
+      const updatedPlayer = await tx.player.findUniqueOrThrow({ where: { id: playerId } });
+      const newCash = updatedPlayer.cash;
+      const newNetWorth = calculateNetWorth(playerToResources(updatedPlayer));
+
+      const resultLines = resolvedLines.map((line) => {
+        const owned =
+          line.inventoryField != null
+            ? (updatedPlayer[line.inventoryField as keyof typeof updatedPlayer] as number)
+            : 0;
+        return {
+          itemId: line.itemId,
+          displayName: line.displayName,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          lineCost: line.lineCost,
+          newOwnedQuantity: owned,
+        };
+      });
+
+      const analytics = shopCartAnalyticsFlags(resolvedLines);
+      const resultData: ShopCartCheckoutResult = {
+        lines: resultLines,
+        totalCost,
+        totalUnits: analytics.totalUnits,
+        itemTypeCount: analytics.itemTypeCount,
+        newCash,
+        newNetWorth,
+      };
+
+      await tx.gameAction.create({
+        data: {
+          playerId,
+          seasonId: player.seasonId,
+          actionType: 'SHOP_CART_CHECKOUT',
+          idempotencyKey,
+          requestPayload: parsed.data as object,
+          resultPayload: resultData as object,
+          turnsSpent: 0,
+        },
+      });
+
+      const delta: Record<string, number> = { cash: -totalCost };
+      for (const line of resolvedLines) {
+        if (line.inventoryField) {
+          delta[line.inventoryField as string] = line.quantity;
+        }
+      }
+
+      await tx.economicAuditLog.create({
+        data: {
+          playerId,
+          userId: session.user.id,
+          eventType: 'SHOP_CART_CHECKOUT',
+          source: 'shop',
+          beforeState: snapshotPlayerState(player) as object,
+          delta,
+          afterState: snapshotPlayerState(updatedPlayer) as object,
+          metadata: {
+            idempotencyKey,
+            totalCost,
+            lines: resolvedLines.map((line) => ({
+              itemId: line.itemId,
+              quantity: line.quantity,
+              lineCost: line.lineCost,
+            })),
+          },
+        },
+      });
+
+      return resultData;
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Shop cart checkout error:', error);
     return { success: false, error: toUserMessage(error) };
   }
 }
@@ -324,7 +477,7 @@ export async function shopSellAction(
         include: { season: true },
       });
 
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
 
       assertPlayerCanPerformAction(player);
 

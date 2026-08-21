@@ -1,129 +1,142 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getBootCopy, BOOT_SCREEN } from '@local/config/boot-screen';
 import {
-  resolveBootDismissTarget,
+  isBootEnterReady,
+  resolveBootDismissTargetForClick,
   resolveBootSessionStatus,
   shouldSkipBootScreen,
   type ClientSessionStatus,
 } from '@local/lib/boot-screen-session';
 import { BootBackgroundArt } from './BootBackgroundArt';
 import { BootLogoutButton } from './BootLogoutButton';
-import { BrandedLoader } from './BrandedLoader';
-
-const SMOKE_EXIT_MS = 920;
-const SESSION_LOAD_TIMEOUT_MS = 8000;
+import { NuBrandLogo } from './NuBrandLogo';
 
 const BOOT_DISMISSED_KEY = 'nu-boot-dismissed';
+/** Legacy dev key — cleared on read so old builds cannot trap players behind a hidden boot. */
+const BOOT_DISMISSED_PERSIST_KEY = 'nu-boot-dismissed-persist';
 
-function readBootDismissed(): boolean {
+/** Survives HMR in the same tab between sessionStorage write and remount. */
+let bootDismissedMemory = false;
+
+function isBootDismissed(): boolean {
+  if (bootDismissedMemory) return true;
   if (typeof window === 'undefined') return false;
+  try {
+    localStorage.removeItem(BOOT_DISMISSED_PERSIST_KEY);
+  } catch {
+    /* ignore */
+  }
   return sessionStorage.getItem(BOOT_DISMISSED_KEY) === '1';
 }
 
-type BootPhase = 'active' | 'exit' | 'hidden';
+function markBootDismissed(): void {
+  bootDismissedMemory = true;
+  try {
+    sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
+  } catch {
+    /* private browsing — in-memory flag still hides boot this visit */
+  }
+}
+
+/** Cleared on logout so the intro shows again on the next sign-in. */
+export function clearBootDismissed(): void {
+  bootDismissedMemory = false;
+  try {
+    sessionStorage.removeItem(BOOT_DISMISSED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
- * Full-screen intro with logo, welcome, and Enter — shown on each fresh visit until dismissed.
- * Session-safe: loading never routes to login; protected routes preserve deep links.
+ * Full-screen intro with logo, welcome, and Enter — shown once per browser tab until dismissed.
+ * On game routes, middleware is the auth source of truth (not client useSession).
  */
 export function BootScreen({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
-  const [phase, setPhase] = useState<BootPhase>(() => (readBootDismissed() ? 'hidden' : 'active'));
-  const [sessionTimedOut, setSessionTimedOut] = useState(false);
+  const [dismissed, setDismissed] = useState(() => isBootDismissed());
+  const [hydrated, setHydrated] = useState(false);
+  const dismissingRef = useRef(false);
 
   useEffect(() => {
-    if (shouldSkipBootScreen(pathname)) {
-      setPhase('hidden');
-    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (isBootDismissed()) setDismissed(true);
   }, [pathname]);
 
-  useEffect(() => {
-    if (sessionStatus !== 'loading') {
-      setSessionTimedOut(false);
-      return;
+  const skipBoot = shouldSkipBootScreen(pathname);
+  const bootStatus = resolveBootSessionStatus(sessionStatus as ClientSessionStatus, pathname);
+  const enterReady =
+    hydrated && isBootEnterReady(sessionStatus as ClientSessionStatus, bootStatus);
+  const copy = getBootCopy(enterReady ? bootStatus : 'loading', session?.user?.alias);
+  const showEnter = enterReady && Boolean(copy.enterLabel);
+
+  const dismissBoot = useCallback(() => {
+    if (dismissingRef.current || !enterReady || !copy.enterLabel) return;
+
+    dismissingRef.current = true;
+    markBootDismissed();
+    setDismissed(true);
+
+    const target = resolveBootDismissTargetForClick(pathname, bootStatus);
+    if (target !== pathname) {
+      window.location.assign(target);
     }
-    const timer = window.setTimeout(() => setSessionTimedOut(true), SESSION_LOAD_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [sessionStatus, pathname]);
+  }, [bootStatus, copy.enterLabel, enterReady, pathname]);
 
-  const effectiveSessionStatus: ClientSessionStatus = sessionTimedOut
-    ? 'unauthenticated'
-    : sessionStatus;
-
-  const bootStatus = resolveBootSessionStatus(effectiveSessionStatus, pathname);
-  const copy = getBootCopy(bootStatus, session?.user?.alias);
-  const showLogout = bootStatus === 'authenticated';
-  const isReady = bootStatus !== 'loading';
-  const dismissTarget = resolveBootDismissTarget(pathname, bootStatus);
-
-  function dismissBoot() {
-    if (phase !== 'active' || !isReady || dismissTarget === null) return;
-    setPhase('exit');
-
-    window.setTimeout(() => {
-      if (dismissTarget !== pathname) {
-        router.replace(dismissTarget);
-      }
-      sessionStorage.setItem(BOOT_DISMISSED_KEY, '1');
-      setPhase('hidden');
-    }, SMOKE_EXIT_MS);
+  if (skipBoot || dismissed) {
+    return <>{children}</>;
   }
 
   const bootClass = BOOT_SCREEN.artIncludesBranding ? ' nu-boot--intro-art' : '';
 
-  if (shouldSkipBootScreen(pathname)) {
-    return <>{children}</>;
-  }
-
   return (
     <>
-      {phase !== 'hidden' && (
-        <div
-          className={`nu-boot${bootClass}${phase === 'exit' ? ' nu-boot--exit' : ''}`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="nu-boot-heading"
-          aria-live="polite"
-        >
-          <BootBackgroundArt />
+      <div
+        className={`nu-boot${bootClass}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="nu-boot-heading"
+        aria-live="polite"
+      >
+        <BootBackgroundArt />
 
-          <div className="nu-boot__smoke" aria-hidden="true">
-            <div className="nu-boot__smoke-layer nu-boot__smoke-layer--red" />
-            <div className="nu-boot__smoke-layer nu-boot__smoke-layer--gold" />
-          </div>
+        {enterReady && bootStatus === 'authenticated' && <BootLogoutButton />}
 
-          {showLogout && <BootLogoutButton />}
-
-          <div className="nu-boot__panel">
-            <h2 id="nu-boot-heading" className="nu-boot__sr-only">
-              Neon Underworld
-            </h2>
-
-            {copy.welcome && <p className="nu-boot__welcome">{copy.welcome}</p>}
-            {copy.alias && <p className="nu-boot__alias">{copy.alias}</p>}
-            {!copy.welcome && bootStatus === 'unauthenticated' && isReady && (
-              <p className="nu-boot__tagline">Enter the network</p>
-            )}
-
-            <p className="nu-boot__status">{copy.status}</p>
-
-            {!isReady && <BrandedLoader size="sm" />}
-
-            {isReady && copy.enterLabel && (
-              <button type="button" className="nu-boot__enter" onClick={dismissBoot}>
-                {copy.enterLabel}
-              </button>
-            )}
-          </div>
+        <div className="nu-boot__brand-mark">
+          <NuBrandLogo size="lg" priority />
         </div>
-      )}
-      {children}
+
+        <div className="nu-boot__panel">
+          <h2 id="nu-boot-heading" className="nu-boot__sr-only">
+            Neon Underworld
+          </h2>
+
+          {copy.welcome && <p className="nu-boot__welcome">{copy.welcome}</p>}
+          {copy.alias && <p className="nu-boot__alias">{copy.alias}</p>}
+          {!copy.welcome && enterReady && bootStatus === 'unauthenticated' && (
+            <p className="nu-boot__tagline">Enter the network</p>
+          )}
+
+          <p className="nu-boot__status">{copy.status}</p>
+
+          {showEnter && (
+            <button type="button" className="nu-boot__enter" onClick={dismissBoot}>
+              {copy.enterLabel}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="nu-boot-app--pending" aria-hidden="true">
+        {children}
+      </div>
     </>
   );
 }

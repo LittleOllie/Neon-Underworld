@@ -6,7 +6,6 @@
  *   SEED_NPC_JITTER=true npm run db:seed:playtest-npcs
  */
 import type { PrismaClient } from '@prisma/client';
-import { SeasonStatus } from '@prisma/client';
 import {
   hashPassword,
   normalizeAlias,
@@ -27,9 +26,14 @@ import {
   canonicalNwForTargetState,
 } from '../src/lib/game-engine/npc-progression/target-state';
 import { NPC_LADDER_TOTAL_SLOTS } from '../src/config/game/npc-progression-rules';
+import {
+  PLAYTEST_NPC_EMAIL_PREFIX,
+  reattachPlaytestNpcsToActiveSeason,
+  requireExactlyOneActiveSeason,
+  tryRevalidateRankingsCache,
+} from '../src/lib/game-engine/playtest-npc-season';
 
 export const PLAYTEST_NPC_COUNT = 50;
-const PLAYTEST_NPC_EMAIL_PREFIX = 'playtest-npc+';
 
 const NAME_PARTS = [
   'Neon', 'Dock', 'Grid', 'Velvet', 'Cipher', 'Ash', 'Wire', 'Pulse', 'Rust', 'Harbor',
@@ -38,7 +42,7 @@ const NAME_PARTS = [
   'Syndicate', 'Warden', 'Collector', 'Signal', 'Serpent', 'Saint', 'Duke', 'Consul', 'Monarch', 'Auditor',
 ] as const;
 
-const DISTRICT_SLUGS = ['neon-strip', 'docklands', 'old-quarter'] as const;
+import { districtSlugForLadderSlot } from '../src/lib/game-engine/playtest-npc-districts';
 
 function playtestNpcAlias(index: number): string {
   const a = NAME_PARTS[index % 20]!;
@@ -84,11 +88,17 @@ export async function seedPlaytestNpcs(
 ) {
   const jitterExisting = options?.jitterExisting ?? process.env.SEED_NPC_JITTER === 'true';
 
-  const season = await prisma.season.findFirst({
-    where: { status: SeasonStatus.ACTIVE },
-    orderBy: { number: 'desc' },
-  });
-  if (!season) throw new Error('No active season — run db:seed first');
+  const season = await requireExactlyOneActiveSeason(prisma);
+  const reattach = await reattachPlaytestNpcsToActiveSeason(prisma, season);
+  if (reattach.moved > 0) {
+    console.log(
+      `Reattached ${reattach.moved} playtest NPC(s) to active season ${season.number}.`,
+    );
+    const invalidated = await tryRevalidateRankingsCache(season.id);
+    if (!invalidated) {
+      console.warn('Rankings cache not invalidated — restart npm run dev if Rankings look stale.');
+    }
+  }
 
   const districts = await prisma.district.findMany();
   const districtMap = new Map(districts.map((d) => [d.slug, d]));
@@ -100,7 +110,7 @@ export async function seedPlaytestNpcs(
   for (let i = 0; i < PLAYTEST_NPC_COUNT; i++) {
     const alias = playtestNpcAlias(i);
     const aliasNorm = normalizeAlias(alias);
-    const districtSlug = DISTRICT_SLUGS[i % DISTRICT_SLUGS.length]!;
+    const districtSlug = districtSlugForLadderSlot(i);
     const meta = progressionMetaForSlot(i, aliasNorm);
     const existing = await prisma.player.findUnique({
       where: { aliasNormalized: aliasNorm },
@@ -111,6 +121,12 @@ export async function seedPlaytestNpcs(
       skipped++;
       const isPlaytestNpc = existing.user.email.startsWith(PLAYTEST_NPC_EMAIL_PREFIX);
       if (isPlaytestNpc) {
+        if (existing.seasonId !== season.id) {
+          await prisma.player.update({
+            where: { id: existing.id },
+            data: { seasonId: season.id },
+          });
+        }
         const hasProgression = await prisma.npcProgressionState.findUnique({
           where: { playerId: existing.id },
         });

@@ -41,7 +41,13 @@ export function GameNav({ stats }: { stats?: GlobalStats }) {
       <nav className="g-nav-desktop" aria-label="Main navigation">
         {DESKTOP_NAV.map((item) =>
           item.isMore ? (
-            <button key={item.label} type="button" onClick={openMore} aria-label="More menu">
+            <button
+              key={item.label}
+              type="button"
+              onClick={openMore}
+              aria-label="More menu"
+              className={navIsActive(pathname, item.href) ? 'g-nav-active' : undefined}
+            >
               <NavLabel
                 label={item.label}
                 icon={item.icon}
@@ -65,7 +71,13 @@ export function GameNav({ stats }: { stats?: GlobalStats }) {
         <div className="g-nav-mobile-inner">
           {MOBILE_NAV.map((item) =>
             item.isMore ? (
-              <button key={item.label} type="button" onClick={openMore} aria-label="More menu">
+              <button
+                key={item.label}
+                type="button"
+                onClick={openMore}
+                aria-label="More menu"
+                className={navIsActive(pathname, item.href) ? 'g-nav-active' : undefined}
+              >
                 <NavLabel
                   label={item.label}
                   icon={item.icon}

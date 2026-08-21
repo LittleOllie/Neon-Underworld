@@ -29,6 +29,8 @@ export async function authorizeCredentials(credentials: unknown) {
 
   if (!user) return null;
 
+  if (!user.passwordHash) return null;
+
   const valid = await verifyPassword(parsed.data.password, user.passwordHash);
   if (!valid) return null;
 

@@ -49,6 +49,20 @@ export const shopPurchaseSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
+const shopCartLineSchema = z.object({
+  itemId: z.enum([
+    'glock', 'uzi', 'ak', 'ride',
+    'hash', 'shroom', 'coke', 'heroin', 'beer', 'condom',
+    'thugs',
+  ]),
+  quantity: z.number().int().min(1).max(SHOP_MAX_SINGLE_PURCHASE_QUANTITY),
+});
+
+export const shopCartCheckoutSchema = z.object({
+  lines: z.array(shopCartLineSchema).min(1).max(11),
+  idempotencyKey: z.string().uuid(),
+});
+
 export const payoutSchema = z.object({
   payoutPercent: z.number().int().min(1).max(100),
 });

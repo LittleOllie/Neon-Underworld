@@ -5,6 +5,7 @@ import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 import { ActivityService } from '@local/server/services/activity.service';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
+import { OS_TERMS } from '@local/config/terminology';
 import { validatePayoutPercent } from '@local/server/domain/empire-calculations';
 import { prisma } from '@core/lib/db/prisma';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
@@ -34,7 +35,7 @@ export async function updatePayoutAction(
       await ActivityService.record(
         playerId,
         ACTIVITY_TYPES.WORKER_PAYOUT_UPDATED,
-        `Worker payout updated to ${result.data.payoutPercent}%. Estimated morale: ${result.data.prostituteHappiness}%.`,
+        `${OS_TERMS.specialist} payout updated to ${result.data.payoutPercent}%. Estimated morale: ${result.data.prostituteHappiness}%.`,
         {
           payoutPercent: result.data.payoutPercent,
           estimatedMorale: result.data.prostituteHappiness,

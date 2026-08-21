@@ -3,12 +3,15 @@ import { NetWorthService } from './net-worth.service';
 import { RankingsService } from './rankings.service';
 import { PlayerStatusService } from './player-status.service';
 import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
+import { identityViewFromPlayer } from '@core/lib/game-engine/player-identity-fields';
+import type { PlayerIdentityView } from '@core/lib/game-engine/player-identity-fields';
 
 export interface PublicProfile {
   id: string;
   alias: string;
   aliasNormalized: string;
   avatarId: string;
+  identity: PlayerIdentityView;
   districtId: string;
   city: string;
   citySlug: string;
@@ -57,6 +60,7 @@ export const PublicProfileService = {
       alias: player.alias,
       aliasNormalized: player.aliasNormalized,
       avatarId: resolvePlayerAvatarId(player.avatar),
+      identity: identityViewFromPlayer(player),
       districtId: player.districtId,
       city: player.district.name,
       citySlug: player.district.slug,

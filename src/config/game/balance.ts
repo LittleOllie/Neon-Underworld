@@ -4,6 +4,7 @@ import {
   REDLITE_SCOUT_AREAS,
   REDLITE_TURNS,
 } from './redlite-rules';
+import { TERMS } from './terminology';
 
 /** Net worth unit values — aligned with Redlite guide §5 */
 export const NET_WORTH_VALUES = {
@@ -144,19 +145,19 @@ export const AUTH_CONFIG = {
 } as const;
 
 export const LABELS = {
-  prostitutes: 'Prostitutes',
-  thugs: 'Thugs',
-  brothels: 'Brothels',
-  coffeeShops: 'Coffee Shops',
-  hash: 'Hash',
-  shrooms: 'Shrooms',
-  coke: 'Coke',
-  heroin: 'Heroin',
-  glocks: 'Glocks',
-  uzis: 'Uzis',
-  aks: 'AKs',
-  rides: 'Rides',
-  cartels: 'Cartels',
+  prostitutes: TERMS.specialists,
+  thugs: TERMS.enforcers,
+  brothels: TERMS.brothels,
+  coffeeShops: TERMS.coffeeShops,
+  hash: TERMS.hash,
+  shrooms: TERMS.shrooms,
+  coke: TERMS.coke,
+  heroin: TERMS.heroin,
+  glocks: TERMS.glocks,
+  uzis: TERMS.uzis,
+  aks: TERMS.aks,
+  rides: TERMS.rides,
+  cartels: TERMS.factions,
 } as const;
 
 export interface DistrictModifiers {
@@ -176,7 +177,7 @@ export const DISTRICTS: Array<{
     slug: 'neon-strip',
     name: 'Neon Strip',
     description:
-      'Neon-lit boulevards and velvet doorways. Nightlife runs deep — recruitment favours those who work the strip.',
+      'Neon-lit boulevards and velvet doorways. Nightlife runs deep — recruitment favours Specialists on the strip.',
     modifiers: {
       prostituteRecruitment: 1.12,
       thugRecruitment: 1.0,
@@ -188,7 +189,7 @@ export const DISTRICTS: Array<{
     slug: 'docklands',
     name: 'Docklands',
     description:
-      'Container yards and freight cranes. Hard crews and dockside muscle — thugs find their place here.',
+      'Container yards and freight cranes. Hard crews and dockside muscle — Enforcers find their place here.',
     modifiers: {
       prostituteRecruitment: 1.0,
       thugRecruitment: 1.12,

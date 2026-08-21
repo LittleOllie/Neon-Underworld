@@ -136,7 +136,7 @@ describe('attack eligibility uses business-aware NW thresholds', () => {
   const attackerNw = 10_000_000;
   const floor = minAttackTargetNetWorth(attackerNw);
 
-  it('blocks defender at $4.9M street-only when floor is $5M', () => {
+  it('blocks defender below $6M when floor is $6M (60% of $10M)', () => {
     expect(isWithinAttackRange(attackerNw, 4_900_000)).toBe(false);
     expect(
       validateAttackEligibilityCode({
@@ -162,7 +162,7 @@ describe('attack eligibility uses business-aware NW thresholds', () => {
     ).toBe('TARGET_OUT_OF_RANGE');
   });
 
-  it('allows defender at exactly $5M', () => {
+  it('allows defender at exactly floor ($6M)', () => {
     expect(isWithinAttackRange(attackerNw, floor)).toBe(true);
     expect(
       validateAttackEligibilityCode({
@@ -189,7 +189,7 @@ describe('attack eligibility uses business-aware NW thresholds', () => {
   });
 
   it('business asset NW can push defender above floor when cash NW alone would fail', () => {
-    const cashOnlyNw = 3_000_000;
+    const cashOnlyNw = 3_500_000;
     const nightclubAsset = getBusinessStreetNwAssetForState({
       businessType: 'NIGHTCLUB',
       level: 1,

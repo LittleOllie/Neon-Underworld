@@ -53,7 +53,7 @@ describe('hash production supply exemption', () => {
     expect(result.inventoryAfter.hash).toBe(50);
   });
 
-  it('scout still consumes worker hash (no exemption)', () => {
+  it('scout consumes kits only — not components', () => {
     const result = resolveSupplyConsumptionForAction({
       prostitutes: 2,
       thugs: 1,
@@ -62,14 +62,17 @@ describe('hash production supply exemption', () => {
       hash: 50,
       beer: 100,
     });
-    expect(result.plan.consumed.hash).toBeGreaterThan(0);
-    expect(result.inventoryAfter.hash).toBeLessThan(50);
+    expect(result.plan.consumed.hash ?? 0).toBe(0);
+    expect(result.plan.consumed.condoms).toBeGreaterThan(0);
+    expect(result.inventoryAfter.hash).toBe(50);
   });
 
-  it('other drug production still requires worker hash consumption', () => {
+  it('module and chip production consumes kits only', () => {
     const plan = planSupplyConsumption(2, 1, 25, { condoms: 100, hash: 50, beer: 100 });
-    expect(plan.required.hash).toBeGreaterThan(0);
-    expect(plan.consumed.hash).toBeGreaterThan(0);
+    expect(plan.required.hash).toBeUndefined();
+    expect(plan.consumed.hash).toBeUndefined();
+    expect(plan.required.condoms).toBeGreaterThan(0);
+    expect(plan.consumed.condoms).toBeGreaterThan(0);
   });
 
   it('worker-heavy hash produce does not consume hash upkeep', () => {
@@ -101,35 +104,33 @@ describe('hash production supply exemption', () => {
   });
 });
 
-describe('hash production morale exemption', () => {
-  it('exempts hash from worker morale penalty during hash production', () => {
-    const normal = calculateProstituteHappiness({
+describe('hash production morale', () => {
+  it('components stock does not change specialist morale', () => {
+    const withHash = calculateProstituteHappiness({
+      prostitutes: 2,
+      thugs: 1,
+      hash: 100,
+      condoms: 100,
+      prostitutePayoutPercent: 50,
+    });
+    const withoutHash = calculateProstituteHappiness({
       prostitutes: 2,
       thugs: 1,
       hash: 0,
       condoms: 100,
       prostitutePayoutPercent: 50,
     });
-    const exempt = calculateProstituteHappiness({
-      prostitutes: 2,
-      thugs: 1,
-      hash: 0,
-      condoms: 100,
-      prostitutePayoutPercent: 50,
-      exemptHashMorale: true,
-    });
-    expect(exempt.score).toBeGreaterThan(normal.score);
-    expect(exempt.hashReadiness).toBe(1);
+    expect(withHash.score).toBe(withoutHash.score);
+    expect(withHash.hashReadiness).toBe(1);
   });
 
-  it('condoms still affect morale during hash production', () => {
+  it('kits still affect morale during operations', () => {
     const good = calculateProstituteHappiness({
       prostitutes: 2,
       thugs: 1,
       hash: 0,
       condoms: 100,
       prostitutePayoutPercent: 50,
-      exemptHashMorale: true,
     });
     const low = calculateProstituteHappiness({
       prostitutes: 2,
@@ -137,7 +138,6 @@ describe('hash production morale exemption', () => {
       hash: 0,
       condoms: 0,
       prostitutePayoutPercent: 50,
-      exemptHashMorale: true,
     });
     expect(good.score).toBeGreaterThan(low.score);
   });
@@ -363,7 +363,7 @@ describe('street economic balance', () => {
 });
 
 describe('supply shortage affects morale after consumption', () => {
-  it('low hash after consumption reduces worker morale (non-hash actions)', () => {
+  it('low kits after consumption reduces specialist morale', () => {
     const before = calculateProstituteHappiness({
       prostitutes: 500,
       thugs: 500,
@@ -374,8 +374,8 @@ describe('supply shortage affects morale after consumption', () => {
     const after = calculateProstituteHappiness({
       prostitutes: 500,
       thugs: 500,
-      hash: 0,
-      condoms: 5000,
+      hash: 5000,
+      condoms: 0,
       prostitutePayoutPercent: 50,
     });
     expect(after.score).toBeLessThan(before.score);

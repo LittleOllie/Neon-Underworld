@@ -11,7 +11,9 @@ export default async function BusinessesPage() {
   return (
     <>
       <PageTitle icon="market">Businesses</PageTitle>
-      <BusinessesPanel initialData={data} />
+      <div className="g-gameplay-controls g-businesses-chrome">
+        <BusinessesPanel initialData={data} />
+      </div>
     </>
   );
 }

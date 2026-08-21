@@ -9,6 +9,10 @@ import { ACTIVITY_TYPES, buildScoutActivityMessage } from '@local/config/activit
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import {
+  recordPostGameplayAnalytics,
+  GAMEPLAY_ANALYTICS_EVENTS,
+} from '@local/server/services/gameplay-analytics-hook';
 import type { WithPlayerShell } from '@local/domain/player-shell.model';
 
 export type { ScoutResultData };
@@ -39,7 +43,7 @@ export async function scoutAction(
 
     const updated = await prisma.player.findUniqueOrThrow({
       where: { id: playerId },
-      include: { district: true, turnState: true },
+      include: { district: true, turnState: true, season: { select: { startsAt: true, endsAt: true } } },
     });
 
     const shell = await finalizeLocalMutationShell(playerId, updated, ['/scout', '/command'], {
@@ -54,6 +58,10 @@ export async function scoutAction(
       buildScoutActivityMessage(result.data),
       { scout: result.data },
     );
+
+    await recordPostGameplayAnalytics(updated, GAMEPLAY_ANALYTICS_EVENTS.SCOUT_COMPLETED, {
+      turns,
+    });
 
     return {
       success: true,

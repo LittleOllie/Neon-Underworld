@@ -74,12 +74,12 @@ test.describe('Pass 3 responsive — attack with intel', () => {
         await openTarget.click();
         const attackTypes = page.getByRole('listbox', { name: 'Attack type' });
         await expect(attackTypes).toBeVisible({ timeout: 10_000 });
-        await attackTypes.getByRole('option', { name: /Home Invasion/i }).click();
-        await expect(attackTypes.getByRole('option', { name: /Home Invasion/i })).toHaveAttribute(
+        await attackTypes.getByRole('option', { name: /Breach/i }).click();
+        await expect(attackTypes.getByRole('option', { name: /Breach/i })).toHaveAttribute(
           'aria-selected',
           'true',
         );
-        await expect(page.getByLabel('Thugs to send')).toBeVisible();
+        await expect(page.getByLabel('Enforcers to send')).toBeVisible();
         const attackBtn = page.getByRole('button', { name: 'Attack', exact: true });
         await assertReachable(page, attackBtn);
         await assertNoHorizontalOverflow(page);

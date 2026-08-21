@@ -2,9 +2,12 @@
 
 import {
   shopPurchaseAction as coreShopPurchaseAction,
+  shopCartCheckoutAction as coreShopCartCheckoutAction,
   shopSellAction as coreShopSellAction,
   getShopCatalog as coreGetShopCatalog,
   type ShopPurchaseResult,
+  type ShopCartCheckoutResult,
+  type ShopCartLineInput,
   type ShopSellResult,
   type ShopCatalogEntry,
   type ShopItemKey,
@@ -14,9 +17,14 @@ import { auth } from '@local/lib/auth/config';
 import { assertSessionMatchesPlayer, requireSessionPlayerId } from '@local/lib/auth/session-player';
 import { prisma } from '@core/lib/db/prisma';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
+import { getCityShopItem } from '@core/config/game/shop-rules';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
+import {
+  recordPostGameplayAnalytics,
+  GAMEPLAY_ANALYTICS_EVENTS,
+} from '@local/server/services/gameplay-analytics-hook';
 import type { WithPlayerShell } from '@local/domain/player-shell.model';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import {
@@ -25,7 +33,7 @@ import {
 } from '@core/server/actions/drug-street.actions';
 import { getDrugStreetPrice, type StreetDrugType } from '@core/config/game/drug-street-prices';
 
-export type { ShopPurchaseResult, ShopSellResult, ShopCatalogEntry, ShopItemKey, StreetDrugSaleResult };
+export type { ShopPurchaseResult, ShopCartCheckoutResult, ShopCartLineInput, ShopSellResult, ShopCatalogEntry, ShopItemKey, StreetDrugSaleResult };
 
 export interface ShopRecentPurchase {
   message: string;
@@ -162,16 +170,78 @@ export async function shopPurchaseAction(
   await EmpireService.syncInventory(playerId);
   const updated = await prisma.player.findUniqueOrThrow({
     where: { id: playerId },
-    include: { district: true, turnState: true },
+    include: { district: true, turnState: true, season: { select: { startsAt: true, endsAt: true } } },
   });
   const shell = await finalizeLocalMutationShell(playerId, updated, ['/shop']);
 
+  const itemLabel = getCityShopItem(result.data.item)?.displayName ?? result.data.item;
   await ActivityService.record(
     playerId,
     ACTIVITY_TYPES.SHOP_PURCHASE,
-    `Purchased ${result.data.quantity}× ${result.data.item} for $${result.data.totalCost.toLocaleString()}.`,
+    `Purchased ${result.data.quantity}× ${itemLabel} for $${result.data.totalCost.toLocaleString()}.`,
     { shop: result.data },
   );
+
+  await recordPostGameplayAnalytics(updated, GAMEPLAY_ANALYTICS_EVENTS.SHOP_PURCHASED, {
+    item: result.data.item,
+    quantity: result.data.quantity,
+  });
+
+  return {
+    success: true,
+    data: {
+      ...result.data,
+      newNetWorth: shell.netWorth,
+      canonicalNetWorth: shell.netWorth,
+      shell,
+    },
+  };
+}
+
+export async function shopCartCheckoutAction(
+  lines: ShopCartLineInput[],
+  idempotencyKey: string,
+): Promise<ActionResult<WithPlayerShell<ShopCartCheckoutResult & { canonicalNetWorth: number }>>> {
+  const result = await coreShopCartCheckoutAction(lines, idempotencyKey);
+  if (!result.success) return result;
+
+  const session = await auth();
+  const playerId = session?.user?.playerId;
+  if (!playerId) return { success: false, error: 'Not authenticated' };
+
+  await EmpireService.syncInventory(playerId);
+  const updated = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    include: { district: true, turnState: true, season: { select: { startsAt: true, endsAt: true } } },
+  });
+  const shell = await finalizeLocalMutationShell(playerId, updated, ['/shop', '/empire', '/command']);
+
+  const lineSummary = result.data.lines
+    .map((line) => `${line.quantity}× ${line.displayName}`)
+    .join(', ');
+  await ActivityService.record(
+    playerId,
+    ACTIVITY_TYPES.SHOP_PURCHASE,
+    `Supply order: ${lineSummary} for $${result.data.totalCost.toLocaleString()}.`,
+    { shopCart: result.data },
+  );
+
+  const itemIds = new Set(result.data.lines.map((line) => line.itemId));
+  await recordPostGameplayAnalytics(updated, GAMEPLAY_ANALYTICS_EVENTS.SHOP_CART_PURCHASED, {
+    itemTypeCount: result.data.itemTypeCount,
+    totalUnits: result.data.totalUnits,
+    totalCost: result.data.totalCost,
+    containsThugs: itemIds.has('thugs'),
+    containsRides: itemIds.has('ride'),
+    containsWeapons: itemIds.has('glock') || itemIds.has('uzi') || itemIds.has('ak'),
+    containsSupplies:
+      itemIds.has('beer') ||
+      itemIds.has('condom') ||
+      itemIds.has('hash') ||
+      itemIds.has('shroom') ||
+      itemIds.has('coke') ||
+      itemIds.has('heroin'),
+  });
 
   return {
     success: true,

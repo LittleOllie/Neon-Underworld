@@ -8,6 +8,7 @@ import {
   dismissBootScreen,
   headerTurnsLocator,
   parseTurnsUsed,
+  purchaseViaSupplyOrder,
   FRESH_E2E_EMAIL,
   FRESH_E2E_PASSWORD,
 } from './helpers';
@@ -44,29 +45,27 @@ test.describe('Fresh player journey — desktop', () => {
 
     await gotoGame(page, '/scout');
     await page.getByRole('button', { name: '25', exact: true }).click();
-    await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
+    await page.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 30_000 });
 
     await gotoGame(page, '/shop');
     await page.getByRole('button', { name: 'Supplies' }).click();
-    await page.getByLabel(/Quantity of Beer/i).fill('1');
-    await page.locator('.g-shop-controls').getByRole('button', { name: 'Buy', exact: true }).first().click();
-    await expect(page.getByRole('heading', { name: 'Purchase Complete' })).toBeVisible({ timeout: 15_000 });
+    await purchaseViaSupplyOrder(page, { itemLabel: /Quantity of Rations/i, quantity: '1' });
 
     await gotoGame(page, '/scout');
     await page.getByRole('button', { name: '25', exact: true }).click();
-    await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
+    await page.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 30_000 });
 
     await gotoGame(page, '/produce');
     await page.getByRole('button', { name: '25', exact: true }).click();
-    await page.getByRole('button', { name: 'Produce', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Production Complete' })).toBeVisible({
+    await page.getByRole('button', { name: /^Run .+ · \d[\d,]* turns?$/ }).click();
+    await expect(page.getByRole('heading', { name: 'Operations Complete' })).toBeVisible({
       timeout: 15_000,
     });
 
     await gotoGame(page, '/empire');
-    await expect(page.getByText('Net Worth', { exact: true })).toBeVisible();
+    await expect(page.getByText('Influence', { exact: true })).toBeVisible();
 
     await gotoGame(page, '/rankings');
     await expect(page.getByRole('heading', { name: 'Rankings' })).toBeVisible();
@@ -75,7 +74,7 @@ test.describe('Fresh player journey — desktop', () => {
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
 
     await gotoGame(page, '/cartels');
-    await expect(page.getByRole('button', { name: 'Create Cartel' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create Faction' })).toBeVisible();
 
     await gotoGame(page, '/market');
     await expect(page.getByRole('tab', { name: 'Browse' })).toBeVisible();
@@ -95,7 +94,7 @@ test.describe('Fresh player journey — mobile 390×844', () => {
     await gotoGame(page, '/scout');
     await assertNoHorizontalOverflow(page);
     await page.getByRole('button', { name: '25', exact: true }).click();
-    await page.getByRole('button', { name: /^Scout .+\?$/ }).click();
+    await page.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 30_000 });
     await assertNoHorizontalOverflow(page);
   });

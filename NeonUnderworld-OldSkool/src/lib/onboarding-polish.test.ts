@@ -27,7 +27,7 @@ describe('turn quick amounts', () => {
 
 describe('scout result secondary actions', () => {
   it('links to Shop, Produce, and Home', () => {
-    expect(SCOUT_RESULT_SECONDARY_ACTIONS.map((a) => a.label)).toEqual(['Shop', 'Produce', 'Home']);
+    expect(SCOUT_RESULT_SECONDARY_ACTIONS.map((a) => a.label)).toEqual(['Shop', 'Operations', 'Home']);
     expect(SCOUT_RESULT_SECONDARY_ACTIONS.map((a) => a.href)).toEqual([
       '/shop?tab=supplies',
       '/produce',
@@ -66,9 +66,9 @@ describe('produce preview updates with amount', () => {
 
 describe('shop item purposes', () => {
   it('includes canonical purpose text for core supplies', () => {
-    expect(getCityShopItem('beer')?.purpose).toMatch(/thug/i);
-    expect(getCityShopItem('condom')?.purpose).toMatch(/worker/i);
-    expect(getCityShopItem('hash')?.purpose).toMatch(/worker/i);
+    expect(getCityShopItem('beer')?.purpose).toMatch(/enforcer/i);
+    expect(getCityShopItem('condom')?.purpose).toMatch(/specialist/i);
+    expect(getCityShopItem('hash')?.purpose).toMatch(/technology|operations/i);
     expect(getCityShopItem('ride')?.purpose).toMatch(/transport|travel/i);
     expect(getCityShopItem('glock')?.purpose).toMatch(/weapon|combat/i);
   });

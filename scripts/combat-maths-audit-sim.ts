@@ -596,7 +596,7 @@ function main() {
       forceVariance: { min: ATTACK_RULES.randomVarianceMin, max: ATTACK_RULES.randomVarianceMax },
       rides: { thugsPerRide: ATTACK_RULES.thugsPerRide, formula: 'ceil(attackingThugs / 5)' },
       weaponAttrition: COMBAT_WEAPON_ATTRITION,
-      attackRange: { minTargetNwRatio: 0.5, noUpperCap: true },
+      attackRange: { minTargetNwRatio: 0.6, maxTargetNwRatio: 1.7 },
       driveByOutcomeRule: 'SUCCESS/PARTIAL iff defenderLosses > attackerLosses (NOT force ratio)',
       otherOutcomeRule: 'Uses attackerVictory (ratio>=1) + theft/poach gates',
     },

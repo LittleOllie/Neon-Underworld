@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@core/lib/db/prisma';
 import { progressActiveSeasonNpcs } from '@core/server/services/npc-progression.service';
 
-/** Daily NPC ladder progression — invoke via Vercel Cron or operator with CRON_SECRET. */
+/** NPC dynamic progression — invoke via Vercel Cron (~6h) or operator with CRON_SECRET. */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   const auth = request.headers.get('authorization');

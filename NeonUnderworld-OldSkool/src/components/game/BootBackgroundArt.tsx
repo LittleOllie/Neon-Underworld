@@ -1,35 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  bootBackgroundUrl,
-  bootPhoneBackgroundUrl,
-  bootPhoneMediaQuery,
-} from '@local/config/boot-screen';
+import { nuBackgroundUrl, nuBackgroundPosition } from '@local/config/nu-backgrounds';
 
-/** Responsive NUIntro artwork — portrait on phone, landscape on desktop. */
+/** Approved NU intro artwork — single responsive source, config-driven focal point. */
 export function BootBackgroundArt() {
   const [visible, setVisible] = useState(true);
+  const position = nuBackgroundPosition('intro');
+  const mobilePosition = nuBackgroundPosition('intro', true);
 
   if (!visible) return null;
 
   return (
     <div className="nu-boot__art" aria-hidden="true">
-      <picture>
-        <source
-          media={bootPhoneMediaQuery()}
-          srcSet={bootPhoneBackgroundUrl()}
-          type="image/webp"
-        />
-        <img
-          src={bootBackgroundUrl()}
-          alt=""
-          className="nu-boot__art-img"
-          fetchPriority="high"
-          decoding="async"
-          onError={() => setVisible(false)}
-        />
-      </picture>
+      <img
+        src={nuBackgroundUrl('intro')}
+        alt=""
+        className="nu-boot__art-img"
+        fetchPriority="high"
+        decoding="async"
+        style={
+          {
+            objectPosition: position,
+            ...(mobilePosition !== position
+              ? { '--nu-mobile-position': mobilePosition }
+              : {}),
+          } as React.CSSProperties
+        }
+        data-mobile-position={mobilePosition !== position ? mobilePosition : undefined}
+        onError={() => setVisible(false)}
+      />
       <div className="nu-boot__art-scrim" />
     </div>
   );

@@ -21,6 +21,10 @@ import {
 import type { WithPlayerShell } from '@local/domain/player-shell.model';
 import type { CanonicalPlayerContext } from '@local/server/services/player.service';
 import { isRoutePrefetch } from '@local/lib/is-route-prefetch';
+import {
+  recordPostGameplayAnalytics,
+  GAMEPLAY_ANALYTICS_EVENTS,
+} from '@local/server/services/gameplay-analytics-hook';
 
 export type MarketMutationResult<T> = T & { marketPage: MarketPageData };
 
@@ -145,6 +149,14 @@ export async function createMarketListingAction(
       { listingId: result.listingId, itemKey, quantity, startingPrice },
     );
 
+    const seller = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+    await recordPostGameplayAnalytics(seller, GAMEPLAY_ANALYTICS_EVENTS.MARKET_LISTED, {
+      listingId: result.listingId,
+      itemKey,
+      quantity,
+      startingPrice,
+    });
+
     const updated = await prisma.player.findUniqueOrThrow({
       where: { id: playerId },
       include: { district: true, turnState: true },
@@ -193,6 +205,13 @@ export async function placeMarketBidAction(
         { listingId, amount },
       );
     }
+
+    const bidder = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+    await recordPostGameplayAnalytics(bidder, GAMEPLAY_ANALYTICS_EVENTS.MARKET_BID, {
+      listingId,
+      amount,
+      itemKey: listing.itemKey,
+    });
 
     await settleMarketAndRefreshCaches();
     if (previousBidderId && previousBidderId !== playerId) {

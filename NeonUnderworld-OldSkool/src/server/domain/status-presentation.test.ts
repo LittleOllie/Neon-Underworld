@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  bandFromPercent,
+import { bandFromPercent,
   statusTextFromBand,
   readinessToPercent,
   buildWorkerStabilityMeter,
@@ -9,6 +8,7 @@ import {
   buildEmpireStatusMeters,
   abbreviateCash,
 } from './status-presentation';
+import { OS_TERMS } from '@local/config/terminology';
 
 const basePlayer = {
   thugs: 10,
@@ -71,9 +71,9 @@ describe('status meters', () => {
 
   it('buildEmpireStatusMeters returns all required meters', () => {
     const m = buildEmpireStatusMeters(basePlayer);
-    expect(m.worker.stability.label).toBe('Worker Stability');
+    expect(m.worker.stability.label).toBe(`${OS_TERMS.specialist} Stability`);
     expect(m.thug.weaponCoverage.label).toBe('Weapon Coverage');
-    expect(m.worker.payout.label).toBe('Worker Payout');
+    expect(m.worker.payout.label).toBe(`${OS_TERMS.specialist} Payout`);
   });
 });
 

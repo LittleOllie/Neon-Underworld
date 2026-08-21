@@ -3,7 +3,10 @@
 import { useRef, useState } from 'react';
 import { getSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AuthShell } from '@local/components/game/AuthShell';
+import { GoogleSignInButton, AuthDivider } from '@local/features/auth/GoogleSignInButton';
+import { oauthLoginErrorMessage } from '@core/lib/auth/oauth-errors';
 import {
   classifySignInFailure,
   confirmAuthenticatedSession,
@@ -11,16 +14,23 @@ import {
   resolvePostLoginPath,
 } from '@local/features/auth/login-session';
 
-function readAdminRequired(): boolean {
-  if (typeof window === 'undefined') return false;
-  return new URLSearchParams(window.location.search).get('error') === 'admin_required';
+function readAdminRequired(searchParams: URLSearchParams): boolean {
+  return searchParams.get('error') === 'admin_required';
 }
 
-export function LoginForm() {
-  const [adminRequired] = useState(readAdminRequired);
-  const [error, setError] = useState(
-    adminRequired ? 'Admin access only. Sign in with your operator account.' : '',
-  );
+function readInitialError(searchParams: URLSearchParams): string {
+  const authError = searchParams.get('authError') ?? searchParams.get('error');
+  return oauthLoginErrorMessage(authError) ?? '';
+}
+
+export function LoginForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
+  const searchParams = useSearchParams();
+  const adminRequired = readAdminRequired(searchParams);
+  const [error, setError] = useState(() => {
+    const oauthError = readInitialError(searchParams);
+    if (oauthError) return oauthError;
+    return adminRequired ? 'Admin access only. Sign in with your operator account.' : '';
+  });
   const [loading, setLoading] = useState(false);
   const submitLock = useRef(false);
 
@@ -52,7 +62,6 @@ export function LoginForm() {
         return;
       }
 
-      // Full navigation gives middleware/server auth a clean request with the new cookie.
       window.location.assign(resolvePostLoginPath(adminRequired));
     } catch {
       setError(loginFailureMessage('network'));
@@ -63,7 +72,9 @@ export function LoginForm() {
   }
 
   return (
-    <AuthShell title="Login">
+    <AuthShell title="Sign In">
+      <GoogleSignInButton enabled={googleEnabled} callbackUrl="/command" />
+      {googleEnabled ? <AuthDivider /> : null}
       <form className="g-auth-form" method="post" onSubmit={handleSubmit}>
         <label className="g-auth-field">
           <span className="g-field-label">Email</span>
@@ -95,6 +106,9 @@ export function LoginForm() {
         <button type="submit" className="g-btn g-auth-submit" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
+        <p className="g-auth-foot">
+          <Link href="/forgot-password">Forgot password?</Link>
+        </p>
         <p className="g-auth-foot">
           New player? <Link href="/register">Register</Link>
         </p>

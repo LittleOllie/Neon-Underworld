@@ -31,8 +31,10 @@ import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { StatRow } from '@local/components/game/StatRow';
 import { Divider } from '@local/components/game/Divider';
+import { FeedbackNote } from '@local/components/game/FeedbackNote';
 import { parsePositiveInteger, validateQuantity } from '@local/lib/numeric-input';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
+import { OS_TERMS, enforcersLabel, resourceLabel, specialistsLabel } from '@local/config/terminology';
 
 function fmtCash(n: number): string {
   return `$${n.toLocaleString()}`;
@@ -44,7 +46,7 @@ function renderRecruitmentStatRows(biz: BusinessesPageData['businesses'][number]
     rows.push(
       <StatRow
         key="worker-recruitment"
-        label="Worker Recruitment"
+        label={`${OS_TERMS.specialist} Recruitment`}
         value={formatRecruitmentBonusDisplay(biz.workerRecruitmentContribution)}
       />,
     );
@@ -53,7 +55,7 @@ function renderRecruitmentStatRows(biz: BusinessesPageData['businesses'][number]
     rows.push(
       <StatRow
         key="thug-recruitment"
-        label="Thug Recruitment"
+        label={`${OS_TERMS.enforcer} Recruitment`}
         value={formatRecruitmentBonusDisplay(biz.thugRecruitmentContribution)}
       />,
     );
@@ -69,10 +71,10 @@ type DrugKey = 'hash' | 'shrooms' | 'coke' | 'heroin';
 type ViewId = string;
 
 const DRUG_LABELS: Record<DrugKey, string> = {
-  hash: 'Hash',
-  shrooms: 'Shrooms',
-  coke: 'Coke',
-  heroin: 'Heroin',
+  hash: resourceLabel('hash'),
+  shrooms: resourceLabel('shrooms'),
+  coke: resourceLabel('coke'),
+  heroin: resourceLabel('heroin'),
 };
 
 const ACQUIRE_VIEW = 'acquire';
@@ -238,7 +240,6 @@ export function BusinessesPanel({ initialData }: Props) {
   const [drugQty, setDrugQty] = useState<Record<string, string>>({});
   const [drugType, setDrugType] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
-  const panelLocked = loading !== null;
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -309,8 +310,9 @@ export function BusinessesPanel({ initialData }: Props) {
   }, [nowMs, hasUpgrading, data.businesses, activeView]);
 
   async function runPurchase(type: BusinessType) {
-    if (loading !== null) return;
-    setLoading(`buy-${type}`);
+    const key = `buy-${type}`;
+    if (loading === key) return;
+    setLoading(key);
     setError('');
     setMessage('');
     try {
@@ -330,8 +332,9 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   async function runCollect(businessId: string) {
-    if (loading !== null) return;
-    setLoading(`collect-${businessId}`);
+    const key = `collect-${businessId}`;
+    if (loading === key) return;
+    setLoading(key);
     setError('');
     try {
       const response = await collectBusinessSafeAction(businessId, uuidv4());
@@ -348,7 +351,8 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   async function runWorkers(businessId: string, mode: 'assign' | 'remove') {
-    if (loading !== null) return;
+    const key = `${mode}-${businessId}`;
+    if (loading === key) return;
     const qty = parsePositiveInteger(workerQty[businessId] ?? '1');
     const validationError = validateQuantity(qty);
     if (validationError) {
@@ -366,21 +370,21 @@ export function BusinessesPanel({ initialData }: Props) {
         return;
       }
       applyShell(response.data);
-      const biz = data.businesses.find((b) => b.id === businessId);
-      setData((prev) =>
-        patchWorkerState(
+      setData((prev) => {
+        const biz = prev.businesses.find((b) => b.id === businessId);
+        return patchWorkerState(
           prev,
           businessId,
           response.data.assignedWorkers,
           response.data.streetWorkers,
           biz?.level ?? 1,
           biz?.businessType ?? 'NIGHTCLUB',
-        ),
-      );
+        );
+      });
       setMessage(
         mode === 'assign'
-          ? `Assigned ${qty!.toLocaleString()} Worker${qty === 1 ? '' : 's'}.`
-          : `Removed ${qty!.toLocaleString()} Worker${qty === 1 ? '' : 's'}.`,
+          ? `Assigned ${qty!.toLocaleString()} ${specialistsLabel(qty!)}.`
+          : `Removed ${qty!.toLocaleString()} ${specialistsLabel(qty!)}.`,
       );
     } finally {
       setLoading(null);
@@ -388,7 +392,8 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   async function runSecurity(businessId: string, mode: 'assign' | 'remove') {
-    if (loading !== null) return;
+    const key = `${mode}-sec-${businessId}`;
+    if (loading === key) return;
     const qty = parsePositiveInteger(thugQty[businessId] ?? '1');
     const validationError = validateQuantity(qty);
     if (validationError) {
@@ -411,8 +416,8 @@ export function BusinessesPanel({ initialData }: Props) {
       );
       setMessage(
         mode === 'assign'
-          ? `Assigned ${qty!.toLocaleString()} Thug${qty === 1 ? '' : 's'} to security.`
-          : `Removed ${qty!.toLocaleString()} Thug${qty === 1 ? '' : 's'} from security.`,
+          ? `Assigned ${qty!.toLocaleString()} ${enforcersLabel(qty!)} to security.`
+          : `Removed ${qty!.toLocaleString()} ${enforcersLabel(qty!)} from security.`,
       );
     } finally {
       setLoading(null);
@@ -420,8 +425,9 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   async function runUpgrade(businessId: string) {
-    if (loading !== null) return;
-    setLoading(`upgrade-${businessId}`);
+    const key = `upgrade-${businessId}`;
+    if (loading === key) return;
+    setLoading(key);
     setError('');
     setMessage('');
     try {
@@ -441,8 +447,9 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   async function runDrug(businessId: string, mode: 'store' | 'withdraw') {
-    if (loading !== null) return;
     const drug = (drugType[businessId] ?? 'hash') as DrugKey;
+    const key = `${mode}-${businessId}-${drug}`;
+    if (loading === key) return;
     const qty = parsePositiveInteger(drugQty[businessId] ?? '1');
     const validationError = validateQuantity(qty);
     if (validationError) {
@@ -494,7 +501,7 @@ export function BusinessesPanel({ initialData }: Props) {
             Level {biz.level} benefits remain active until completion.
           </p>
           <StatRow
-            label="Workers (after)"
+            label={`${OS_TERMS.specialists} (after)`}
             value={`${current.workerCapacity.toLocaleString()} → ${next.workerCapacity.toLocaleString()}`}
           />
           <StatRow
@@ -533,7 +540,7 @@ export function BusinessesPanel({ initialData }: Props) {
         ) : null}
         <p className="g-business-limits g-business-limits--compact">Unlocks / improves:</p>
         <StatRow
-          label="Workers"
+          label={OS_TERMS.specialists}
           value={`${current.workerCapacity.toLocaleString()} → ${next.workerCapacity.toLocaleString()}`}
         />
         <StatRow
@@ -562,7 +569,7 @@ export function BusinessesPanel({ initialData }: Props) {
             rows.push(
               <StatRow
                 key="worker-network"
-                label="Worker Recruitment"
+                label={`${OS_TERMS.specialist} Recruitment`}
                 value={`${formatRecruitmentBonusDisplay(currentRecruitment.workerPercent)} → ${formatRecruitmentBonusDisplay(nextRecruitment.workerPercent)}`}
               />,
             );
@@ -571,7 +578,7 @@ export function BusinessesPanel({ initialData }: Props) {
             rows.push(
               <StatRow
                 key="thug-network"
-                label="Thug Recruitment"
+                label={`${OS_TERMS.enforcer} Recruitment`}
                 value={`${formatRecruitmentBonusDisplay(currentRecruitment.thugPercent)} → ${formatRecruitmentBonusDisplay(nextRecruitment.thugPercent)}`}
               />,
             );
@@ -581,7 +588,7 @@ export function BusinessesPanel({ initialData }: Props) {
         <PrimaryButton
           type="button"
           pending={loading === `upgrade-${biz.id}`}
-          disabled={panelLocked || !canAfford}
+          disabled={loading === `upgrade-${biz.id}` || !canAfford}
           onClick={() => runUpgrade(biz.id)}
         >
           Start Upgrade to Level {biz.nextUpgradeLevel}
@@ -615,7 +622,7 @@ export function BusinessesPanel({ initialData }: Props) {
               {formatUpgradeRemaining(biz.upgradeCompletesAt, nowMs)} remaining
             </p>
           ) : null}
-          <StatRow label="Workers" value={workerCapLabel} />
+          <StatRow label={OS_TERMS.specialists} value={workerCapLabel} />
           <StatRow label="Security" value={securityCapLabel} />
           <StatRow
             label="Safe"
@@ -628,34 +635,37 @@ export function BusinessesPanel({ initialData }: Props) {
           <StatRow label="Income" value={`${fmtCash(biz.hourlyIncome)}/hr`} />
           {renderRecruitmentStatRows(biz)}
           <StatRow
-            label="Heat"
+            label={OS_TERMS.heat}
             value={<StatusBadge tone={heatBadgeTone(biz.heatBand)}>{biz.heatLabel}</StatusBadge>}
           />
         </div>
 
         <div className="g-business-sections" key={activeView}>
           <BusinessSection
-            title="Workers"
+            title={OS_TERMS.specialists}
             badge={
               biz.workerOverCapacity
                 ? `${biz.assignedWorkers.toLocaleString()} / ${biz.workerCapacity.toLocaleString()} · OVER CAP`
                 : `${biz.assignedWorkers.toLocaleString()} / ${biz.workerCapacity.toLocaleString()}`
             }
-            hint="Assigned Workers earn passive income but are unavailable for Street work."
+            hint={`Assigned ${OS_TERMS.specialists} earn passive income but are unavailable for Operations.`}
           >
-            <StatRow label="Street available" value={data.streetWorkers.toLocaleString()} />
+            <StatRow label="Unassigned" value={data.streetWorkers.toLocaleString()} />
             <NumericInput
               id={`workers-${biz.id}`}
               label="Quantity"
               value={workerQty[biz.id] ?? '1'}
-              disabled={panelLocked}
               onChange={(v) => setWorkerQty((prev) => ({ ...prev, [biz.id]: v }))}
             />
             <div className="g-btn-row">
               <PrimaryButton
                 type="button"
                 pending={loading === `assign-${biz.id}`}
-                disabled={panelLocked || biz.workerOverCapacity || biz.assignedWorkers >= biz.workerCapacity}
+                disabled={
+                  loading === `assign-${biz.id}` ||
+                  biz.workerOverCapacity ||
+                  biz.assignedWorkers >= biz.workerCapacity
+                }
                 onClick={() => runWorkers(biz.id, 'assign')}
               >
                 Assign
@@ -664,7 +674,7 @@ export function BusinessesPanel({ initialData }: Props) {
                 type="button"
                 variant="secondary"
                 pending={loading === `remove-${biz.id}`}
-                disabled={panelLocked}
+                disabled={loading === `remove-${biz.id}` || biz.assignedWorkers <= 0}
                 onClick={() => runWorkers(biz.id, 'remove')}
               >
                 Remove
@@ -675,22 +685,25 @@ export function BusinessesPanel({ initialData }: Props) {
           <BusinessSection
             title="Security"
             badge={`${biz.assignedThugs}/${biz.securityCapacity} · ${securityLabel(biz.securityBand)}`}
-            hint="Assigned Thugs protect this Business but cannot attack or defend your Street operation."
+            hint={`Assigned ${OS_TERMS.enforcers} protect this Business but cannot attack or defend your active operation.`}
           >
-            <StatRow label="Street Thugs available" value={data.streetThugs.toLocaleString()} />
+            <StatRow label={`Unassigned ${OS_TERMS.enforcers}`} value={data.streetThugs.toLocaleString()} />
             <StatRow label="Coverage" value={`${Math.round(biz.securityCoverage * 100)}%`} />
             <NumericInput
               id={`security-${biz.id}`}
               label="Quantity"
               value={thugQty[biz.id] ?? '1'}
-              disabled={panelLocked}
               onChange={(v) => setThugQty((prev) => ({ ...prev, [biz.id]: v }))}
             />
             <div className="g-btn-row">
               <PrimaryButton
                 type="button"
                 pending={loading === `assign-sec-${biz.id}`}
-                disabled={panelLocked || biz.securityOverCapacity || biz.assignedThugs >= biz.securityCapacity}
+                disabled={
+                  loading === `assign-sec-${biz.id}` ||
+                  biz.securityOverCapacity ||
+                  biz.assignedThugs >= biz.securityCapacity
+                }
                 onClick={() => runSecurity(biz.id, 'assign')}
               >
                 Assign Security
@@ -699,7 +712,7 @@ export function BusinessesPanel({ initialData }: Props) {
                 type="button"
                 variant="secondary"
                 pending={loading === `remove-sec-${biz.id}`}
-                disabled={panelLocked}
+                disabled={loading === `remove-sec-${biz.id}` || biz.assignedThugs <= 0}
                 onClick={() => runSecurity(biz.id, 'remove')}
               >
                 Remove
@@ -710,12 +723,12 @@ export function BusinessesPanel({ initialData }: Props) {
           <BusinessSection
             title="Safe"
             badge={biz.safeFull ? 'FULL' : fmtCash(biz.safeCash)}
-            hint="Business income stays outside Street Net Worth until collected."
+            hint={`Business income stays outside active ${OS_TERMS.influence} until collected.`}
           >
             <PrimaryButton
               type="button"
               pending={loading === `collect-${biz.id}`}
-              disabled={panelLocked || biz.safeCash <= 0}
+              disabled={loading === `collect-${biz.id}` || biz.safeCash <= 0}
               onClick={() => runCollect(biz.id)}
             >
               {loading === `collect-${biz.id}`
@@ -725,23 +738,22 @@ export function BusinessesPanel({ initialData }: Props) {
           </BusinessSection>
 
           <BusinessSection
-            title="Drug Storage"
+            title={`${OS_TERMS.technology} Storage`}
             badge={`${biz.storedDrugUnits.toLocaleString()} / ${biz.drugStorageCapacity.toLocaleString()}`}
-            hint="Stored drugs are hidden from Street Net Worth but increase Police Heat."
+            hint={`Stored technology is hidden from ${OS_TERMS.influence} but increases ${OS_TERMS.heat} and ${OS_TERMS.securitySweep} risk.`}
           >
             {(['hash', 'shrooms', 'coke', 'heroin'] as const).map((key) => (
               <StatRow
                 key={key}
                 label={DRUG_LABELS[key]}
-                value={`Street ${data.streetDrugs[key].toLocaleString()} · Stored ${biz.storedDrugs[key].toLocaleString()}`}
+                value={`Unassigned ${data.streetDrugs[key].toLocaleString()} · Stored ${biz.storedDrugs[key].toLocaleString()}`}
               />
             ))}
             <label className="g-field-label">
-              Drug
+              {OS_TERMS.technology}
               <select
                 className="g-input"
                 value={drugType[biz.id] ?? 'hash'}
-                disabled={panelLocked}
                 onChange={(e) => setDrugType((prev) => ({ ...prev, [biz.id]: e.target.value }))}
               >
                 {(['hash', 'shrooms', 'coke', 'heroin'] as const).map((key) => (
@@ -755,14 +767,13 @@ export function BusinessesPanel({ initialData }: Props) {
               id={`drugs-${biz.id}`}
               label="Quantity"
               value={drugQty[biz.id] ?? '1'}
-              disabled={panelLocked}
               onChange={(v) => setDrugQty((prev) => ({ ...prev, [biz.id]: v }))}
             />
             <div className="g-btn-row">
               <PrimaryButton
                 type="button"
                 pending={loading === `store-${biz.id}-${drugType[biz.id] ?? 'hash'}`}
-                disabled={panelLocked}
+                disabled={loading === `store-${biz.id}-${drugType[biz.id] ?? 'hash'}`}
                 onClick={() => runDrug(biz.id, 'store')}
               >
                 Store
@@ -771,7 +782,7 @@ export function BusinessesPanel({ initialData }: Props) {
                 type="button"
                 variant="secondary"
                 pending={loading === `withdraw-${biz.id}-${drugType[biz.id] ?? 'hash'}`}
-                disabled={panelLocked}
+                disabled={loading === `withdraw-${biz.id}-${drugType[biz.id] ?? 'hash'}`}
                 onClick={() => runDrug(biz.id, 'withdraw')}
               >
                 Withdraw
@@ -806,7 +817,7 @@ export function BusinessesPanel({ initialData }: Props) {
           <section className="g-business-aspiration" aria-label="Business progression">
             <h3 className="g-business-aspiration-title">Build something bigger</h3>
             <p className="g-note g-business-aspiration-body">
-              Your first Warehouse costs{' '}
+              Your first {OS_TERMS.warehouse} costs{' '}
               <strong>
                 {fmtCash(
                   data.catalog.find((e) => e.type === 'WAREHOUSE')?.purchasePrice ??
@@ -814,7 +825,7 @@ export function BusinessesPanel({ initialData }: Props) {
                     0
                 )}
               </strong>
-              . Grow your operation, build your cash reserves, and turn street muscle into a real
+              . Grow your operation, build your cash reserves, and turn street crew into a real
               empire.
             </p>
           </section>
@@ -829,17 +840,21 @@ export function BusinessesPanel({ initialData }: Props) {
             </summary>
             <div className="g-business-section-body">
               <p className="g-business-limits g-business-limits--compact">{entry.blurb}</p>
-              <StatRow label="Workers" value={`${entry.workerCapacity.toLocaleString()} max`} />
+              <StatRow label={OS_TERMS.specialists} value={`${entry.workerCapacity.toLocaleString()} max`} />
               <StatRow label="Safe" value={fmtCash(entry.safeCapacity)} />
               <StatRow label="Storage" value={`${entry.drugStorageCapacity.toLocaleString()} units`} />
               <StatRow label="Income" value={incomeLabel(entry.type)} />
-              <StatRow label="Heat" value={heatDescriptor(entry.baseHeat)} />
-              <StatRow label="Street NW" value={fmtCash(entry.streetNwContribution)} />
+              <StatRow label={OS_TERMS.heat} value={heatDescriptor(entry.baseHeat)} />
+              <StatRow label={`Active ${OS_TERMS.influence}`} value={fmtCash(entry.streetNwContribution)} />
               <div className="g-business-panel-actions">
                 <PrimaryButton
                   type="button"
                   pending={loading === `buy-${entry.type}`}
-                  disabled={panelLocked || !data.canPurchase || data.cash < entry.purchasePrice}
+                  disabled={
+                    loading === `buy-${entry.type}` ||
+                    !data.canPurchase ||
+                    data.cash < entry.purchasePrice
+                  }
                   onClick={() => runPurchase(entry.type)}
                 >
                   Buy {entry.displayName}
@@ -853,7 +868,10 @@ export function BusinessesPanel({ initialData }: Props) {
   }
 
   return (
-    <div aria-busy={panelLocked || undefined}>
+    <div>
+      {error ? <FeedbackNote tone="error" role="alert">{error}</FeedbackNote> : null}
+      {message ? <FeedbackNote tone="success" role="status">{message}</FeedbackNote> : null}
+
       <BusinessSection
         title="Business Network"
         badge={
@@ -864,15 +882,15 @@ export function BusinessesPanel({ initialData }: Props) {
         }
       >
         <StatRow
-          label="Worker Capacity"
+          label={`${OS_TERMS.specialist} Capacity`}
           value={data.summary.totalWorkerCapacity.toLocaleString()}
         />
         <StatRow
-          label="Worker Recruitment"
+          label={`${OS_TERMS.specialist} Recruitment`}
           value={formatRecruitmentBonusDisplay(data.summary.workerRecruitmentBonusPercent)}
         />
         <StatRow
-          label="Thug Recruitment"
+          label={`${OS_TERMS.enforcer} Recruitment`}
           value={formatRecruitmentBonusDisplay(data.summary.thugRecruitmentBonusPercent)}
         />
         <details className="g-business-network-info">
@@ -882,21 +900,24 @@ export function BusinessesPanel({ initialData }: Props) {
               Businesses earn money, hold crew, and expand your connections across the city.
             </p>
             <p className="g-note g-business-limits--compact">
-              <strong>Worker Capacity</strong> — assign Workers to earn passively. Upgrades increase
-              capacity.
+              <strong>{OS_TERMS.specialist} Capacity</strong> — assign {OS_TERMS.specialists} to earn
+              passively. Upgrades increase capacity.
             </p>
             <p className="g-note g-business-limits--compact">
-              <strong>Business Network</strong> — owning and upgrading improves Worker and/or Thug
-              recruitment while Scouting. Bonuses affect people recruited only — not Scout cash.
+              <strong>Business Network</strong> — owning and upgrading improves {OS_TERMS.specialist}{' '}
+              and/or {OS_TERMS.enforcer} recruitment while Scouting. Bonuses affect people recruited
+              only — not Scout cash.
             </p>
             <p className="g-note g-business-limits--compact">
-              <strong>Warehouse</strong> — stronger Worker recruitment.
+              <strong>{OS_TERMS.warehouse}</strong> — stronger {OS_TERMS.specialist} recruitment.
             </p>
             <p className="g-note g-business-limits--compact">
-              <strong>Nightclub</strong> — improves Worker and Thug recruitment.
+              <strong>{OS_TERMS.nightclub}</strong> — improves {OS_TERMS.specialist} and{' '}
+              {OS_TERMS.enforcer} recruitment.
             </p>
             <p className="g-note g-business-limits--compact">
-              <strong>Drug Lab</strong> — stronger Thug recruitment; keeps its production benefits.
+              <strong>{OS_TERMS.drugLab}</strong> — stronger {OS_TERMS.enforcer} recruitment; keeps
+              its production benefits.
             </p>
             <p className="g-note g-business-limits--compact">
               Upgrades strengthen your recruitment network. As your empire grows (staffed businesses,
@@ -910,16 +931,16 @@ export function BusinessesPanel({ initialData }: Props) {
 
       <BusinessSection
         title="Summary"
-        badge={`${data.summary.ownedCount} owned · ${data.summary.overallHeatBand} heat`}
+        badge={`${data.summary.ownedCount} owned · ${data.summary.overallHeatBand} ${OS_TERMS.heat.toLowerCase()}`}
       >
         <StatRow
-          label="Workers"
-          value={`Street ${data.summary.streetWorkers.toLocaleString()} · Assigned ${data.summary.assignedWorkers.toLocaleString()}`}
+          label={OS_TERMS.specialists}
+          value={`Unassigned ${data.summary.streetWorkers.toLocaleString()} · Assigned ${data.summary.assignedWorkers.toLocaleString()}`}
         />
         <StatRow label="Business Safe" value={fmtCash(data.summary.totalSafeCash)} />
-        <StatRow label="Stored Drugs" value={`${data.summary.totalStoredDrugs.toLocaleString()} units`} />
+        <StatRow label={`Stored ${OS_TERMS.technology}`} value={`${data.summary.totalStoredDrugs.toLocaleString()} units`} />
         <StatRow label="Portfolio Investment" value={fmtCash(data.summary.totalInvested)} />
-        <StatRow label="Business Asset NW" value={fmtCash(data.summary.businessStreetAssets)} />
+        <StatRow label={`Business Asset ${OS_TERMS.influence}`} value={fmtCash(data.summary.businessStreetAssets)} />
       </BusinessSection>
 
       <Divider />
@@ -958,9 +979,6 @@ export function BusinessesPanel({ initialData }: Props) {
 
       {activeView === ACQUIRE_VIEW ? renderAcquire() : null}
       {activeBusiness ? renderBusinessManage(activeBusiness) : null}
-
-      {error ? <p className="g-error">{error}</p> : null}
-      {message ? <p className="g-note">{message}</p> : null}
     </div>
   );
 }

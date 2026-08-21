@@ -7,7 +7,7 @@ import { validateStreetDrugSale, streetDrugField } from '@/lib/game-engine/drug-
 import type { StreetDrugType } from '@/config/game/drug-street-prices';
 import { calculateNetWorth } from '@/lib/game-engine/net-worth';
 import { playerToResources, snapshotPlayerState } from '@/lib/game-engine/state';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import type { ActionResult } from './auth.actions';
@@ -49,7 +49,7 @@ export async function streetDrugSaleAction(
         include: { district: true, season: true },
       });
 
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
       if (player.travelling) {
         throw new Error('Cannot street-sell drugs while travelling.');

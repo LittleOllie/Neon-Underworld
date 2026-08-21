@@ -1,4 +1,5 @@
 import { REDLITE_PAYOUT, REDLITE_VEHICLES, REDLITE_WEAPONS } from '@core/config/game/redlite-rules';
+import { TERMS } from '@core/config/game/terminology';
 import { NET_WORTH_VALUATIONS, BUSINESS_DISPLAY_VALUE } from '@local/config/valuations';
 
 /** Worker payout — Redlite: 1% max profit, 100% protection when idle */
@@ -22,9 +23,9 @@ export const EMPIRE_BANK_RULES = {
 
 /** Weapon combat capacity — Redlite guide §7 (arming still 1 weapon : 1 thug) */
 export const EMPIRE_WEAPON_TYPES = [
-  { key: 'glocks', name: 'Glocks', combatValue: REDLITE_WEAPONS.glock.combatCapacity },
-  { key: 'uzis', name: 'Uzis', combatValue: REDLITE_WEAPONS.uzi.combatCapacity },
-  { key: 'aks', name: 'AKs', combatValue: REDLITE_WEAPONS.ak.combatCapacity },
+  { key: 'glocks', name: TERMS.glocks, combatValue: REDLITE_WEAPONS.glock.combatCapacity },
+  { key: 'uzis', name: TERMS.uzis, combatValue: REDLITE_WEAPONS.uzi.combatCapacity },
+  { key: 'aks', name: TERMS.aks, combatValue: REDLITE_WEAPONS.ak.combatCapacity },
 ] as const;
 
 export type WeaponKey = (typeof EMPIRE_WEAPON_TYPES)[number]['key'];
@@ -38,10 +39,10 @@ export type VehicleKey = (typeof EMPIRE_VEHICLE_TYPES)[number]['key'];
 
 /** Drug display + canonical valuation per unit */
 export const EMPIRE_DRUG_TYPES = [
-  { key: 'hash', name: 'Hash', valuationEach: NET_WORTH_VALUATIONS.drugUnit },
-  { key: 'shrooms', name: 'Shrooms', valuationEach: NET_WORTH_VALUATIONS.drugUnit },
-  { key: 'coke', name: 'Coke', valuationEach: NET_WORTH_VALUATIONS.drugUnit },
-  { key: 'heroin', name: 'Heroin', valuationEach: NET_WORTH_VALUATIONS.drugUnit },
+  { key: 'hash', name: TERMS.hash, valuationEach: NET_WORTH_VALUATIONS.drugUnit },
+  { key: 'shrooms', name: TERMS.shrooms, valuationEach: NET_WORTH_VALUATIONS.drugUnit },
+  { key: 'coke', name: TERMS.coke, valuationEach: NET_WORTH_VALUATIONS.drugUnit },
+  { key: 'heroin', name: TERMS.heroin, valuationEach: NET_WORTH_VALUATIONS.drugUnit },
 ] as const;
 
 export type DrugKey = (typeof EMPIRE_DRUG_TYPES)[number]['key'];

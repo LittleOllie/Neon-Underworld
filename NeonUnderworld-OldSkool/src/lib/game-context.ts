@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@local/lib/auth/config';
+import { redirectIfPlayerMissing } from '@local/lib/auth/stale-session';
 import { assertUserNotBanned } from '@core/lib/auth/ban-guard';
 import { PlayerService, type CanonicalPlayerContext } from '@local/server/services/player.service';
 import { PlayerStatusService } from '@local/server/services/player-status.service';
@@ -16,6 +17,8 @@ import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avat
 import { prisma } from '@core/lib/db/prisma';
 import { calculateBusinessNetworkBonus } from '@core/config/game/business-recruitment-rules';
 import { calculateEmpireRecruitmentMultipliers } from '@core/config/game/empire-recruitment-rules';
+import { ensureRoundParticipation } from '@core/server/services/round-activation.service';
+import { isRoutePrefetch } from '@local/lib/is-route-prefetch';
 
 export const loadBusinessNetworkBonus = cache(async (playerId: string) => {
   const businesses = await prisma.business.findMany({
@@ -46,7 +49,13 @@ export const requireGameSession = cache(async (): Promise<{
   const session = await auth();
   if (!session?.user?.playerId) redirect('/login');
   await assertUserNotBanned(session.user.id);
-  await PlayerStatusService.touchLastSeen(session.user.playerId);
+  await redirectIfPlayerMissing(session.user.playerId);
+
+  const prefetch = await isRoutePrefetch();
+  if (!prefetch) {
+    await PlayerStatusService.touchLastSeen(session.user.playerId);
+    await ensureRoundParticipation(session.user.playerId);
+  }
   const ctx = await PlayerService.getCanonicalContext(session.user.playerId);
   return { playerId: session.user.playerId, ctx };
 });

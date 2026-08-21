@@ -14,7 +14,7 @@ import {
   resolveCanonicalTurnState,
   settleTurnRegeneration,
 } from '@/lib/game-engine/turns';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
+import { assertGameplaySeasonActive } from '@/lib/game-engine/season-guard';
 import { GameplayError, toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import { assertPlayerCanPerformAction } from '@/lib/game-engine/player-action-guard';
 import type { ActionResult } from './auth.actions';
@@ -65,7 +65,7 @@ export async function travelAction(
         include: { turnState: true, district: true, season: true },
       });
 
-      if (player.season.status !== 'ACTIVE') throw new SeasonInactiveError();
+      assertGameplaySeasonActive(player.season);
       assertPlayerCanPerformAction(player);
 
       if (player.travelling) {

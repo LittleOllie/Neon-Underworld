@@ -23,12 +23,15 @@ export interface DeepIntelDisplay {
   gatheredAt: string;
 }
 
+import type { PlayerIdentityView } from '@core/lib/game-engine/player-identity-fields';
+
 /** Same-city player eligible for attack discovery. */
 export interface AttackTargetCandidate {
   playerId: string;
   alias: string;
   aliasNormalized: string;
   avatarId: string;
+  identity: PlayerIdentityView;
   rank: number;
   netWorth: number;
   online: boolean;

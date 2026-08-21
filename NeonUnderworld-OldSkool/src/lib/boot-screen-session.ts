@@ -46,18 +46,22 @@ export function shouldSkipBootScreen(pathname: string): boolean {
     pathname.startsWith('/admin') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
     pathname.startsWith('/api/')
   );
 }
 
 /**
  * Map NextAuth client status to boot copy state.
- * Loading never becomes unauthenticated until the client resolves the session.
+ * Game routes trust middleware — if the page rendered, the session cookie was valid.
+ * Client useSession can lag or fail during dev HMR; it must not block Enter.
  */
 export function resolveBootSessionStatus(
   sessionStatus: ClientSessionStatus,
-  _pathname: string,
+  pathname: string,
 ): BootSessionStatus {
+  if (isProtectedGameRoute(pathname)) return 'authenticated';
   if (sessionStatus === 'loading') return 'loading';
   if (sessionStatus === 'authenticated') return 'authenticated';
   return 'unauthenticated';
@@ -81,7 +85,37 @@ export function resolveBootDismissTarget(
   return isDefaultEntry ? '/command' : pathname;
 }
 
+/**
+ * Dismiss target when the player clicks Enter — never block on client session stalls
+ * when middleware already placed them on a protected game route.
+ */
+export function resolveBootDismissTargetForClick(
+  pathname: string,
+  bootStatus: BootSessionStatus,
+): string {
+  const resolved = resolveBootDismissTarget(pathname, bootStatus);
+  if (resolved) return resolved;
+
+  if (isProtectedGameRoute(pathname)) {
+    return pathname === '/' || pathname === '/login' ? '/command' : pathname;
+  }
+
+  return '/login';
+}
+
 /** True when boot may expose a Sign In action that routes toward login. */
 export function bootMayRouteToLogin(bootStatus: BootSessionStatus): boolean {
   return bootStatus === 'unauthenticated';
+}
+
+/**
+ * Enter is only actionable once the client session has settled — even on protected
+ * game routes where middleware already passed, an early click before useSession
+ * resolves can dismiss the boot into an empty shell and trap the player.
+ */
+export function isBootEnterReady(
+  sessionStatus: ClientSessionStatus,
+  bootStatus: BootSessionStatus,
+): boolean {
+  return sessionStatus !== 'loading' && bootStatus !== 'loading';
 }

@@ -32,7 +32,7 @@ test.describe('Multi-tab state sync', () => {
 
     await gotoGame(tabA, '/scout');
     await tabA.getByRole('button', { name: '25', exact: true }).click();
-    await tabA.getByRole('button', { name: /^Scout .+\?$/ }).click();
+    await tabA.getByRole('button', { name: /^Scout .+ · \d[\d,]* turns?$/ }).click();
     await expect(tabA.getByRole('heading', { name: 'Scout Complete' })).toBeVisible({ timeout: 30_000 });
 
     await gotoGame(tabB, '/command');

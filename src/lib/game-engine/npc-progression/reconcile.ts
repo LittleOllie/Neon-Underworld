@@ -34,6 +34,14 @@ export function reconcileTowardTarget(
   };
 }
 
+export function reconcileBusinessesTowardTarget(
+  current: NpcTargetAssetState['businesses'],
+  target: NpcTargetAssetState['businesses'],
+  recoveryRate: number,
+): NpcTargetAssetState['businesses'] {
+  return reconcileBusinesses(current, target, recoveryRate);
+}
+
 function reconcileBusinesses(
   current: NpcTargetAssetState['businesses'],
   target: NpcTargetAssetState['businesses'],

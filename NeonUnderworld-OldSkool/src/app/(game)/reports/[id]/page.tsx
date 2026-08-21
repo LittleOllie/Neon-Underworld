@@ -1,15 +1,22 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageTitle, StatRow, Divider, SectionLabel, ActionButton } from '@local/components/game';
+import { CombatResultPanel } from '@local/components/game/CombatResultPanel';
 import { requireGameSession, formatRelativeTime } from '@local/lib/game-context';
 import { ReportService, type CombatReportSnapshot } from '@local/server/services/report.service';
 import { ReportReadSync } from '@local/features/reports/ReportReadSync';
 import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { prisma } from '@core/lib/db/prisma';
-import { resolvePlayerAvatarId } from '@core/lib/game-engine/resolve-player-avatar';
+import { identityViewFromPlayer } from '@core/lib/game-engine/player-identity-fields';
+import type { PlayerIdentityView } from '@core/lib/game-engine/player-identity-fields';
 import { GAMEPLAY_CONTEXT_MESSAGES } from '@core/lib/game-engine/gameplay-errors';
+import { OS_TERMS } from '@local/config/terminology';
 import { formatCountEstimateRange } from '@core/lib/game-engine/combat/deep-intel';
 import type { DeepIntelSnapshot } from '@core/lib/game-engine/combat/deep-intel';
+import {
+  buildCombatResultPresentation,
+  combatSnapshotToPresentationInput,
+} from '@core/lib/game-engine/combat/attack-result-presentation';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -47,6 +54,23 @@ export default async function ReportDetailPage({ params }: Props) {
   }
 
   const combat = meta?.type === 'ATTACK' || meta?.type === 'DEFENCE' ? meta.snapshot : null;
+  const combatRole = meta?.type === 'DEFENCE' ? 'defender' : 'attacker';
+  const combatPresentation =
+    combat &&
+    buildCombatResultPresentation(
+      combatSnapshotToPresentationInput(
+        {
+          ...combat,
+          drugsStolen: combat.drugsStolen ?? {
+            hash: 0,
+            shrooms: 0,
+            coke: 0,
+            heroin: 0,
+          },
+        },
+        combatRole,
+      ),
+    );
   const intelBands = meta?.type === 'PLAYER_INTEL' ? meta.snapshot?.bands : null;
   const deepIntel = meta?.type === 'DEEP_INTEL' ? meta.deepIntel : null;
   const basicIntelReportId =
@@ -65,15 +89,23 @@ export default async function ReportDetailPage({ params }: Props) {
     meta?.intel?.targetAlias ?? meta?.deepIntel?.targetAlias ?? null;
   const lookupAliases = [...new Set([...combatAliases, intelAlias].filter(Boolean))] as string[];
 
-  const avatarByAlias = new Map<string, string>();
+  const identityByAlias = new Map<string, PlayerIdentityView>();
   const normalizedByAlias = new Map<string, string>();
   if (lookupAliases.length > 0) {
     const players = await prisma.player.findMany({
       where: { alias: { in: lookupAliases } },
-      select: { alias: true, aliasNormalized: true, avatar: true },
+      select: {
+        alias: true,
+        aliasNormalized: true,
+        avatar: true,
+        avatarSource: true,
+        pfpUrl: true,
+        themePrimary: true,
+        themeSecondary: true,
+      },
     });
     for (const player of players) {
-      avatarByAlias.set(player.alias, resolvePlayerAvatarId(player.avatar));
+      identityByAlias.set(player.alias, identityViewFromPlayer(player));
       normalizedByAlias.set(player.alias, player.aliasNormalized);
     }
   }
@@ -84,7 +116,7 @@ export default async function ReportDetailPage({ params }: Props) {
     return {
       player: {
         alias,
-        avatarId: avatarByAlias.get(alias),
+        ...identityByAlias.get(alias),
         aliasNormalized,
       },
       static: isSelf || !aliasNormalized,
@@ -95,9 +127,11 @@ export default async function ReportDetailPage({ params }: Props) {
     <>
       <ReportReadSync unreadReports={unreadAfterRead} reportId={wasUnread ? id : undefined} />
       <PageTitle>{report.title}</PageTitle>
+
+      <div className="g-gameplay-controls g-reports-chrome">
       <p className="g-note">{formatRelativeTime(report.createdAt)}</p>
 
-      {combat && (
+      {combat && combatPresentation && (
         <>
           {combat.attackerAlias && (
             <div className="g-report-identity-row">
@@ -117,33 +151,25 @@ export default async function ReportDetailPage({ params }: Props) {
               />
             </div>
           )}
-          <StatRow label="Outcome" value={combat.outcomeLabel} />
-          {combat.cashStolen > 0 && (
-            <StatRow label="Cash stolen" value={`$${combat.cashStolen.toLocaleString()}`} />
-          )}
-          {combat.workersStolen > 0 && (
-            <StatRow label="Workers poached" value={String(combat.workersStolen)} />
-          )}
-          <StatRow label="Your losses" value={String(combat.attackerLosses)} />
-          <StatRow label="Enemy losses" value={String(combat.defenderLosses)} />
+          <CombatResultPanel presentation={combatPresentation} />
           {combat.cartelParticipated && (
             <>
-              <SectionLabel>CARTEL DEFENCE</SectionLabel>
+              <SectionLabel>FACTION RESPONSE</SectionLabel>
               {combat.cartelLocalSupport != null && combat.cartelLocalSupport > 0 && (
                 <StatRow
-                  label="Local cartel backup"
-                  value={`${combat.cartelLocalSupport.toLocaleString()} thugs`}
+                  label="Local Faction backup"
+                  value={`${combat.cartelLocalSupport.toLocaleString()} ${OS_TERMS.enforcers.toLowerCase()}`}
                 />
               )}
               {combat.cartelResponseDeployed != null && combat.cartelResponseDeployed > 0 && (
                 <StatRow
-                  label="Cartel response deployed"
-                  value={`${combat.cartelResponseDeployed.toLocaleString()} thugs`}
+                  label="Faction response deployed"
+                  value={`${combat.cartelResponseDeployed.toLocaleString()} ${OS_TERMS.enforcers.toLowerCase()}`}
                 />
               )}
               {combat.cartelResponseLosses != null && combat.cartelResponseLosses > 0 && (
                 <StatRow
-                  label="Cartel thugs lost"
+                  label="Faction Enforcers lost"
                   value={String(combat.cartelResponseLosses)}
                 />
               )}
@@ -159,7 +185,7 @@ export default async function ReportDetailPage({ params }: Props) {
             <PlayerIdentity
               player={{
                 alias: meta.intel.targetAlias,
-                avatarId: avatarByAlias.get(meta.intel.targetAlias),
+                ...identityByAlias.get(meta.intel.targetAlias),
               }}
               avatarSize="md"
               static
@@ -168,10 +194,10 @@ export default async function ReportDetailPage({ params }: Props) {
           {intelBands && (
             <>
               <StatRow label="Intel quality" value={`${intelBands.confidence ?? '—'}%`} />
-              <StatRow label="Thug presence" value={String(intelBands.thugs ?? '—')} />
+              <StatRow label={`${OS_TERMS.enforcer} presence`} value={String(intelBands.thugs ?? '—')} />
               <StatRow label="Weapons" value={String(intelBands.weapons ?? '—')} />
               <StatRow label="Cash exposure" value={String(intelBands.cash ?? '—')} />
-              <StatRow label="Drug exposure" value={String(intelBands.drugs ?? '—')} />
+              <StatRow label={`${OS_TERMS.technology} exposure`} value={String(intelBands.drugs ?? '—')} />
             </>
           )}
           {canAttackFromHere && basicIntelReportId ? (
@@ -195,21 +221,21 @@ export default async function ReportDetailPage({ params }: Props) {
           <StatRow label="Target" value={deepIntel.targetAlias} />
           <StatRow label="City" value={deepIntel.targetCity} />
           <StatRow
-            label="Estimated Thugs"
+            label={`Estimated ${OS_TERMS.enforcers}`}
             value={formatCountEstimateRange(deepIntel.estimatedThugMin, deepIntel.estimatedThugMax)}
           />
           <StatRow
-            label="Estimated Workers"
+            label={`Estimated ${OS_TERMS.specialists}`}
             value={formatCountEstimateRange(deepIntel.estimatedWorkerMin, deepIntel.estimatedWorkerMax)}
           />
           <StatRow label="Weapon Readiness" value={deepIntel.weaponReadinessBand} />
           <StatRow label="Workforce Stability" value={deepIntel.workforceStabilityBand} />
           <StatRow label="Protection" value={deepIntel.workforceProtectionBand} />
-          <StatRow label="Poaching Outlook" value={deepIntel.poachingOutlook} />
+          <StatRow label="Extraction outlook" value={deepIntel.poachingOutlook} />
           <StatRow label="Cash Exposure" value={deepIntel.cashExposureBand} />
-          <StatRow label="Drug Exposure" value={deepIntel.drugExposureBand} />
+          <StatRow label={`${OS_TERMS.technology} Exposure`} value={deepIntel.drugExposureBand} />
           {deepIntel.cartelPresence && (
-            <StatRow label="Cartel" value={deepIntel.cartelPresence} />
+            <StatRow label={OS_TERMS.faction} value={deepIntel.cartelPresence} />
           )}
           <StatRow label="Intel gathered" value={formatRelativeTime(new Date(deepIntel.scoutedAt))} />
           {canAttackFromHere && basicIntelReportId ? (
@@ -238,6 +264,7 @@ export default async function ReportDetailPage({ params }: Props) {
       <p className="g-note">
         <Link href="/reports">Back to reports</Link>
       </p>
+      </div>
     </>
   );
 }

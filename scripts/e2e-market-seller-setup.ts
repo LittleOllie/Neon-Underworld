@@ -15,6 +15,11 @@ async function resetSellerMarket(email: string): Promise<void> {
   if (!user?.player) return;
 
   const playerId = user.player.id;
+  const activeSeason = await prisma.season.findFirst({
+    where: { status: 'ACTIVE' },
+    orderBy: { number: 'desc' },
+    select: { id: true },
+  });
   const activeListings = await prisma.marketListing.findMany({
     where: { sellerId: playerId, status: 'ACTIVE' },
     select: { id: true },
@@ -30,7 +35,14 @@ async function resetSellerMarket(email: string): Promise<void> {
 
   await prisma.player.update({
     where: { id: playerId },
-    data: { hash: 20, beer: 10, condoms: 10, glocks: 2, cash: 50_000 },
+    data: {
+      hash: 20,
+      beer: 10,
+      condoms: 10,
+      glocks: 2,
+      cash: 50_000,
+      ...(activeSeason ? { seasonId: activeSeason.id } : {}),
+    },
   });
 
   console.log(`Market seller ready: ${email} (${activeListings.length} stale listings cleared)`);

@@ -14,7 +14,7 @@ export const DESKTOP_NAV: NavItem[] = [
   { href: '/command', label: 'Home', icon: 'home' },
   { href: '/empire', label: 'Empire', icon: 'empire' },
   { href: '/scout', label: 'Scout', icon: 'scout' },
-  { href: '/produce', label: 'Produce', icon: 'produce' },
+  { href: '/produce', label: 'Operations', icon: 'produce' },
   { href: '/shop', label: 'Shop', icon: 'shop' },
   { href: '#more', label: 'More', icon: 'more', isMore: true },
 ];
@@ -23,9 +23,30 @@ export const MOBILE_NAV: NavItem[] = [
   { href: '/command', label: 'Home', icon: 'home' },
   { href: '/empire', label: 'Empire', icon: 'empire' },
   { href: '/scout', label: 'Scout', icon: 'scout' },
-  { href: '/produce', label: 'Produce', icon: 'produce' },
+  { href: '/produce', label: 'Operations', icon: 'produce' },
+  { href: '/shop', label: 'Shop', icon: 'shop' },
   { href: '#more', label: 'More', icon: 'more', isMore: true },
 ];
+
+/** Routes surfaced under More — used for More nav active state (Shop is primary nav on mobile). */
+export const MORE_ROUTE_PREFIXES = [
+  '/attack',
+  '/market',
+  '/travel',
+  '/businesses',
+  '/cartels',
+  '/rankings',
+  '/reports',
+  '/settings',
+  '/how-to-play',
+  '/guides',
+] as const;
+
+export function isMoreRouteActive(pathname: string): boolean {
+  return MORE_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
 
 export interface MoreNavItem {
   href: string;
@@ -77,7 +98,7 @@ export function buildMoreMenuSections(counts?: { unreadReports?: number }): More
       label: 'Underworld',
       items: [
         { href: '/businesses', label: 'Businesses', icon: 'market' },
-        { href: '/cartels', label: 'Cartels', icon: 'cartel' },
+        { href: '/cartels', label: 'Factions', icon: 'cartel' },
         { href: '/rankings', label: 'Rankings', icon: 'rankings' },
         {
           href: '/reports',
@@ -112,7 +133,7 @@ export const MORE_ITEMS: MoreNavItem[] = buildMoreMenuSections()
   .flatMap((s) => s.items);
 
 export function navIsActive(pathname: string, href: string): boolean {
-  if (href === '#more') return false;
+  if (href === '#more') return isMoreRouteActive(pathname);
   if (href === '/command') return pathname === '/command';
   return pathname === href || pathname.startsWith(`${href}/`);
 }

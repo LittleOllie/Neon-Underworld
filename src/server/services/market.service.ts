@@ -127,8 +127,19 @@ export const MarketService = {
     if (!options?.skipSettlement) {
       await settleExpiredMarketListings();
     }
+    const activeSeason = await prisma.season.findFirst({
+      where: { status: 'ACTIVE' },
+      select: { id: true },
+      orderBy: { number: 'desc' },
+    });
+    if (!activeSeason) return [];
+
     const listings = await prisma.marketListing.findMany({
-      where: { status: 'ACTIVE', endsAt: { gt: new Date() } },
+      where: {
+        status: 'ACTIVE',
+        endsAt: { gt: new Date() },
+        seller: { seasonId: activeSeason.id },
+      },
       include: { seller: { select: { alias: true } } },
       orderBy: { endsAt: 'asc' },
       take: 100,

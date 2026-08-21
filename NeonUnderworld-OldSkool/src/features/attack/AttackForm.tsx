@@ -12,9 +12,16 @@ import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
 import {
   ATTACK_RULES,
   ATTACK_TYPE_LABELS,
-  ATTACK_TYPE_PURPOSE,
   type AttackType,
 } from '@core/config/game/attack-rules';
+import { buildCombatResultPresentation } from '@core/lib/game-engine/combat/attack-result-presentation';
+import {
+  attackTypeDescription,
+  formatAttackTurnCostDisplay,
+  formatAttackTypeOptionLabel,
+  formatInsufficientTurnsForAttack,
+  formatTurnCount,
+} from '@core/lib/game-engine/combat/attack-presentation';
 import {
   maxCommitmentForAttack,
   suggestedCommitmentForAttack,
@@ -48,12 +55,13 @@ import { PrimaryButton } from '@local/components/game/PrimaryButton';
 import { OptionGrid } from '@local/components/game/OptionGrid';
 import { SelectableCard } from '@local/components/game/SelectableCard';
 import { StatusBadge } from '@local/components/game/StatusBadge';
-import { ActionResult } from '@local/components/game/ActionResult';
+import { CombatResultPanel } from '@local/components/game/CombatResultPanel';
 import { StatRow } from '@local/components/game/StatRow';
 import { PlayerIdentity } from '@local/components/game/PlayerIdentity';
 import { Divider } from '@local/components/game/Divider';
 import { SectionLabel } from '@local/components/game/SectionLabel';
 import { formatRank } from '@local/lib/format-rank';
+import { OS_TERMS } from '@local/config/terminology';
 import type { AttackTargetCandidate, DeepIntelDisplay } from './AttackForm.types';
 
 interface AttackFormProps {
@@ -69,6 +77,7 @@ interface AttackFormProps {
   staleIntelNotice?: string | null;
   requestedTargetNotice?: { heading: string | null; message: string } | null;
   attackRangeMinNetWorth?: number;
+  attackRangeMaxNetWorth?: number;
   intelTurnCost: number;
   deepIntelTurnCost: number;
   viewerCity: string;
@@ -102,12 +111,27 @@ function riskFromForce(estimate: string): string {
 
 function formatOwnedWeapons(aks: number, uzis: number, glocks: number): string {
   const parts = [
-    aks > 0 ? `${aks.toLocaleString()} AK` : null,
-    uzis > 0 ? `${uzis.toLocaleString()} Uzi` : null,
-    glocks > 0 ? `${glocks.toLocaleString()} Glock` : null,
+    aks > 0 ? `${aks.toLocaleString()} ${OS_TERMS.ak}` : null,
+    uzis > 0 ? `${uzis.toLocaleString()} ${OS_TERMS.uzi}` : null,
+    glocks > 0 ? `${glocks.toLocaleString()} ${OS_TERMS.glock}` : null,
   ].filter((part): part is string => part != null);
 
   return parts.length > 0 ? parts.join(' · ') : 'None';
+}
+
+function displayFactionPresence(label: string): string {
+  return label
+    .replace(/\bCartel\b/g, OS_TERMS.faction)
+    .replace(/\bcartel\b/g, OS_TERMS.faction.toLowerCase());
+}
+
+function themeAttackIntelHint(text: string): string {
+  return text
+    .replace(/\bWorkers\b/g, OS_TERMS.specialists)
+    .replace(/\bworkers\b/g, OS_TERMS.specialists.toLowerCase())
+    .replace(/\bPoaching\b/g, 'Extraction')
+    .replace(/\bpoaching\b/g, 'extraction')
+    .replace(/\bpoachable\b/gi, 'extractable');
 }
 
 function AttackCrewSummary({
@@ -130,23 +154,26 @@ function AttackCrewSummary({
   return (
     <>
       <SectionLabel>YOUR CREW</SectionLabel>
-      <StatRow label="Thugs available" value={thugs.toLocaleString()} />
+      <StatRow label={`${OS_TERMS.enforcers} available`} value={thugs.toLocaleString()} />
       <StatRow label="Rides" value={rides.toLocaleString()} />
       <StatRow label="Weapons owned" value={formatOwnedWeapons(aks, uzis, glocks)} />
       {force > 0 && (
         <>
           <p className="g-note">
-            Sending {force.toLocaleString()} thugs — strongest weapons assigned first (AK → Uzi →
-            Glock).
+            Sending {force.toLocaleString()} {OS_TERMS.enforcers.toLowerCase()} — strongest weapons
+            assigned first ({OS_TERMS.ak} → {OS_TERMS.uzi} → {OS_TERMS.glock}).
           </p>
           {weaponAlloc.aks > 0 && (
-            <StatRow label="AK-47 armed" value={weaponAlloc.aks.toLocaleString()} />
+            <StatRow label={`${OS_TERMS.ak} armed`} value={weaponAlloc.aks.toLocaleString()} />
           )}
           {weaponAlloc.uzis > 0 && (
-            <StatRow label="Uzi armed" value={weaponAlloc.uzis.toLocaleString()} />
+            <StatRow label={`${OS_TERMS.uzi} armed`} value={weaponAlloc.uzis.toLocaleString()} />
           )}
           {weaponAlloc.glocks > 0 && (
-            <StatRow label="Glock armed" value={weaponAlloc.glocks.toLocaleString()} />
+            <StatRow
+              label={`${OS_TERMS.glock} armed`}
+              value={weaponAlloc.glocks.toLocaleString()}
+            />
           )}
           {weaponAlloc.unarmedThugs > 0 && (
             <StatRow label="Unarmed" value={weaponAlloc.unarmedThugs.toLocaleString()} />
@@ -205,12 +232,13 @@ function TargetCard({
       <PlayerIdentity
         player={{
           alias: target.alias,
-          avatarId: target.avatarId,
+          ...target.identity,
           aliasNormalized: target.aliasNormalized,
           rank: target.rank,
           netWorth: target.netWorth,
         }}
-        avatarSize="md"
+        avatarSize="rank"
+        shape="square"
         showRank
         static
       />
@@ -441,6 +469,7 @@ export function AttackForm(props: AttackFormProps) {
           const err = response.error;
           if (
             err.includes('below your attack range') ||
+            err.includes('too far below your Influence') ||
             err.includes('too far below your Net Worth')
           ) {
             setSelected((prev) =>
@@ -481,28 +510,31 @@ export function AttackForm(props: AttackFormProps) {
   }
 
   if (result) {
-    const lines: { text: string; tone?: 'positive' | 'negative' | 'neutral' }[] = [
-      { text: result.outcomeLabel },
+    const presentation = buildCombatResultPresentation({
+      attackType: result.attackType,
+      outcome: result.outcome,
+      outcomeLabel: result.outcomeLabel,
+      targetAlias: result.targetAlias,
+      cashStolen: result.cashStolen,
+      workersStolen: result.workersStolen ?? 0,
+      drugsStolen: result.drugsStolen,
+      attackerLosses: result.attackerLosses,
+      defenderLosses: result.defenderLosses,
+      turnsSpent: result.turnsSpent,
+      role: 'attacker',
+    });
+
+    const secondaryActions = [
+      ...(result.attackerReportId
+        ? [{ label: 'View Report', href: `/reports/${result.attackerReportId}` }]
+        : []),
+      { label: 'Home', href: '/command' },
     ];
-    if (result.cashStolen > 0) {
-      lines.push({ text: `+$${result.cashStolen.toLocaleString()} stolen`, tone: 'positive' });
-    }
-    if ((result.workersStolen ?? 0) > 0) {
-      lines.push({
-        text: `+${result.workersStolen!.toLocaleString()} Workers poached`,
-        tone: 'positive',
-      });
-    }
-    if (result.attackerLosses > 0) {
-      lines.push({ text: `-${result.attackerLosses} thugs lost`, tone: 'negative' });
-    }
-    lines.push({ text: `${result.turnsSpent} turns used` });
 
     return (
-      <ActionResult
-        title={`Attack ${result.outcome}`}
-        lines={lines}
-        actions={[
+      <CombatResultPanel
+        presentation={presentation}
+        primaryActions={[
           {
             label: 'Back to Targets',
             primary: true,
@@ -510,6 +542,7 @@ export function AttackForm(props: AttackFormProps) {
             onClick: handleBackToTargets,
           },
         ]}
+        secondaryActions={secondaryActions}
       />
     );
   }
@@ -543,18 +576,25 @@ export function AttackForm(props: AttackFormProps) {
           Players in <strong>{props.viewerCity}</strong> you can attack right now. Gather Basic
           Intel before launching an attack.
         </p>
-        {props.attackRangeMinNetWorth != null && props.attackRangeMinNetWorth > 0 && (
+        {props.attackRangeMinNetWorth != null &&
+        props.attackRangeMaxNetWorth != null &&
+        props.attackRangeMinNetWorth > 0 ? (
           <p className="g-note">
-            You can attack players worth at least 50% of your Net Worth. There is no upper limit.
-            Current floor: ${props.attackRangeMinNetWorth.toLocaleString()}+
+            Attack range: {Math.round(ATTACK_RULES.netWorthMinMultiplier * 100)}%–
+            {Math.round(ATTACK_RULES.netWorthMaxMultiplier * 100)}% of your {OS_TERMS.influence}. Eligible
+            targets: ${props.attackRangeMinNetWorth.toLocaleString()} – $
+            {props.attackRangeMaxNetWorth.toLocaleString()} {OS_TERMS.influence}.
           </p>
-        )}
+        ) : null}
         {targets.length === 0 ? (
           <>
             <p className="g-note">
-              No attackable players in your city right now. Check{' '}
-              <Link href="/rankings">Rankings</Link> to find rivals elsewhere, then{' '}
-              <Link href="/travel">Travel</Link> to their city.
+              No Operators in your city fall within your attack range right now (
+              {Math.round(ATTACK_RULES.netWorthMinMultiplier * 100)}%–
+              {Math.round(ATTACK_RULES.netWorthMaxMultiplier * 100)}% of your{' '}
+              {OS_TERMS.influence.toLowerCase()}). Check{' '}
+              <Link href="/rankings">Rankings</Link> for rivals in band, or{' '}
+              <Link href="/travel">Travel</Link> to another city.
             </p>
           </>
         ) : (
@@ -594,16 +634,17 @@ export function AttackForm(props: AttackFormProps) {
       <PlayerIdentity
         player={{
           alias: selected.alias,
-          avatarId: selected.avatarId,
+          ...selected.identity,
           aliasNormalized: selected.aliasNormalized,
           rank: selected.rank,
         }}
         avatarSize="lg"
+        shape="square"
         showRank
         static
       />
 
-      <StatRow label="Net Worth" value={`$${selected.netWorth.toLocaleString()}`} />
+      <StatRow label={OS_TERMS.influence} value={`$${selected.netWorth.toLocaleString()}`} />
       <StatRow label="Status" value={selected.statusLabel} />
 
       {!selected.eligible && (
@@ -620,14 +661,14 @@ export function AttackForm(props: AttackFormProps) {
               <StatRow label="Target" value={selected.alias} />
               <StatRow label="City" value={props.viewerCity} />
               <StatRow
-                label="Estimated Thugs"
+                label={`Estimated ${OS_TERMS.enforcers}`}
                 value={formatCountEstimateRange(
                   selected.deepIntel.estimatedThugMin,
                   selected.deepIntel.estimatedThugMax,
                 )}
               />
               <StatRow
-                label="Estimated Workers"
+                label={`Estimated ${OS_TERMS.specialists}`}
                 value={formatCountEstimateRange(
                   selected.deepIntel.estimatedWorkerMin,
                   selected.deepIntel.estimatedWorkerMax,
@@ -637,13 +678,21 @@ export function AttackForm(props: AttackFormProps) {
               <StatRow label="Workforce Stability" value={selected.deepIntel.workforceStabilityBand} />
               <StatRow label="Protection" value={selected.deepIntel.workforceProtectionBand} />
               <StatRow label="Cash Exposure" value={selected.deepIntel.cashExposureBand} />
-              <StatRow label="Drug Exposure" value={selected.deepIntel.drugExposureBand} />
+              <StatRow
+                label={`${OS_TERMS.technology} exposure`}
+                value={selected.deepIntel.drugExposureBand}
+              />
               {selected.deepIntel.cartelPresence && (
-                <StatRow label="Cartel" value={selected.deepIntel.cartelPresence} />
+                <StatRow
+                  label={OS_TERMS.faction}
+                  value={displayFactionPresence(selected.deepIntel.cartelPresence)}
+                />
               )}
               {workforceStabilityHint(selected.deepIntel.workforceStabilityBand as never) && (
                 <p className="g-note">
-                  {workforceStabilityHint(selected.deepIntel.workforceStabilityBand as never)}
+                  {themeAttackIntelHint(
+                    workforceStabilityHint(selected.deepIntel.workforceStabilityBand as never)!,
+                  )}
                 </p>
               )}
               <StatRow label="Intel age" value={formatIntelAge(selected.deepIntel.gatheredAt)} />
@@ -669,10 +718,10 @@ export function AttackForm(props: AttackFormProps) {
             <>
               <p className="g-section-label">INTEL REPORT</p>
               <StatRow label="Intel quality" value={`${selected.bands.confidence}%`} />
-              <StatRow label="Thug presence" value={selected.bands.thugs} />
+              <StatRow label={`${OS_TERMS.enforcer} presence`} value={selected.bands.thugs} />
               <StatRow label="Weapon coverage" value={selected.bands.weapons} />
               <StatRow label="Cash exposure" value={selected.bands.cash} />
-              <StatRow label="Drug exposure" value={selected.bands.drugs} />
+              <StatRow label={`${OS_TERMS.technology} exposure`} value={selected.bands.drugs} />
               {selected.reportId && (
                 <p className="g-note">
                   <Link href={`/reports/${selected.reportId}`}>View in Reports</Link>
@@ -757,20 +806,22 @@ export function AttackForm(props: AttackFormProps) {
           />
           <Divider />
           <SectionLabel>Attack type</SectionLabel>
-          <OptionGrid
-            ariaLabel="Attack type"
-            options={ATTACK_TYPES.map((type) => ({
-              id: type,
-              label: `${ATTACK_TYPE_LABELS[type]} (${ATTACK_RULES.turnCosts[type]}t)`,
-            }))}
-            value={attackType}
-            disabled={formLocked}
-            onChange={(type) => {
-              setAttackType(type);
-              setConfirming(false);
-            }}
-          />
-          <p className="g-note">{ATTACK_TYPE_PURPOSE[attackType]}</p>
+          <div className="g-attack-type-grid">
+            <OptionGrid
+              ariaLabel="Attack type"
+              options={ATTACK_TYPES.map((type) => ({
+                id: type,
+                label: formatAttackTypeOptionLabel(type),
+              }))}
+              value={attackType}
+              disabled={formLocked}
+              onChange={(type) => {
+                setAttackType(type);
+                setConfirming(false);
+              }}
+            />
+          </div>
+          <p className="g-note g-attack-type-desc">{attackTypeDescription(attackType)}</p>
           {attackType === 'POACH_WORKERS' && selected.deepIntel && (
             <>
               <StatRow
@@ -782,14 +833,18 @@ export function AttackForm(props: AttackFormProps) {
               />
               <StatRow label="Stability" value={selected.deepIntel.workforceStabilityBand} />
               <StatRow label="Protection" value={selected.deepIntel.workforceProtectionBand} />
-              <StatRow label="Poaching outlook" value={selected.deepIntel.poachingOutlook} />
-              <p className="g-note">{poachingOutlookHint(selected.deepIntel.poachingOutlook as never)}</p>
+              <StatRow label="Extraction outlook" value={selected.deepIntel.poachingOutlook} />
+              <p className="g-note">
+                {themeAttackIntelHint(
+                  poachingOutlookHint(selected.deepIntel.poachingOutlook as never),
+                )}
+              </p>
             </>
           )}
 
           <NumericInput
             id="attack-force"
-            label="Thugs to send"
+            label={`${OS_TERMS.enforcers} to send`}
             value={forceRaw}
             disabled={formLocked}
             onChange={(raw, parsed) => {
@@ -798,7 +853,7 @@ export function AttackForm(props: AttackFormProps) {
               setConfirming(false);
               setError('');
             }}
-            suffix="thugs"
+            suffix={OS_TERMS.enforcers.toLowerCase()}
           />
 
           <StatRow
@@ -806,12 +861,24 @@ export function AttackForm(props: AttackFormProps) {
             value={`${weaponPct}% · ${weaponCoverageBand(weaponAlloc.armedThugs, force)}`}
           />
           <StatRow label="Rides required" value={String(ridesNeeded)} />
-          <StatRow label="Turn cost" value={String(turnCost)} />
+          <StatRow label="Turn cost" value={formatAttackTurnCostDisplay(attackType)} />
           <StatRow label="Risk" value={riskFromForce(forceEstimateLabel)} />
+
+          {attackType === 'HOME_INVASION' && selected.bands && (
+            <StatRow label="Cash exposure (intel)" value={selected.bands.cash} />
+          )}
+          {attackType === 'RAID_DRUG_LABS' && selected.bands && (
+            <StatRow label={`${OS_TERMS.technology} exposure (intel)`} value={selected.bands.drugs} />
+          )}
+
+          {turnCost > turns && (
+            <p className="g-error">{formatInsufficientTurnsForAttack(attackType, turns)}</p>
+          )}
 
           {poachBlockedByDeepIntel && (
             <p className="g-error">
-              Deep Intel suggests this target does not have enough Workers to poach.
+              Deep Intel suggests this target does not have enough {OS_TERMS.specialists.toLowerCase()}{' '}
+              to extract.
             </p>
           )}
 
@@ -841,8 +908,30 @@ export function AttackForm(props: AttackFormProps) {
           ) : (
             <div className="g-confirm">
               <p className="g-note">
-                Launch {ATTACK_TYPE_LABELS[attackType]} on {selected.alias} with {force} thugs?
+                Launch <strong>{ATTACK_TYPE_LABELS[attackType]}</strong> on {selected.alias} with{' '}
+                {force.toLocaleString()} {OS_TERMS.enforcers.toLowerCase()}?
               </p>
+              <StatRow label="Turn cost" value={formatAttackTurnCostDisplay(attackType)} />
+              <StatRow
+                label={`${OS_TERMS.enforcers} committed`}
+                value={force.toLocaleString()}
+              />
+              <StatRow label="Risk" value={riskFromForce(forceEstimateLabel)} />
+              {attackType === 'HOME_INVASION' && selected.bands && (
+                <StatRow label="Cash exposure (intel)" value={selected.bands.cash} />
+              )}
+              {attackType === 'RAID_DRUG_LABS' && selected.bands && (
+                <StatRow
+                  label={`${OS_TERMS.technology} exposure (intel)`}
+                  value={selected.bands.drugs}
+                />
+              )}
+              {attackType === 'POACH_WORKERS' && selected.deepIntel && (
+                <StatRow label="Extraction outlook" value={selected.deepIntel.poachingOutlook} />
+              )}
+              {attackType === 'DRIVE_BY' && (
+                <p className="g-note">Strike targets crew losses only — no Cash, stock, or Specialist transfer.</p>
+              )}
               <PrimaryButton
                 className="g-btn-full g-btn-danger"
                 icon="attack"

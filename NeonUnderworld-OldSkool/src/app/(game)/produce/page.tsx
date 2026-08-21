@@ -3,6 +3,7 @@ import { requireGameSession } from '@local/lib/game-context';
 import { ProduceForm } from '@local/features/produce/ProduceForm';
 import { prisma } from '@core/lib/db/prisma';
 import { getBusinessDrugProductionBonus } from '@core/config/game/business-rules';
+import { TERMS } from '@core/config/game/terminology';
 
 export default async function ProducePage() {
   const { ctx } = await requireGameSession();
@@ -15,7 +16,7 @@ export default async function ProducePage() {
 
   return (
     <>
-      <PageTitle icon="produce">Produce</PageTitle>
+      <PageTitle icon="produce">{TERMS.operations}</PageTitle>
       <ProduceForm
         initialTurns={ctx.turns}
         thugCount={ctx.thugs}

@@ -5,6 +5,45 @@ import {
   happinessRecruitmentModifier,
 } from '@/lib/game-engine/happiness';
 
+describe('Specialist morale uses kits only', () => {
+  it('components stock does not affect specialist morale', () => {
+    const lowHash = calculateProstituteHappiness({
+      prostitutes: 5,
+      thugs: 2,
+      hash: 0,
+      condoms: 20,
+      prostitutePayoutPercent: 50,
+    });
+    const highHash = calculateProstituteHappiness({
+      prostitutes: 5,
+      thugs: 2,
+      hash: 100,
+      condoms: 20,
+      prostitutePayoutPercent: 50,
+    });
+    expect(lowHash.score).toBe(highHash.score);
+    expect(lowHash.hashReadiness).toBe(1);
+  });
+
+  it('kits affect specialist morale', () => {
+    const good = calculateProstituteHappiness({
+      prostitutes: 5,
+      thugs: 2,
+      hash: 0,
+      condoms: 20,
+      prostitutePayoutPercent: 50,
+    });
+    const poor = calculateProstituteHappiness({
+      prostitutes: 5,
+      thugs: 0,
+      hash: 0,
+      condoms: 0,
+      prostitutePayoutPercent: 20,
+    });
+    expect(good.score).toBeGreaterThan(poor.score);
+  });
+});
+
 describe('happiness', () => {
   it('calculates prostitute happiness from supplies', () => {
     const good = calculateProstituteHappiness({

@@ -1,0 +1,1021 @@
+/**
+ * Neon Underworld Phase 3 artwork layer — entry screens and future page backgrounds.
+ * Art: public/images/nu/backgrounds/
+ */
+
+.nu-page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
+  background: #050508;
+}
+
+.nu-page-bg__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.nu-page-bg__art.is-loaded {
+  opacity: 1;
+}
+
+/* Restrained overlay — preserves purple/cyan city atmosphere */
+.nu-page-bg__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    rgba(5, 4, 10, calc(0.12 + var(--nu-bg-overlay-strength, 0.3) * 0.35)) 0%,
+    rgba(5, 4, 10, calc(0.04 + var(--nu-bg-overlay-strength, 0.3) * 0.12)) 42%,
+    rgba(5, 4, 10, calc(0.08 + var(--nu-bg-overlay-strength, 0.3) * 0.2)) 58%,
+    rgba(5, 4, 10, calc(0.22 + var(--nu-bg-overlay-strength, 0.3) * 0.45)) 100%
+  );
+}
+
+.nu-page-bg__vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 88% 72% at 50% 48%, transparent 35%, rgba(5, 4, 10, 0.28) 100%),
+    linear-gradient(
+      180deg,
+      rgba(5, 4, 10, 0.12) 0%,
+      transparent 28%,
+      transparent 62%,
+      rgba(5, 4, 10, 0.55) 100%
+    );
+}
+
+/* ── Auth shell over NU intro ── */
+.g-auth-shell--nu {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: transparent;
+}
+
+.g-auth-shell--nu .g-auth-top,
+.g-auth-shell--nu .g-auth-main,
+.g-auth-shell--nu .g-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.g-auth-shell--nu .g-auth-top {
+  padding: max(12px, env(safe-area-inset-top)) 20px 10px;
+  border-bottom: none;
+  background: linear-gradient(180deg, rgba(6, 5, 12, 0.72) 0%, transparent 100%);
+  display: flex;
+  justify-content: center;
+}
+
+/* Intro zoom — matches boot screen so silhouette aligns under centered logo */
+.g-auth-shell--nu .nu-page-bg__art {
+  width: 112%;
+  height: 112%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.g-auth-brand-link {
+  display: inline-flex;
+  line-height: 0;
+  text-decoration: none;
+}
+
+.nu-brand-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(286px, 68vw);
+  background: transparent;
+  filter: drop-shadow(0 4px 28px rgba(0, 0, 0, 0.55));
+}
+
+.nu-brand-logo--sm {
+  max-width: min(182px, 47vw);
+}
+
+.nu-brand-logo--md {
+  max-width: min(286px, 68vw);
+}
+
+.nu-brand-logo--lg {
+  max-width: min(403px, 88vw);
+}
+
+.g-auth-shell--nu .g-brand {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.85);
+}
+
+.g-auth-shell--nu .g-auth-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
+
+.g-auth-shell--nu .g-auth-card {
+  width: min(100%, 400px);
+  padding: 22px 20px 20px;
+  border: 1px solid rgba(160, 100, 220, 0.22);
+  border-radius: 6px;
+  background: rgba(8, 6, 14, 0.36);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.g-auth-shell--nu .g-auth-title {
+  color: var(--os-gold, #c9a962);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.g-auth-shell--nu .g-footer {
+  padding: 10px 16px max(12px, env(safe-area-inset-bottom));
+  border-top: none;
+  background: linear-gradient(0deg, rgba(6, 5, 12, 0.82) 0%, transparent 100%);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+@media (min-width: 900px) {
+  .g-auth-shell--nu .g-auth-main {
+    justify-content: flex-end;
+    padding-right: clamp(32px, 6vw, 88px);
+  }
+}
+
+@media (max-width: 768px) {
+  .nu-page-bg__art[data-mobile-position] {
+    object-position: var(--nu-mobile-position, center center);
+  }
+
+  .nu-boot__art-img[data-mobile-position] {
+    object-position: var(--nu-mobile-position, center center);
+  }
+
+  /* Portrait crop is tighter — slight zoom; pan less aggressive than desktop */
+  .nu-boot--intro-art .nu-boot__art-img,
+  .g-auth-shell--nu .nu-page-bg__art {
+    width: 114%;
+    height: 114%;
+  }
+
+  .g-auth-shell--nu .g-auth-main {
+    align-items: flex-end;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .g-auth-shell--nu .g-auth-card {
+    margin-bottom: 4px;
+  }
+}
+
+/* ── Gameplay scene stack (environment + operator + overlays) ── */
+.nu-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
+  background: #050508;
+}
+
+.nu-scene__env {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.nu-scene__env.is-loaded {
+  opacity: 1;
+}
+
+/* Layer 2 — reserved for future atmospheric tuning */
+.nu-scene__atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Layer 3 — master Operator (horizontally centred, viewport-relative scale) */
+.nu-scene__operator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.nu-operator {
+  display: block;
+  width: auto;
+  height: clamp(280px, 68vh, 820px);
+  max-width: min(480px, 46vw);
+  object-fit: contain;
+  object-position: bottom center;
+  opacity: 0.94;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  filter:
+    drop-shadow(0 10px 28px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 36px rgba(110, 55, 190, 0.1));
+}
+
+.nu-scene__overlay {
+  position: absolute;
+  inset: 0;
+  /* Light touch — art stays visible; panel-level glass handles UI contrast */
+  background: linear-gradient(
+    180deg,
+    rgba(5, 4, 10, calc(0.16 + var(--nu-bg-overlay-strength, 0.3) * 0.12)) 0%,
+    rgba(5, 4, 10, calc(0.1 + var(--nu-bg-overlay-strength, 0.3) * 0.08)) 42%,
+    rgba(5, 4, 10, calc(0.06 + var(--nu-bg-overlay-strength, 0.3) * 0.06)) 68%,
+    rgba(5, 4, 10, calc(0.04 + var(--nu-bg-overlay-strength, 0.3) * 0.04)) 100%
+  );
+}
+
+.nu-scene__vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 96% 84% at 50% 44%, transparent 62%, rgba(5, 4, 10, 0.12) 100%),
+    linear-gradient(
+      180deg,
+      rgba(5, 4, 10, 0.06) 0%,
+      transparent 26%,
+      transparent 60%,
+      rgba(5, 4, 10, 0.22) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(5, 4, 10, 0.06) 0%,
+      transparent 18%,
+      transparent 82%,
+      rgba(5, 4, 10, 0.06) 100%
+    );
+}
+
+@media (max-width: 768px) {
+  .nu-scene__env[data-mobile-position] {
+    object-position: var(--nu-mobile-position, center center);
+  }
+
+  .nu-operator {
+    height: clamp(220px, 52vh, 480px);
+    max-width: min(340px, 78vw);
+    opacity: 0.92;
+  }
+}
+
+/* ── NU gameplay readability (Command, Empire, future NU pages) ── */
+.g-shell--nu-scene {
+  --nu-ui-panel-bg: rgba(8, 6, 14, 0.32);
+  --nu-ui-panel-bg-strong: rgba(10, 8, 16, 0.4);
+  --nu-ui-panel-bg-soft: rgba(8, 6, 14, 0.26);
+  --nu-ui-panel-bg-muted: rgba(8, 6, 14, 0.2);
+  --nu-ui-panel-bg-active: rgba(12, 8, 22, 0.42);
+  --nu-ui-panel-bg-active-strong: rgba(12, 8, 22, 0.48);
+  --nu-ui-panel-bg-input: rgba(8, 6, 14, 0.38);
+  --nu-ui-panel-bg-bar: rgba(4, 4, 8, 0.36);
+  --nu-ui-panel-bg-dock: rgba(8, 6, 14, 0.56);
+  --nu-ui-panel-bg-modal: rgba(8, 6, 14, 0.66);
+  --nu-ui-panel-border: rgba(160, 100, 220, 0.2);
+  --nu-ui-text-dim: #d0ccc4;
+}
+
+.g-shell--nu-scene .g-title {
+  color: #f0eeea;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 0, 0, 0.45);
+}
+
+.g-shell--nu-scene .g-first-move,
+.g-shell--nu-scene .g-crew-summary,
+.g-shell--nu-scene .g-business-heat-summary,
+.g-shell--nu-scene .g-home-status-panel,
+.g-shell--nu-scene .g-pvp-hint {
+  background: var(--nu-ui-panel-bg);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.g-shell--nu-scene .g-first-move__body,
+.g-shell--nu-scene .g-first-move__hint,
+.g-shell--nu-scene .g-crew-summary__label,
+.g-shell--nu-scene .g-business-heat-summary__label,
+.g-shell--nu-scene .g-note,
+.g-shell--nu-scene .g-attention-more {
+  color: var(--nu-ui-text-dim);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-btn {
+  background: var(--nu-ui-panel-bg-strong);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.g-shell--nu-scene .g-btn:hover {
+  background: var(--nu-ui-panel-bg-active-strong);
+  border-color: rgba(180, 120, 230, 0.42);
+}
+
+.g-shell--nu-scene .g-empire-hero {
+  background: var(--nu-ui-panel-bg);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.g-shell--nu-scene .g-business-section {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-empire-section-flavour,
+.g-shell--nu-scene .g-empire-hero__label,
+.g-shell--nu-scene .g-empire-hero__breakdown,
+.g-shell--nu-scene .g-business-section-badge,
+.g-shell--nu-scene .g-empire-section-count__label,
+.g-shell--nu-scene .g-empire-section-count__sub,
+.g-shell--nu-scene .g-bar-head,
+.g-shell--nu-scene .g-row-label {
+  color: var(--nu-ui-text-dim);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.g-shell--nu-scene .g-empire-section-preview,
+.g-shell--nu-scene .g-row-value,
+.g-shell--nu-scene .g-empire-hero__value,
+.g-shell--nu-scene .g-empire-section-count__value,
+.g-shell--nu-scene .g-section-label,
+.g-shell--nu-scene .g-bar-head span:last-child,
+.g-shell--nu-scene .g-business-section-summary {
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.8);
+}
+
+.g-shell--nu-scene .g-empire-section-preview {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.g-shell--nu-scene .g-alert {
+  padding: 12px 10px;
+  margin-bottom: 4px;
+  border-bottom: none;
+  border-radius: 4px;
+  background: var(--nu-ui-panel-bg-muted);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-home-status-panel .g-alert {
+  padding: 10px 0;
+  margin-bottom: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.g-shell--nu-scene .g-pvp-hint__eyebrow {
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.85);
+}
+
+.g-shell--nu-scene .g-pvp-hint__body {
+  color: rgba(255, 255, 255, 0.94);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.g-shell--nu-scene .g-bar {
+  background: var(--nu-ui-panel-bg-bar);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Scout, Operations, and shared gameplay action panels */
+.g-shell--nu-scene .g-area-row,
+.g-shell--nu-scene .g-listing-card {
+  margin-bottom: 8px;
+  border: 1px solid var(--nu-ui-panel-border);
+  border-radius: 4px;
+  background: var(--nu-ui-panel-bg-soft);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-area-row {
+  border-bottom: 1px solid var(--nu-ui-panel-border);
+}
+
+.g-shell--nu-scene .g-area-row-selected,
+.g-shell--nu-scene .g-listing-card.g-area-row-selected {
+  background: var(--nu-ui-panel-bg-active);
+  border: 2px solid rgba(180, 120, 230, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(160, 100, 220, 0.22),
+    0 4px 18px rgba(0, 0, 0, 0.28);
+}
+
+.g-shell--nu-scene .g-area-name,
+.g-shell--nu-scene .g-area-meta,
+.g-shell--nu-scene .g-area-tagline,
+.g-shell--nu-scene .g-field-label,
+.g-shell--nu-scene .g-numeric-input-suffix {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-area-meta,
+.g-shell--nu-scene .g-area-tagline {
+  color: var(--nu-ui-text-dim);
+}
+
+.g-shell--nu-scene .g-gameplay-controls {
+  margin-top: 14px;
+  padding: 14px 12px;
+  border: 1px solid var(--nu-ui-panel-border);
+  border-radius: 6px;
+  background: var(--nu-ui-panel-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.g-shell--nu-scene .g-scout-area-card {
+  border: 1px solid var(--nu-ui-panel-border);
+  border-radius: 6px;
+  background: var(--nu-ui-panel-bg-soft);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-scout-area-card--selected {
+  background: var(--nu-ui-panel-bg-active);
+  border: 2px solid rgba(180, 120, 230, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(160, 100, 220, 0.22),
+    0 4px 18px rgba(0, 0, 0, 0.28);
+}
+
+.g-shell--nu-scene .g-scout-area-card__name,
+.g-shell--nu-scene .g-scout-tier__label,
+.g-shell--nu-scene .g-scout-area-card__tagline,
+.g-shell--nu-scene .g-scout-turns-header__label,
+.g-shell--nu-scene .g-scout-turns-header__sub,
+.g-shell--nu-scene .g-scout-network-chip__label,
+.g-shell--nu-scene .g-scout-network-chip__value {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.g-shell--nu-scene .g-scout-turns-header__value,
+.g-shell--nu-scene .g-scout-area-card--selected .g-scout-area-card__name {
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.85);
+}
+
+.g-shell--nu-scene .g-drug-btn,
+.g-shell--nu-scene .g-turn-quick-btn {
+  background: var(--nu-ui-panel-bg);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  font-weight: 700;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-turn-spend-input {
+  background: var(--nu-ui-panel-bg-active);
+  border: 2px solid rgba(180, 120, 230, 0.62);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow:
+    0 0 0 1px rgba(160, 100, 220, 0.28),
+    0 0 16px rgba(140, 80, 200, 0.32);
+}
+
+.g-shell--nu-scene .g-turn-spend-input .g-numeric-input-field {
+  background: transparent;
+  border: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-turn-spend-input .g-numeric-input-suffix {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-drug-btn-active,
+.g-shell--nu-scene .g-turn-quick-btn.is-selected,
+.g-shell--nu-scene .g-turn-quick-btn.g-turn-quick-btn-active {
+  background: var(--nu-ui-panel-bg-active);
+  border-color: rgba(180, 120, 230, 0.55);
+  color: var(--os-gold);
+  box-shadow: 0 0 0 1px rgba(160, 100, 220, 0.2);
+}
+
+.g-shell--nu-scene .g-numeric-input-field {
+  background: var(--nu-ui-panel-bg-input);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.g-shell--nu-scene .g-scout-network {
+  background: var(--nu-ui-panel-bg-muted);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.g-shell--nu-scene .g-note:not(.g-attention-more) {
+  color: var(--nu-ui-text-dim);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-result {
+  padding: 14px 12px;
+  border: 1px solid var(--nu-ui-panel-border);
+  border-radius: 6px;
+  background: var(--nu-ui-panel-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.g-shell--nu-scene .g-result-title,
+.g-shell--nu-scene .g-result-lines,
+.g-shell--nu-scene .g-result-lines li {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Shop — match Empire / Scout glass panels */
+.g-shell--nu-scene .g-shop-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-shop-chrome .g-shop-row {
+  margin-top: 10px;
+}
+
+.g-shell--nu-scene .g-shop-chrome .g-filter-row {
+  margin-bottom: 10px;
+}
+
+.g-shell--nu-scene .g-shop-chrome .g-shop-mode {
+  margin-bottom: 10px;
+}
+
+.g-shell--nu-scene .g-intel-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-empty-state {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.g-shell--nu-scene .g-empty-state__title,
+.g-shell--nu-scene .g-empty-state__body {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-shop-row {
+  background: var(--nu-ui-panel-bg-soft);
+  border: 1px solid var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-shop-row-highlight {
+  background: var(--nu-ui-panel-bg-active);
+  border: 2px solid rgba(180, 120, 230, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(160, 100, 220, 0.22),
+    0 4px 18px rgba(0, 0, 0, 0.28);
+}
+
+.g-shell--nu-scene .g-shop-mode-btn {
+  background: var(--nu-ui-panel-bg);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  color: var(--nu-ui-text-dim);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.g-shell--nu-scene .g-shop-mode-btn--active {
+  background: var(--nu-ui-panel-bg-active);
+  border-color: rgba(180, 120, 230, 0.55);
+  color: var(--os-gold);
+  box-shadow: 0 0 0 1px rgba(160, 100, 220, 0.2);
+}
+
+.g-shell--nu-scene .g-filter {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border-radius: 4px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.g-shell--nu-scene .g-filter-active {
+  background: var(--nu-ui-panel-bg-active);
+  border-color: rgba(180, 120, 230, 0.55);
+  color: var(--os-gold);
+  box-shadow: 0 0 0 1px rgba(160, 100, 220, 0.2);
+}
+
+.g-shell--nu-scene .g-btn-secondary {
+  background: var(--nu-ui-panel-bg);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  color: var(--os-text);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.g-shell--nu-scene .g-btn-secondary:hover {
+  background: var(--nu-ui-panel-bg-active-strong);
+  border-color: rgba(180, 120, 230, 0.42);
+}
+
+.g-shell--nu-scene .g-supply-bar {
+  border-color: var(--nu-ui-panel-border);
+  background: var(--nu-ui-panel-bg-dock);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.g-shell--nu-scene .g-supply-bar--global {
+  border-top-color: rgba(180, 120, 230, 0.38);
+  box-shadow:
+    0 -8px 24px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(140, 80, 200, 0.22);
+}
+
+.g-shell--nu-scene .g-btn-review {
+  background: var(--nu-ui-panel-bg-active);
+  border: 2px solid rgba(180, 120, 230, 0.62);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-btn-review:hover:not(:disabled) {
+  border-color: rgba(200, 140, 255, 0.82);
+  box-shadow:
+    0 0 0 2px rgba(160, 100, 220, 0.38),
+    0 0 18px rgba(140, 80, 200, 0.42);
+}
+
+.g-shell--nu-scene .g-supply-bar__meta {
+  color: var(--nu-ui-text-dim);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-supply-review__panel {
+  border-color: var(--nu-ui-panel-border);
+  background: var(--nu-ui-panel-bg-modal);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.g-shell--nu-scene .g-supply-review__line {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  border-radius: 4px;
+}
+
+.g-shell--nu-scene .g-shop-cash,
+.g-shell--nu-scene .g-shop-owned,
+.g-shell--nu-scene .g-shop-purpose,
+.g-shell--nu-scene .g-shop-price-note,
+.g-shell--nu-scene .g-shop-head,
+.g-shell--nu-scene .g-shop-total,
+.g-shell--nu-scene .g-supply-review__totals dt {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-shop-owned,
+.g-shell--nu-scene .g-shop-purpose,
+.g-shell--nu-scene .g-shop-cash,
+.g-shell--nu-scene .g-shop-price-note {
+  color: var(--nu-ui-text-dim);
+}
+
+.g-shell--nu-scene .g-shop-controls .g-btn {
+  width: 100%;
+}
+
+/* Market — match Shop / Scout glass panels */
+.g-shell--nu-scene .g-market-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-market-chrome .g-tab {
+  background: var(--nu-ui-panel-bg);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  color: var(--nu-ui-text-dim);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.g-shell--nu-scene .g-market-chrome .g-tab-active {
+  background: var(--nu-ui-panel-bg-active);
+  border-color: rgba(180, 120, 230, 0.55);
+  color: var(--os-gold);
+  box-shadow: 0 0 0 1px rgba(160, 100, 220, 0.2);
+}
+
+.g-shell--nu-scene .g-market-chrome .g-input {
+  background: var(--nu-ui-panel-bg-input);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.g-shell--nu-scene .g-market-chrome .g-row,
+.g-shell--nu-scene .g-market-chrome .g-label,
+.g-shell--nu-scene .g-market-chrome .g-row-value {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Attack — match Shop / Scout glass panels */
+.g-shell--nu-scene .g-attack-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-attack-chrome .g-attack-target-card {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-attack-chrome .g-btn-secondary {
+  background: var(--nu-ui-panel-bg);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.g-shell--nu-scene .g-attack-chrome .g-row,
+.g-shell--nu-scene .g-attack-chrome .g-label,
+.g-shell--nu-scene .g-attack-chrome .g-row-value,
+.g-shell--nu-scene .g-attack-chrome .g-attack-target-alias {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Reports (intel environment) */
+.g-shell--nu-scene .g-reports-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-reports-chrome .g-inbox-item {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-reports-chrome .g-inbox-unread {
+  background: var(--nu-ui-panel-bg);
+  border-color: rgba(180, 120, 230, 0.38);
+}
+
+.g-shell--nu-scene .g-reports-chrome .g-inbox-title,
+.g-shell--nu-scene .g-reports-chrome .g-inbox-meta {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-reports-chrome .g-inbox-meta {
+  color: var(--nu-ui-text-dim);
+}
+
+/* Factions (cartels environment) */
+.g-shell--nu-scene .g-factions-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-factions-chrome .g-input {
+  background: var(--nu-ui-panel-bg-input);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.g-shell--nu-scene .g-factions-chrome .g-row,
+.g-shell--nu-scene .g-factions-chrome .g-label,
+.g-shell--nu-scene .g-factions-chrome .g-row-value {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Businesses — industrial district environment */
+.g-shell--nu-scene .g-businesses-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-businesses-chrome .g-input {
+  background: var(--nu-ui-panel-bg-input);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.g-shell--nu-scene .g-businesses-chrome .g-row,
+.g-shell--nu-scene .g-businesses-chrome .g-label,
+.g-shell--nu-scene .g-businesses-chrome .g-row-value {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Travel — city highway environment */
+.g-shell--nu-scene .g-travel-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-travel-chrome .g-row,
+.g-shell--nu-scene .g-travel-chrome .g-label,
+.g-shell--nu-scene .g-travel-chrome .g-row-value {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Rankings — leaderboard hall environment */
+.g-shell--nu-scene .g-rankings-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-rankings-chrome .g-rank-header,
+.g-shell--nu-scene .g-rankings-chrome .g-rank-row {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.g-shell--nu-scene .g-rankings-chrome .g-rank-you {
+  background: var(--nu-ui-panel-bg-active);
+  border-color: rgba(180, 120, 230, 0.55);
+}
+
+.g-shell--nu-scene .g-rankings-chrome .g-rank-num,
+.g-shell--nu-scene .g-rankings-chrome .g-rank-name,
+.g-shell--nu-scene .g-rankings-chrome .g-rank-worth {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Guides / How to Play — knowledge room environment */
+.g-shell--nu-scene .g-guides-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-guides-chrome .g-guide-section {
+  background: var(--nu-ui-panel-bg-soft);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-guides-chrome .g-guide-toc-link {
+  background: var(--nu-ui-panel-bg-muted);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.g-shell--nu-scene .g-guides-chrome .g-guide-toc-link:hover {
+  background: var(--nu-ui-panel-bg);
+  border-color: rgba(180, 120, 230, 0.38);
+}
+
+.g-shell--nu-scene .g-guides-chrome .g-guide-body,
+.g-shell--nu-scene .g-guides-chrome .g-guide-list,
+.g-shell--nu-scene .g-guides-chrome .g-section-label {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+/* Settings — operator desk environment */
+.g-shell--nu-scene .g-settings-chrome {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.g-shell--nu-scene .g-settings-chrome .g-settings-section {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--nu-ui-panel-bg-soft);
+  border: 1px solid var(--nu-ui-panel-border);
+  border-radius: 10px;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.g-shell--nu-scene .g-settings-chrome .g-settings-heading,
+.g-shell--nu-scene .g-settings-chrome .g-settings-label,
+.g-shell--nu-scene .g-settings-chrome .g-settings-value,
+.g-shell--nu-scene .g-settings-chrome .g-note {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}
+
+.g-shell--nu-scene .g-settings-chrome .g-settings-wire-toggle {
+  background: var(--nu-ui-panel-bg-muted);
+  border-color: var(--nu-ui-panel-border);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+/* Identity — portrait gallery environment; stronger scrim for busy art */
+.g-shell--identity-route .nu-scene__overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(5, 4, 10, calc(0.42 + var(--nu-bg-overlay-strength, 0.3) * 0.18)) 0%,
+    rgba(5, 4, 10, calc(0.36 + var(--nu-bg-overlay-strength, 0.3) * 0.14)) 42%,
+    rgba(5, 4, 10, calc(0.32 + var(--nu-bg-overlay-strength, 0.3) * 0.12)) 68%,
+    rgba(5, 4, 10, calc(0.28 + var(--nu-bg-overlay-strength, 0.3) * 0.1)) 100%
+  );
+}
+
+.g-shell--identity-route .nu-scene__vignette {
+  background:
+    radial-gradient(ellipse 96% 84% at 50% 44%, transparent 48%, rgba(5, 4, 10, 0.28) 100%),
+    linear-gradient(
+      180deg,
+      rgba(5, 4, 10, 0.18) 0%,
+      transparent 26%,
+      transparent 60%,
+      rgba(5, 4, 10, 0.38) 100%
+    );
+}
+
+.g-shell--nu-scene .g-identity-chrome {
+  margin-top: 0;
+  background: var(--nu-ui-panel-bg-strong);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.g-shell--nu-scene .g-identity-chrome .g-identity-select__title,
+.g-shell--nu-scene .g-identity-chrome .g-identity-select__subtitle,
+.g-shell--nu-scene .g-identity-chrome .g-note {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+}

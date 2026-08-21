@@ -30,5 +30,6 @@ export const config = {
     '/how-to-play',
     '/coming/:path*',
     '/playtest/:path*',
+    '/admin/:path*',
   ],
 };

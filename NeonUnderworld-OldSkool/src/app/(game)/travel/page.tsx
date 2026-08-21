@@ -16,7 +16,9 @@ export default async function TravelPage({ searchParams }: Props) {
   return (
     <>
       <PageTitle icon="travel">Travel</PageTitle>
-      <TravelForm {...data} initialDestination={params.destination} />
+      <div className="g-gameplay-controls g-travel-chrome">
+        <TravelForm {...data} initialDestination={params.destination} />
+      </div>
     </>
   );
 }

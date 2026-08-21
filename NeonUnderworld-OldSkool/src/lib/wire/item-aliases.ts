@@ -7,29 +7,44 @@ const EXTRA_SHOP_ALIASES: Record<string, ShopItemKey> = {
   aks: 'ak',
   ak47: 'ak',
   ak47s: 'ak',
+  assaultrifle: 'ak',
+  sidearm: 'glock',
+  sidearms: 'glock',
+  smg: 'uzi',
+  smgs: 'uzi',
   rides: 'ride',
   car: 'ride',
   cars: 'ride',
   vehicle: 'ride',
   vehicles: 'ride',
   condoms: 'condom',
+  kits: 'condom',
+  kit: 'condom',
   beers: 'beer',
+  rations: 'beer',
+  ration: 'beer',
   shrooms: 'shroom',
+  chips: 'shroom',
+  chip: 'shroom',
   mushroom: 'shroom',
   mushrooms: 'shroom',
   cocaine: 'coke',
+  modules: 'coke',
+  module: 'coke',
+  components: 'hash',
+  component: 'hash',
+  cores: 'heroin',
+  core: 'heroin',
 };
 
 const WORKER_TERMS = new Set([
   'worker',
   'workers',
-  'whore',
-  'whores',
-  'prostitute',
-  'prostitutes',
+  'specialist',
+  'specialists',
 ]);
 
-const THUG_TERMS = new Set(['thug', 'thugs']);
+const THUG_TERMS = new Set(['thug', 'thugs', 'enforcer', 'enforcers']);
 
 function normalizeAliasToken(token: string): string {
   return token.toLowerCase().replace(/-/g, '').trim();

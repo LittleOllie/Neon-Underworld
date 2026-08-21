@@ -2,7 +2,6 @@
 
 import { requirePlayer } from '@/lib/auth/session';
 import { attackLaunchSchema, directAttackLaunchSchema } from '@/lib/validation/schemas';
-import { SeasonInactiveError } from '@/lib/game-engine/errors';
 import { toUserMessage } from '@/lib/game-engine/gameplay-errors';
 import {
   resolveAttackEncounter,

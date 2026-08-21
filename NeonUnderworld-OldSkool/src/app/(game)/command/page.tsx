@@ -60,10 +60,9 @@ export default async function CommandPage() {
         <BusinessHeatSummary operations={businessOperations} variant="home" />
       ) : null}
 
-      {!showOnboarding ? <StatusBar label="Health" percent={ctx.health} /> : null}
-
       {!showOnboarding ? (
-        <>
+        <div className="g-home-status-panel">
+          <StatusBar label="Health" percent={ctx.health} />
           <AlertList items={alerts} />
           {remaining > 0 ? (
             <p className="g-note g-attention-more">
@@ -72,16 +71,17 @@ export default async function CommandPage() {
               {remaining} more alert{remaining === 1 ? '' : 's'}
             </p>
           ) : null}
-          <PvpDiscoveryHint />
-        </>
+        </div>
       ) : null}
+
+      {!showOnboarding ? <PvpDiscoveryHint /> : null}
 
       <div className="g-actions">
         <ActionButton href="/scout" icon="scout">
           Scout
         </ActionButton>
         <ActionButton href="/produce" icon="produce">
-          Produce
+          Operations
         </ActionButton>
         <ActionButton href="/shop" icon="shop" prefetch>
           Shop

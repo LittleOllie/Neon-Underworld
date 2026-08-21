@@ -8,10 +8,15 @@ import { auth } from '@local/lib/auth/config';
 import { requireSessionPlayerId, assertSessionMatchesPlayer } from '@local/lib/auth/session-player';
 import { GameplayError, toUserMessage } from '@core/lib/game-engine/gameplay-errors';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
+import { OS_TERMS } from '@local/config/terminology';
 import { ActivityService } from '@local/server/services/activity.service';
 import { prisma } from '@core/lib/db/prisma';
 import { finalizeLocalMutationShell } from '@local/server/services/shell-snapshot.service';
 import type { PlayerShellSnapshot } from '@local/domain/player-shell.model';
+import {
+  recordPostGameplayAnalytics,
+  GAMEPLAY_ANALYTICS_EVENTS,
+} from '@local/server/services/gameplay-analytics-hook';
 
 export type CartelPageData = Awaited<ReturnType<typeof CartelService.getCartelPageForPlayer>> & {
   donationOptions: readonly number[];
@@ -54,10 +59,16 @@ export async function createCartelAction(
     if (!playerId) return { success: false, error: 'Not authenticated' };
 
     const cartel = await CartelService.createCartel(playerId, name, tag);
+    const player = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+    await recordPostGameplayAnalytics(player, GAMEPLAY_ANALYTICS_EVENTS.CARTEL_CREATED, {
+      cartelId: cartel.id,
+      name: cartel.name,
+      tag: cartel.tag,
+    });
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.CARTEL,
-      `You created cartel ${cartel.name} [${cartel.tag}].`,
+      `You created ${OS_TERMS.faction.toLowerCase()} ${cartel.name} [${cartel.tag}].`,
       { cartelId: cartel.id },
     );
     const { page, shell } = await finalizeCartelMutation(playerId);
@@ -79,7 +90,7 @@ export async function inviteToCartelAction(
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.CARTEL,
-      `You invited ${inviteeAlias} to your cartel.`,
+      `You invited ${inviteeAlias} to your ${OS_TERMS.faction.toLowerCase()}.`,
       { inviteId: invite.id },
     );
     const { page, shell } = await finalizeCartelMutation(playerId);
@@ -101,7 +112,7 @@ export async function requestCartelJoinAction(
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.CARTEL,
-      'You requested to join a cartel.',
+      `You requested to join a ${OS_TERMS.faction.toLowerCase()}.`,
       { cartelId, requestId: request.id },
     );
     const { page, shell } = await finalizeCartelMutation(playerId);
@@ -130,15 +141,17 @@ export async function acceptCartelJoinRequestAction(
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.CARTEL,
-      `You accepted ${memberAlias} into your cartel.`,
+      `You accepted ${memberAlias} into your ${OS_TERMS.faction.toLowerCase()}.`,
       { cartelId, requestId },
     );
     await ActivityService.record(
       pending.applicantId,
       ACTIVITY_TYPES.CARTEL,
-      'You joined a cartel.',
+      `You joined a ${OS_TERMS.faction.toLowerCase()}.`,
       { cartelId },
     );
+    const applicant = await prisma.player.findUniqueOrThrow({ where: { id: pending.applicantId } });
+    await recordPostGameplayAnalytics(applicant, GAMEPLAY_ANALYTICS_EVENTS.CARTEL_JOINED, { cartelId });
     const { page, shell } = await finalizeCartelMutation(playerId);
     return { success: true, data: { cartelId, memberAlias, page, shell } };
   } catch (error) {
@@ -171,10 +184,12 @@ export async function acceptCartelInviteAction(
     if (!playerId) return { success: false, error: 'Not authenticated' };
 
     const cartelId = await CartelService.acceptInvite(playerId, inviteId);
+    const player = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+    await recordPostGameplayAnalytics(player, GAMEPLAY_ANALYTICS_EVENTS.CARTEL_JOINED, { cartelId });
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.CARTEL,
-      'You joined a cartel.',
+      `You joined a ${OS_TERMS.faction.toLowerCase()}.`,
       { cartelId },
     );
     const { page, shell } = await finalizeCartelMutation(playerId);
@@ -207,7 +222,9 @@ export async function leaveCartelAction(): Promise<ActionResult<CartelMutationRe
     if (!playerId) return { success: false, error: 'Not authenticated' };
 
     await CartelService.leaveCartel(playerId);
-    await ActivityService.record(playerId, ACTIVITY_TYPES.CARTEL, 'You left your cartel.');
+    const player = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+    await recordPostGameplayAnalytics(player, GAMEPLAY_ANALYTICS_EVENTS.CARTEL_LEFT, {});
+    await ActivityService.record(playerId, ACTIVITY_TYPES.CARTEL, `You left your ${OS_TERMS.faction.toLowerCase()}.`);
     const { page, shell } = await finalizeCartelMutation(playerId);
     return { success: true, data: { page, shell } };
   } catch (error) {
@@ -224,7 +241,7 @@ export async function removeCartelMemberAction(
     if (!playerId) return { success: false, error: 'Not authenticated' };
 
     await CartelService.removeMember(playerId, memberId);
-    await ActivityService.record(playerId, ACTIVITY_TYPES.CARTEL, 'You removed a cartel member.');
+    await ActivityService.record(playerId, ACTIVITY_TYPES.CARTEL, `You removed a ${OS_TERMS.faction.toLowerCase()} member.`);
     const { page, shell } = await finalizeCartelMutation(playerId);
     return { success: true, data: { page, shell } };
   } catch (error) {
@@ -250,13 +267,13 @@ export async function transferCartelLeadershipAction(
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.CARTEL,
-      `You transferred cartel leadership to ${target.alias}.`,
+      `You transferred ${OS_TERMS.faction.toLowerCase()} leadership to ${target.alias}.`,
       { newLeaderId },
     );
     await ActivityService.record(
       newLeaderId,
       ACTIVITY_TYPES.CARTEL,
-      'You are now the cartel leader.',
+      `You are now the ${OS_TERMS.faction.toLowerCase()} leader.`,
       { previousLeaderId: playerId },
     );
     const { page, shell } = await finalizeCartelMutation(playerId);
@@ -325,7 +342,7 @@ export async function purchaseCartelArmouryAction(
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.CARTEL,
-      `Cartel armoury: purchased ${quantity.toLocaleString()} ${label} for $${result.totalCost.toLocaleString()}.`,
+      `${OS_TERMS.faction} armoury: purchased ${quantity.toLocaleString()} ${label} for $${result.totalCost.toLocaleString()}.`,
       { item, quantity, totalCost: result.totalCost },
     );
 

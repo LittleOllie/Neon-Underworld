@@ -68,12 +68,11 @@ describe('production', () => {
 });
 
 describe('Redlite attack range', () => {
-  it('allows targets at or above 50% of attacker net worth with no upper cap', () => {
-    expect(isWithinAttackRange(100_000_000, 50_000_000)).toBe(true);
-    expect(isWithinAttackRange(100_000_000, 200_000_000)).toBe(true);
-    expect(isWithinAttackRange(100_000_000, 1_000_000_000)).toBe(true);
-    expect(isWithinAttackRange(100_000_000, 30_000_000)).toBe(false);
-    expect(isWithinAttackRange(100_000_000, 49_999_999)).toBe(false);
+  it('allows targets at or within 60%–170% of attacker net worth', () => {
+    expect(isWithinAttackRange(100_000_000, 60_000_000)).toBe(true);
+    expect(isWithinAttackRange(100_000_000, 170_000_000)).toBe(true);
+    expect(isWithinAttackRange(100_000_000, 59_999_999)).toBe(false);
+    expect(isWithinAttackRange(100_000_000, 170_000_001)).toBe(false);
   });
 });
 

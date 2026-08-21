@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { EmpireManagementData } from '@local/domain/empire.model';
 import { buildEmpireStatusMeters } from '@local/server/domain/status-presentation';
+import { buildPreferredCrewSupplies } from '@local/server/domain/empire-calculations';
+import { OS_TERMS } from '@local/config/terminology';
 
 const inventory = {
   thugs: 5,
@@ -108,18 +110,19 @@ const mockData: EmpireManagementData = {
     },
   },
   supplySummary: {
-    workers: { status: 'Stable', hash: 'Adequate', condoms: 'Low', protection: 'Adequate', payout: '50%' },
+    workers: { status: 'Stable', kits: 'Low', protection: 'Adequate', payout: '50%' },
     thugs: { status: 'Stable', weapons: 'Adequate', beer: 'Adequate', armed: '4 / 5' },
   },
+  preferredSupplies: buildPreferredCrewSupplies(inventory),
   statusMeters: buildEmpireStatusMeters(inventory),
   recentActivity: [],
 };
 
 describe('Empire page smoke — status meters', () => {
   it('includes status meters instead of dense supply table as primary model', () => {
-    expect(mockData.statusMeters.worker.stability.label).toBe('Worker Stability');
+    expect(mockData.statusMeters.worker.stability.label).toBe(`${OS_TERMS.specialist} Stability`);
     expect(mockData.statusMeters.thug.weaponCoverage.label).toBe('Weapon Coverage');
-    expect(mockData.statusMeters.worker.payout.label).toBe('Worker Payout');
+    expect(mockData.statusMeters.worker.payout.label).toBe(`${OS_TERMS.specialist} Payout`);
   });
 
   it('management data includes core sections', () => {
@@ -132,7 +135,7 @@ describe('Empire page smoke — status meters', () => {
     expect(mockData.businesses.total).toBeGreaterThan(0);
   });
 
-  it('uses Workers terminology in personnel model', () => {
+  it('uses Specialists terminology in personnel model', () => {
     expect(mockData.personnel.workers).toBe(10);
     expect(mockData.personnel).not.toHaveProperty('prostitutes');
   });

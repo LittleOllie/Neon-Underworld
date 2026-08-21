@@ -1,4 +1,5 @@
 import { HAPPINESS_CONFIG, SCOUTING_CONFIG, HAPPINESS_EFFICIENCY } from '@/config/game/balance';
+import { TERMS } from '@/config/game/terminology';
 import { payoutMoraleScore } from '@/lib/game-engine/payout-morale';
 import type { DistrictModifiers } from '@/config/game/balance';
 
@@ -8,7 +9,7 @@ export interface ProstituteHappinessInput {
   hash: number;
   condoms: number;
   prostitutePayoutPercent: number;
-  /** Hash production: treat hash supply as satisfied for morale on this action */
+  /** @deprecated Hash no longer affects Specialist morale; kept for call-site compatibility */
   exemptHashMorale?: boolean;
 }
 
@@ -50,29 +51,25 @@ export function calculateProstituteHappiness(input: ProstituteHappinessInput): H
     };
   }
 
-  const hashNeeded = count * cfg.hashPerWorker;
   const condomNeeded = count * cfg.condomPerWorker;
   const thugsNeeded = Math.ceil(count * cfg.thugProtectionRatio);
 
-  const hashReadiness = input.exemptHashMorale
-    ? 1
-    : clamp(input.hash / Math.max(hashNeeded, 1), 0, 1);
+  // Components (hash) are a technology resource — Specialist morale uses Kits only.
+  const hashReadiness = 1;
   const condomReadiness = clamp(input.condoms / Math.max(condomNeeded, 1), 0, 1);
   const protectionReadiness = clamp(input.thugs / Math.max(thugsNeeded, 1), 0, 1);
 
   const payoutScore = payoutMoraleScore(input.prostitutePayoutPercent);
 
   const score = Math.round(
-    (hashReadiness * 0.3 + condomReadiness * 0.25 + protectionReadiness * 0.25 + payoutScore * 0.2) *
-      100,
+    (condomReadiness * 0.55 + protectionReadiness * 0.25 + payoutScore * 0.2) * 100,
   );
 
   const warnings: string[] = [];
-  if (hashReadiness < 0.5) warnings.push('Hash supplies running low');
-  if (condomReadiness < 0.5) warnings.push('Condom stock insufficient');
-  if (protectionReadiness < 0.5) warnings.push('Insufficient thug protection');
+  if (condomReadiness < 0.5) warnings.push(`${TERMS.kits} stock insufficient`);
+  if (protectionReadiness < 0.5) warnings.push('Insufficient enforcer protection');
   if (score < SCOUTING_CONFIG.prostituteHappinessWarningThreshold) {
-    warnings.push('Prostitute morale is declining');
+    warnings.push('Specialist morale is declining');
   }
 
   return {
@@ -110,10 +107,10 @@ export function calculateThugHappiness(input: ThugHappinessInput): HappinessResu
   const score = Math.round((weaponReadiness * 0.6 + beerReadiness * 0.4) * 100);
 
   const warnings: string[] = [];
-  if (weaponReadiness < 1) warnings.push('Some thugs are unarmed');
-  if (beerReadiness < 0.5) warnings.push('Beer supplies low');
+  if (weaponReadiness < 1) warnings.push('Some enforcers are unarmed');
+  if (beerReadiness < 0.5) warnings.push(`${TERMS.rations} supplies low`);
   if (score < SCOUTING_CONFIG.thugHappinessWarningThreshold) {
-    warnings.push('Thug readiness is compromised');
+    warnings.push('Enforcer readiness is compromised');
   }
 
   return { score, hashReadiness: 0, condomReadiness: 0, protectionReadiness: 0, weaponReadiness, beerReadiness, warnings };

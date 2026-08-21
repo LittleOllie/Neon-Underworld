@@ -66,7 +66,7 @@ test.describe('THE WIRE — typed commands', () => {
     await page.getByTestId('wire-input').fill("what's my cash");
     await page.getByRole('button', { name: 'Send' }).click();
 
-    await expect(page.getByTestId('wire-result')).toContainText('STREET CASH');
+    await expect(page.getByTestId('wire-result')).toContainText('CASH');
     await expect(page.getByTestId('wire-result')).toContainText(cashBefore.toLocaleString());
   });
 

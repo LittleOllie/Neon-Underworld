@@ -7,6 +7,7 @@ import {
   parseMoney,
   assertNoStuckLoading,
   dismissDevOverlay,
+  dismissBootScreen,
   ADMIN_EMAIL,
   PVP_BUYER_EMAIL,
   PVP_BUYER_PASSWORD,
@@ -40,12 +41,12 @@ test.describe('Cartel + Market verification — three players', () => {
 
     // Player A — create cartel
     await gotoGame(playerA, '/cartels');
-    await playerA.getByRole('button', { name: 'Create Cartel' }).click();
-    await playerA.getByPlaceholder('Cartel name').fill(cartelName);
+    await playerA.getByRole('button', { name: 'Create Faction' }).click();
+    await playerA.getByPlaceholder('Faction name').fill(cartelName);
     await playerA.getByPlaceholder('Tag (e.g. NS)').fill(cartelTag);
     await dismissDevOverlay(playerA);
     await playerA.getByRole('button', { name: 'Create', exact: true }).click();
-    await expect(playerA.getByText(new RegExp(`Cartel ${cartelName}`, 'i'))).toBeVisible({
+    await expect(playerA.getByText(new RegExp(`Faction ${cartelName}`, 'i'))).toBeVisible({
       timeout: 20_000,
     });
     await expect(playerA.getByText(/Leader · Active/i)).toBeVisible();
@@ -66,7 +67,7 @@ test.describe('Cartel + Market verification — three players', () => {
     const joinSection = playerA.locator('section[aria-label="Join requests"]');
     await expect(joinSection).toBeVisible({ timeout: 15_000 });
     await joinSection.getByRole('button', { name: 'Accept' }).click();
-    await expect(playerA.getByText(/joined your cartel/i)).toBeVisible({ timeout: 20_000 });
+    await expect(playerA.getByText(new RegExp(`joined your faction`, 'i'))).toBeVisible({ timeout: 20_000 });
 
     // Player B — membership via in-app navigation (no browser hard refresh)
     await gotoGame(playerB, '/command');
@@ -87,25 +88,25 @@ test.describe('Cartel + Market verification — three players', () => {
 
     // Armoury purchases by A
     await gotoGame(playerA, '/cartels');
-    const treasurySection = playerA.locator('section[aria-label="Cartel treasury"]');
+    const treasurySection = playerA.locator('section[aria-label="Faction treasury"]');
     const treasuryBefore = parseMoney(
       (await treasurySection.locator('.g-row').filter({ hasText: 'Cash balance' }).textContent()) ?? '0',
     );
-    const forcesSection = playerA.locator('section[aria-label="Cartel forces"]');
+    const forcesSection = playerA.locator('section[aria-label="Faction forces"]');
     const thugsBefore = parseMoney(
-      (await forcesSection.locator('.g-row').filter({ hasText: 'Cartel Thugs' }).textContent()) ?? '0',
+      (await forcesSection.locator('.g-row').filter({ hasText: 'Faction Enforcers' }).textContent()) ?? '0',
     );
 
-    const armourySection = playerA.locator('section[aria-label="Cartel armoury purchases"]');
-    const thugRow = armourySection.locator('.g-cartel-armoury__row').filter({ hasText: 'Thug' }).first();
+    const armourySection = playerA.locator('section[aria-label="Faction armoury purchases"]');
+    const thugRow = armourySection.locator('.g-cartel-armoury__row').filter({ hasText: 'Enforcer' }).first();
     await thugRow.getByRole('spinbutton').fill('2');
     await thugRow.getByRole('button', { name: /Buy \$1,400/i }).click();
-    await expect(playerA.getByText(/Purchased 2 Cartel Thugs/i)).toBeVisible({ timeout: 20_000 });
+    await expect(playerA.getByText(/Purchased 2 Faction Enforcers/i)).toBeVisible({ timeout: 20_000 });
 
-    const glockRow = armourySection.locator('.g-cartel-armoury__row').filter({ hasText: 'Glock' }).first();
+    const glockRow = armourySection.locator('.g-cartel-armoury__row').filter({ hasText: 'Sidearm' }).first();
     await glockRow.getByRole('spinbutton').fill('1');
     await glockRow.getByRole('button', { name: /Buy \$500/i }).click();
-    await expect(playerA.getByText(/Purchased 1 Glock/i)).toBeVisible({ timeout: 20_000 });
+    await expect(playerA.getByText(/Purchased 1 Sidearm/i)).toBeVisible({ timeout: 20_000 });
 
     await expect
       .poll(async () =>
@@ -119,7 +120,7 @@ test.describe('Cartel + Market verification — three players', () => {
     await expect
       .poll(async () =>
         parseMoney(
-          (await forcesSection.locator('.g-row').filter({ hasText: 'Cartel Thugs' }).textContent()) ??
+          (await forcesSection.locator('.g-row').filter({ hasText: 'Faction Enforcers' }).textContent()) ??
             '0',
         ),
       )
@@ -138,18 +139,20 @@ test.describe('Cartel + Market verification — three players', () => {
     await expect(playerA.getByRole('button', { name: 'Send Invite' })).toHaveCount(0);
 
     await playerB.reload();
+    await dismissBootScreen(playerB);
     await dismissDevOverlay(playerB);
     await expect(playerB.getByRole('button', { name: 'Send Invite' })).toBeVisible({
       timeout: 15_000,
     });
 
     // Player A leaves; B remains leader
-    await playerA.getByRole('button', { name: 'Leave Cartel' }).click();
-    await expect(playerA.getByRole('button', { name: 'Create Cartel' })).toBeVisible({
+    await playerA.getByRole('button', { name: 'Leave Faction' }).click();
+    await expect(playerA.getByRole('button', { name: 'Create Faction' })).toBeVisible({
       timeout: 20_000,
     });
 
     await playerB.reload();
+    await dismissBootScreen(playerB);
     await dismissDevOverlay(playerB);
     await expect(playerB.getByText(/Leader · Active/i)).toBeVisible();
     await expect(playerB.getByText(cartelName)).toBeVisible();
@@ -170,13 +173,13 @@ test.describe('Cartel + Market verification — three players', () => {
     await playerA.locator('#market-price').fill(String(listingPrice));
     await dismissDevOverlay(playerA);
     await listBtn.click();
-    await expect(playerA.getByText(/Listed 1× Hash on the Market/i)).toBeVisible({ timeout: 20_000 });
+    await expect(playerA.getByText(/Listed 1× Components on the Market/i)).toBeVisible({ timeout: 20_000 });
     await playerA.getByRole('tab', { name: 'Browse' }).click();
     await expect(
       playerA
         .locator('.g-listing-card')
         .filter({ hasText: `Starting: ${listingPriceLabel}` })
-        .filter({ hasText: /hash × 1/i })
+        .filter({ hasText: /components × 1/i })
         .first(),
     ).toBeVisible({ timeout: 15_000 });
 
@@ -184,7 +187,7 @@ test.describe('Cartel + Market verification — three players', () => {
     await expect(
       playerA
         .locator('.g-row')
-        .filter({ hasText: 'hash × 1' })
+        .filter({ hasText: 'components × 1' })
         .filter({ hasText: new RegExp(`${listingPriceLabel.replace('$', '\\$')} · ACTIVE`) })
         .first(),
     ).toBeVisible({ timeout: 15_000 });
@@ -195,7 +198,7 @@ test.describe('Cartel + Market verification — three players', () => {
     const listing = playerB
       .locator('.g-listing-card')
       .filter({ hasText: `Starting: ${listingPriceLabel}` })
-      .filter({ hasText: /hash × 1/i })
+      .filter({ hasText: /components × 1/i })
       .last();
     await expect(listing).toBeVisible({ timeout: 15_000 });
     const cashBeforeBid = parseMoney(await headerCashLocator(playerB).textContent());

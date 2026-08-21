@@ -34,7 +34,7 @@ export interface NpcArchetypeProfile {
 export const NPC_ARCHETYPE_PROFILES: Record<NpcArchetypeId, NpcArchetypeProfile> = {
   STREET_HUSTLER: {
     id: 'STREET_HUSTLER',
-    label: 'Street Hustler',
+    label: 'Street Runner',
     workerLean: 0.72,
     thugLean: 0.28,
     cashFraction: 0.22,
@@ -76,7 +76,7 @@ export const NPC_ARCHETYPE_PROFILES: Record<NpcArchetypeId, NpcArchetypeProfile>
   },
   KINGPIN: {
     id: 'KINGPIN',
-    label: 'Kingpin',
+    label: 'Power Broker',
     workerLean: 0.48,
     thugLean: 0.52,
     cashFraction: 0.11,
@@ -90,7 +90,7 @@ export const NPC_ARCHETYPE_PROFILES: Record<NpcArchetypeId, NpcArchetypeProfile>
   },
   SYNDICATE_BOSS: {
     id: 'SYNDICATE_BOSS',
-    label: 'Syndicate Boss',
+    label: 'Faction Boss',
     workerLean: 0.42,
     thugLean: 0.58,
     cashFraction: 0.09,
@@ -106,7 +106,7 @@ export const NPC_ARCHETYPE_PROFILES: Record<NpcArchetypeId, NpcArchetypeProfile>
 
 /** Round-age NW ladder checkpoints — interpolated between days. */
 export const NPC_NW_LADDER_CHECKPOINTS = [
-  { day: 1, minNw: 50_000, maxNw: 2_000_000 },
+  { day: 1, minNw: 10_000, maxNw: 240_000 },
   { day: 7, minNw: 100_000, maxNw: 8_000_000 },
   { day: 15, minNw: 250_000, maxNw: 25_000_000 },
   { day: 30, minNw: 500_000, maxNw: 100_000_000 },
@@ -114,6 +114,75 @@ export const NPC_NW_LADDER_CHECKPOINTS = [
 
 /** Daily fraction of gap closed toward target (losses recover gradually). */
 export const NPC_PROGRESSION_RECOVERY_RATE = 0.12;
+
+/** Simulated activity window — progression runs on this cadence. */
+export const NPC_PROGRESSION_TICK_HOURS = 6;
+
+/** Max elapsed hours applied in one run (prevents unlimited historical catch-up). */
+export const NPC_PROGRESSION_MAX_CATCHUP_HOURS = 48;
+
+/** Turns regenerated per 6-hour tick at full activity (576/day ÷ 4). */
+export const NPC_PROGRESSION_TURNS_PER_TICK = 144;
+
+/** Optional email prefix for static local fixtures when NPC_PROGRESSION_INCLUDE_LOCAL=true. */
+export const NPC_LOCAL_FIXTURE_PREFIX = 'local-npc+' as const;
+
+/** Per-archetype simulated activity for 6-hour ticks (not shown to players). */
+export interface NpcArchetypeTickProfile {
+  /** Fraction of regen turns spent on core loop this tick. */
+  activityRate: number;
+  scoutShare: number;
+  produceShare: number;
+  /** Fraction of liquid cash earmarked for crew/equipment spend. */
+  militarySpend: number;
+  /** Multiplier on setback severity (<1 = resilient, >1 = volatile). */
+  setbackVolatility: number;
+  /** Bank deposit threshold multiplier vs archetype cash fraction. */
+  bankThresholdMult: number;
+}
+
+export const NPC_ARCHETYPE_TICK_PROFILES: Record<NpcArchetypeId, NpcArchetypeTickProfile> = {
+  STREET_HUSTLER: {
+    activityRate: 0.72,
+    scoutShare: 0.68,
+    produceShare: 0.22,
+    militarySpend: 0.08,
+    setbackVolatility: 0.85,
+    bankThresholdMult: 0.6,
+  },
+  ENFORCER: {
+    activityRate: 0.58,
+    scoutShare: 0.32,
+    produceShare: 0.12,
+    militarySpend: 0.38,
+    setbackVolatility: 1.15,
+    bankThresholdMult: 0.45,
+  },
+  OPERATOR: {
+    activityRate: 0.68,
+    scoutShare: 0.52,
+    produceShare: 0.28,
+    militarySpend: 0.18,
+    setbackVolatility: 1,
+    bankThresholdMult: 0.75,
+  },
+  KINGPIN: {
+    activityRate: 0.62,
+    scoutShare: 0.48,
+    produceShare: 0.32,
+    militarySpend: 0.22,
+    setbackVolatility: 0.95,
+    bankThresholdMult: 1.1,
+  },
+  SYNDICATE_BOSS: {
+    activityRate: 0.52,
+    scoutShare: 0.42,
+    produceShare: 0.28,
+    militarySpend: 0.28,
+    setbackVolatility: 1.05,
+    bankThresholdMult: 1.25,
+  },
+};
 
 /** Thugs per ride for logistics planning. */
 export const NPC_THUGS_PER_RIDE = 5;

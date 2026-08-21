@@ -13,7 +13,11 @@ export const authConfig = {
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
       const path = request.nextUrl.pathname;
-      const isAuthPage = path.startsWith('/login') || path.startsWith('/register');
+      const isAuthPage =
+        path.startsWith('/login') ||
+        path.startsWith('/register') ||
+        path.startsWith('/forgot-password') ||
+        path.startsWith('/reset-password');
       const isProtected =
         path.startsWith('/command') ||
         path.startsWith('/empire') ||
@@ -36,7 +40,8 @@ export const authConfig = {
         path.startsWith('/cartels') ||
         path.startsWith('/travel') ||
         path.startsWith('/bank') ||
-        path.startsWith('/playtest');
+        path.startsWith('/playtest') ||
+        path.startsWith('/admin');
 
       if (isAuthPage) return true;
       if (isProtected) return isLoggedIn;

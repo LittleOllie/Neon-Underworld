@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   archetypeForLadderSlot,
   NPC_LADDER_TOTAL_SLOTS,
@@ -15,7 +15,7 @@ import {
 } from '@/lib/game-engine/happiness';
 
 export async function applyNpcTargetStateToPlayer(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   input: {
     playerId: string;
     districtId: string;
@@ -25,6 +25,7 @@ export async function applyNpcTargetStateToPlayer(
     growthSeed: number;
     roundDay: number;
     totalSlots?: number;
+    nwBand?: { minNw: number; maxNw: number };
   },
 ): Promise<void> {
   const totalSlots = input.totalSlots ?? NPC_LADDER_TOTAL_SLOTS;
@@ -34,6 +35,7 @@ export async function applyNpcTargetStateToPlayer(
     ladderSlot: input.ladderSlot,
     growthSeed: input.growthSeed,
     totalSlots,
+    nwBand: input.nwBand,
   });
 
   const player = await prisma.player.findUniqueOrThrow({ where: { id: input.playerId } });

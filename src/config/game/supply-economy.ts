@@ -4,10 +4,9 @@ import { HAPPINESS_CONFIG } from './balance';
 export const SUPPLY_CREW_TURNS_PER_UNIT = 150;
 
 export const SUPPLY_CONSUMPTION = {
-  /** Worker supplies consumed on Scout / Produce (crew-turns from prostitutes). */
+  /** Specialist supplies consumed on Scout / Operations (crew-turns from prostitutes). */
   worker: {
     condoms: true,
-    hash: true,
   },
   /** Thug supplies consumed on Scout / Produce (crew-turns from thugs). */
   thug: {
@@ -65,11 +64,7 @@ export function planSupplyConsumption(
   const coverage: Partial<Record<SupplyField, number>> = {};
 
   if (workerTurns > 0) {
-    const units = supplyUnitsForCrewTurns(workerTurns);
-    required.condoms = units;
-    if (!options?.exemptWorkerHash) {
-      required.hash = units;
-    }
+    required.condoms = supplyUnitsForCrewTurns(workerTurns);
   }
 
   if (thugTurns > 0) {

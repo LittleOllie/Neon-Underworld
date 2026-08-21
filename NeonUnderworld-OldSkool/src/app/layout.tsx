@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from 'next';
+import type { Session } from 'next-auth';
 import { Providers } from '@local/components/Providers';
+import { auth } from '@local/lib/auth/config';
 import { APP_BRANDING } from '@local/config/app-branding';
 import '@local/styles/globals.css';
 import '@local/styles/game-typography.css';
 import '@local/styles/backgrounds.css';
 import '@local/styles/game-simple.css';
 import '@local/styles/loading.css';
+import '@local/styles/nu-backgrounds.css';
 
 export const metadata: Metadata = {
   title: 'Neon Underworld — OldSkool Edition',
@@ -31,11 +34,13 @@ export const viewport: Viewport = {
   colorScheme: 'dark',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = (await auth()) as Session | null;
+
   return (
     <html lang="en" className="nu-root">
       <body className="nu-body">
-        <Providers>{children}</Providers>
+        <Providers session={session}>{children}</Providers>
       </body>
     </html>
   );

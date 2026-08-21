@@ -10,18 +10,18 @@ import { assessScoutWalkoutRisk } from '@core/lib/game-engine/happiness';
 import type { RedliteScoutAreaSlug } from '@core/config/game/redlite-rules';
 import { NumericInput } from '@local/components/game/NumericInput';
 import { PrimaryButton } from '@local/components/game/PrimaryButton';
-import { SelectableCard } from '@local/components/game/SelectableCard';
 import { TurnQuickAmounts } from '@local/components/game/TurnQuickAmounts';
 import { ActionResult, type ActionResultLine } from '@local/components/game/ActionResult';
 import { ACTION_PENDING } from '@local/lib/loading-copy';
 import { validateTurnAmount } from '@local/lib/numeric-input';
-import { workersLabel, thugsLabel } from '@local/config/terminology';
+import { workersLabel, thugsLabel, OS_TERMS } from '@local/config/terminology';
 import { buildStreetIncomeBreakdownLines } from '@local/lib/income-breakdown';
 import { buildSupplyImpactLines } from '@local/lib/supply-result-lines';
 import { SCOUT_RESULT_SECONDARY_ACTIONS } from '@local/lib/scout-result-actions';
 import { formatRecruitmentBonusDisplay } from '@core/config/game/business-recruitment-rules';
 import type { EmpireRecruitmentMultipliers } from '@core/config/game/empire-recruitment-rules';
 import { isRetryableGameplayConflict } from '@core/lib/db/serializable-transaction';
+import { ScoutAreaCard } from '@local/features/scout/ScoutAreaCard';
 
 interface ScoutFormProps {
   districtSlug: string;
@@ -131,13 +131,13 @@ export function ScoutForm({
     }
     if ((result.businessNetworkWorkerBonusPercent ?? 0) > 0) {
       lines.push({
-        text: `Business bonus: ${formatRecruitmentBonusDisplay(result.businessNetworkWorkerBonusPercent!)} Workers`,
+        text: `Business bonus: ${formatRecruitmentBonusDisplay(result.businessNetworkWorkerBonusPercent!)} ${OS_TERMS.specialists}`,
         tone: 'positive',
       });
     }
     if ((result.businessNetworkThugBonusPercent ?? 0) > 0) {
       lines.push({
-        text: `Business bonus: ${formatRecruitmentBonusDisplay(result.businessNetworkThugBonusPercent!)} Thugs`,
+        text: `Business bonus: ${formatRecruitmentBonusDisplay(result.businessNetworkThugBonusPercent!)} ${OS_TERMS.enforcers}`,
         tone: 'positive',
       });
     }
@@ -160,85 +160,106 @@ export function ScoutForm({
     );
   }
 
+  const walkout = assessScoutWalkoutRisk(
+    amount,
+    prostituteHappiness,
+    thugHappiness,
+    prostituteCount,
+    thugCount,
+  );
+
   return (
-    <div aria-busy={pending || undefined}>
-      <div role="listbox" aria-label="Scout areas">
+    <div className="g-scout-page" aria-busy={pending || undefined}>
+      <div className="g-scout-areas" role="listbox" aria-label="Scout areas">
         {areaDisplays.map((area) => (
-          <SelectableCard
+          <ScoutAreaCard
             key={area.slug}
-            title={area.name}
-            meta={`Workers: ${area.workers} · Thugs: ${area.thugs} · Risk: ${area.risk}`}
+            area={area}
             selected={areaSlug === area.slug}
             disabled={pending}
-            onClick={() => setAreaSlug(area.slug as RedliteScoutAreaSlug)}
-          >
-            <p className="g-area-tagline">{area.tagline}</p>
-          </SelectableCard>
+            onSelect={() => setAreaSlug(area.slug as RedliteScoutAreaSlug)}
+          />
         ))}
       </div>
 
-      <TurnQuickAmounts value={amount} onSelect={selectQuickAmount} disabled={pending} />
+      <div className="g-scout-action-panel g-gameplay-controls">
+        <div className="g-scout-turns-header">
+          <div className="g-scout-turns-header__main">
+            <span className="g-scout-turns-header__label">Turns to spend</span>
+            <TurnQuickAmounts
+              value={amount}
+              onSelect={selectQuickAmount}
+              disabled={pending}
+              middleSlot={
+                <NumericInput
+                  id="scout-turns"
+                  label="Turns to scout"
+                  value={amountRaw}
+                  onChange={handleAmountChange}
+                  suffix="turns"
+                  className="g-scout-custom-turns g-turn-spend-input"
+                  disabled={pending}
+                />
+              }
+            />
+          </div>
+          <div className="g-scout-turns-header__count" aria-label={`${turns.toLocaleString()} turns available`}>
+            <span className="g-scout-turns-header__value">{turns.toLocaleString()}</span>
+            <span className="g-scout-turns-header__sub">available</span>
+          </div>
+        </div>
 
-      <NumericInput
-        id="scout-turns"
-        label="Turns to scout"
-        value={amountRaw}
-        onChange={handleAmountChange}
-        suffix="turns"
-        disabled={pending}
-      />
+        {empireRecruitment ? (
+          <p className="g-scout-network-chip">
+            <span className="g-scout-network-chip__label">Network</span>
+            <span className="g-scout-network-chip__value">{empireRecruitment.strengthLabel}</span>
+            {(empireRecruitment.workerBonusPercent > 0 || empireRecruitment.thugBonusPercent > 0) && (
+              <span className="g-scout-network-chip__bonus">
+                {empireRecruitment.workerBonusPercent > 0
+                  ? `${OS_TERMS.specialists} ${formatRecruitmentBonusDisplay(empireRecruitment.workerBonusPercent)}`
+                  : null}
+                {empireRecruitment.workerBonusPercent > 0 && empireRecruitment.thugBonusPercent > 0
+                  ? ' · '
+                  : null}
+                {empireRecruitment.thugBonusPercent > 0
+                  ? `${OS_TERMS.enforcers} ${formatRecruitmentBonusDisplay(empireRecruitment.thugBonusPercent)}`
+                  : null}
+              </span>
+            )}
+          </p>
+        ) : (
+          <p className="g-scout-network-chip g-scout-network-chip--muted">
+            <span className="g-scout-network-chip__label">Network</span>
+            <span className="g-scout-network-chip__value">
+              Street only —{' '}
+              <a href="/businesses" className="g-link-inline">
+                expand empire
+              </a>
+            </span>
+          </p>
+        )}
 
-      <p className="g-note">Supplies help keep your crew loyal and effective.</p>
-
-      {empireRecruitment ? (
-        <p className="g-scout-network g-note">
-          <strong>Recruitment Network</strong> — {empireRecruitment.strengthLabel}
-          {(empireRecruitment.workerBonusPercent > 0 || empireRecruitment.thugBonusPercent > 0) && (
-            <>
-              {' '}
-              · Workers {formatRecruitmentBonusDisplay(empireRecruitment.workerBonusPercent)} · Thugs{' '}
-              {formatRecruitmentBonusDisplay(empireRecruitment.thugBonusPercent)}
-            </>
-          )}
-        </p>
-      ) : (
-        <p className="g-scout-network g-note">
-          <strong>Recruitment Network:</strong> Street operation —{' '}
-          <a href="/businesses" className="g-link-inline">
-            expand your empire
-          </a>{' '}
-          to recruit faster.
-        </p>
-      )}
-
-      {error && <p className="g-error">{error}</p>}
-
-      {(() => {
-        const walkout = assessScoutWalkoutRisk(
-          amount,
-          prostituteHappiness,
-          thugHappiness,
-          prostituteCount,
-          thugCount,
-        );
-        if (walkout.level === 'none') return null;
-        return (
-          <p className={`g-note${walkout.level === 'critical' ? ' g-error' : ''}`} role="alert">
-            {walkout.level === 'critical' ? 'LOW MORALE — ' : ''}
+        {walkout.level !== 'none' ? (
+          <p className={`g-scout-alert${walkout.level === 'critical' ? ' g-scout-alert--critical' : ''}`} role="alert">
+            {walkout.level === 'critical' ? 'Low morale — ' : ''}
             {walkout.message}
           </p>
-        );
-      })()}
+        ) : null}
 
-      <PrimaryButton
-        className="g-btn-full"
-        icon="scout"
-        onClick={handleScout}
-        disabled={pending}
-        pending={pending}
-      >
-        {pending ? ACTION_PENDING.scout : `Scout ${selectedArea?.name ?? 'Area'}?`}
-      </PrimaryButton>
+        {error ? <p className="g-error">{error}</p> : null}
+
+        <PrimaryButton
+          className="g-btn-full g-scout-submit"
+          icon="scout"
+          onClick={handleScout}
+          disabled={pending}
+          pending={pending}
+        >
+          {pending
+            ? ACTION_PENDING.scout
+            : `Scout ${selectedArea?.name ?? 'Area'} · ${amount.toLocaleString()} turn${amount === 1 ? '' : 's'}`}
+        </PrimaryButton>
+      </div>
     </div>
   );
 }

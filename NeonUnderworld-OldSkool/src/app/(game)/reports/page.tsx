@@ -35,6 +35,7 @@ export default async function ReportsPage({ searchParams }: Props) {
     <>
       <PageTitle icon="reports">Reports</PageTitle>
 
+      <div className="g-gameplay-controls g-reports-chrome">
       <div className="g-filter-row">
         {FILTERS.map((f) => (
           <Link
@@ -54,6 +55,7 @@ export default async function ReportsPage({ searchParams }: Props) {
         filter={filter}
         unreadCount={unreadCount}
       />
+      </div>
     </>
   );
 }

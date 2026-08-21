@@ -32,6 +32,11 @@ enum ProtectionLevel {
   PREMIUM
 }
 
+enum PlayerAvatarSource {
+  CHARACTER
+  UPLOAD
+}
+
 enum ActivityCategory {
   LOGIN
   SCOUT
@@ -108,7 +113,7 @@ enum CombatOutcome {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
-  passwordHash String
+  passwordHash String?
   role         UserRole  @default(PLAYER)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -117,10 +122,40 @@ model User {
   banReason    String?
 
   player         Player?
+  accounts       Account[]
   inviteCodeUses InviteCodeUse[]
   auditLogs      EconomicAuditLog[]
+  passwordResets PasswordResetToken[]
 
   @@index([email])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Player {
@@ -148,6 +183,10 @@ model Player {
   thugHappiness           Int      @default(70)
   isSystemPlayer          Boolean  @default(false)
   avatar                  String?
+  avatarSource            PlayerAvatarSource?
+  pfpUrl                  String?
+  themePrimary            String?
+  themeSecondary          String?
   wireEnabled             Boolean  @default(false)
   cartelId                String?
   cartelDonationPercent   Int      @default(0)

@@ -121,6 +121,12 @@ export const OfflineProtectionService = {
       return;
     }
 
+    const playerExists = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: { id: true },
+    });
+    if (!playerExists) return;
+
     await prisma.playerStatusExt.upsert({
       where: { playerId },
       create: {

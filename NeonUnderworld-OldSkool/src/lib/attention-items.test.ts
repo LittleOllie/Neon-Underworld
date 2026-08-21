@@ -32,7 +32,7 @@ describe('collectAttentionItems', () => {
       brief: { armedThugs: 5, unarmedThugs: 3, bankCash: 0, readinessWarningCount: 2 },
       unreadCount: 0,
     });
-    expect(items.some((i) => i.value === '3' && i.label?.includes('street thug'))).toBe(true);
+    expect(items.some((i) => i.value === '3' && i.label?.toLowerCase().includes('enforcer'))).toBe(true);
     expect(items.some((i) => i.label?.includes('readiness note'))).toBe(false);
   });
 
@@ -57,14 +57,15 @@ describe('collectAttentionItems', () => {
     expect(production?.href).toBe('/produce');
   });
 
-  it('links low worker hash alert to supplies tab with hash item', () => {
+  it('links low specialist kit alert to supplies tab', () => {
     const items = collectAttentionItems({
-      ctx: { ...baseCtx, hash: 0, condoms: 100, prostitutes: 5 },
+      ctx: { ...baseCtx, hash: 0, condoms: 1, prostitutes: 5 },
       brief: { armedThugs: 5, unarmedThugs: 0, bankCash: 0, readinessWarningCount: 0 },
       unreadCount: 0,
     });
-    const hashAlert = items.find((i) => i.id === 'worker-hash');
-    expect(hashAlert?.href).toBe('/shop?tab=supplies&item=hash');
+    const kitAlert = items.find((i) => i.id === 'worker-condoms');
+    expect(kitAlert?.href).toBe('/shop?tab=supplies');
+    expect(items.some((i) => i.id === 'worker-hash')).toBe(false);
   });
 });
 
@@ -72,11 +73,11 @@ describe('navigation shell config', () => {
   it('uses direct action links without abstract categories', () => {
     expect(DESKTOP_NAV.some((n) => n.label === 'Home')).toBe(true);
     expect(DESKTOP_NAV.some((n) => n.label === 'Empire')).toBe(true);
-    expect(DESKTOP_NAV.some((n) => n.label === 'Produce')).toBe(true);
-    expect(DESKTOP_NAV.some((n) => n.label === 'Operations')).toBe(false);
+    expect(DESKTOP_NAV.some((n) => n.label === 'Operations')).toBe(true);
+    expect(DESKTOP_NAV.some((n) => n.label === 'Produce')).toBe(false);
     expect(DESKTOP_NAV.some((n) => n.label === 'Attack')).toBe(false);
     expect(DESKTOP_NAV.some((n) => n.label === 'Rankings')).toBe(false);
-    expect(MOBILE_NAV.some((n) => n.label === 'Produce')).toBe(true);
+    expect(MOBILE_NAV.some((n) => n.label === 'Operations')).toBe(true);
     expect(MOBILE_NAV.some((n) => n.label === 'Rankings')).toBe(false);
     expect(MOBILE_NAV.some((n) => n.label === 'Attack')).toBe(false);
     expect(MORE_ITEMS.some((n) => n.href === '/bank')).toBe(false);

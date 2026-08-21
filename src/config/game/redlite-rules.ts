@@ -128,11 +128,13 @@ export const REDLITE_VEHICLES = {
   rideValue: 2000,
 } as const;
 
-/** Attack net worth floor: targets must be at least half the attacker's net worth. No upper cap. */
-export const ATTACK_MIN_TARGET_NET_WORTH_RATIO = 0.5;
+/** Attack net worth band: targets must be 60%–170% of the attacker's net worth. */
+export const ATTACK_MIN_TARGET_NET_WORTH_RATIO = 0.6;
+export const ATTACK_MAX_TARGET_NET_WORTH_RATIO = 1.7;
 
 export const REDLITE_ATTACK = {
   minNetWorthMultiplier: ATTACK_MIN_TARGET_NET_WORTH_RATIO,
+  maxNetWorthMultiplier: ATTACK_MAX_TARGET_NET_WORTH_RATIO,
 } as const;
 
 export function minAttackTargetNetWorth(attackerNetWorth: number): number {
@@ -140,12 +142,28 @@ export function minAttackTargetNetWorth(attackerNetWorth: number): number {
   return Math.ceil(attackerNetWorth * ATTACK_MIN_TARGET_NET_WORTH_RATIO);
 }
 
+export function maxAttackTargetNetWorth(attackerNetWorth: number): number {
+  if (attackerNetWorth <= 0) return 0;
+  return Math.floor(attackerNetWorth * ATTACK_MAX_TARGET_NET_WORTH_RATIO);
+}
+
+export type AttackRangeViolation = 'below' | 'above';
+
+export function attackRangeViolation(
+  attackerNetWorth: number,
+  targetNetWorth: number,
+): AttackRangeViolation | null {
+  if (attackerNetWorth <= 0) return 'below';
+  if (targetNetWorth < minAttackTargetNetWorth(attackerNetWorth)) return 'below';
+  if (targetNetWorth > maxAttackTargetNetWorth(attackerNetWorth)) return 'above';
+  return null;
+}
+
 export function isWithinAttackRange(
   attackerNetWorth: number,
   targetNetWorth: number,
 ): boolean {
-  if (attackerNetWorth <= 0) return false;
-  return targetNetWorth >= minAttackTargetNetWorth(attackerNetWorth);
+  return attackRangeViolation(attackerNetWorth, targetNetWorth) === null;
 }
 
 /** Cartels (guide §6) */

@@ -1,4 +1,5 @@
 import { REDLITE_MARKET_STARTING_PRICES, REDLITE_NET_WORTH } from './redlite-rules';
+import { TERMS } from './terminology';
 
 /** Worker support hash — above $5 NW/drug unit; convenience premium for guaranteed supply */
 export const SHOP_HASH_UNIT_PRICE = 8;
@@ -75,21 +76,21 @@ export type PlayerShopFields = {
 export const PERSONNEL_CATALOG: PersonnelItemRule[] = [
   {
     key: 'whore',
-    displayName: 'Worker',
+    displayName: TERMS.specialist,
     field: 'prostitutes',
     netWorthValue: REDLITE_NET_WORTH.prostitutes,
     tradable: true,
     cityShop: false,
-    purpose: 'Recruit via Scout, future attacks, or player Market auctions.',
+    purpose: 'Recruit via Scout, attacks, or player Market auctions.',
   },
   {
     key: 'thug',
-    displayName: 'Thug',
+    displayName: TERMS.enforcer,
     field: 'thugs',
     netWorthValue: REDLITE_NET_WORTH.thugs,
     tradable: true,
     cityShop: false,
-    purpose: 'Recruit via Scout, future attacks, or player Market auctions.',
+    purpose: 'Recruit via Scout, attacks, or player Market auctions.',
   },
 ];
 
@@ -100,7 +101,7 @@ export const PERSONNEL_CATALOG: PersonnelItemRule[] = [
 export const CITY_SHOP_ITEMS: ShopItemRule[] = [
   {
     key: 'glock',
-    displayName: 'Glock',
+    displayName: TERMS.glock,
     category: 'weapons',
     field: 'glocks',
     baseValue: REDLITE_MARKET_STARTING_PRICES.glock,
@@ -108,11 +109,11 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: false,
-    purpose: 'Basic weapon coverage for thugs.',
+    purpose: 'Basic weapon coverage for Enforcers.',
   },
   {
     key: 'uzi',
-    displayName: 'Uzi',
+    displayName: TERMS.uzi,
     category: 'weapons',
     field: 'uzis',
     baseValue: REDLITE_MARKET_STARTING_PRICES.uzi,
@@ -120,11 +121,11 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: false,
-    purpose: 'Mid-tier firepower for thug readiness.',
+    purpose: 'Mid-tier firepower for Enforcer readiness.',
   },
   {
     key: 'ak',
-    displayName: 'AK-47',
+    displayName: TERMS.ak,
     category: 'weapons',
     field: 'aks',
     baseValue: REDLITE_MARKET_STARTING_PRICES.ak,
@@ -136,7 +137,7 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
   },
   {
     key: 'ride',
-    displayName: 'Ride',
+    displayName: TERMS.ride,
     category: 'vehicles',
     field: 'rides',
     baseValue: REDLITE_NET_WORTH.rides,
@@ -144,11 +145,11 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: true,
-    purpose: 'Transport capacity for future operations and travel.',
+    purpose: 'Transport capacity for operations and travel.',
   },
   {
     key: 'condom',
-    displayName: 'Condoms',
+    displayName: TERMS.kits,
     category: 'worker_supplies',
     field: 'condoms',
     baseValue: REDLITE_MARKET_STARTING_PRICES.condom,
@@ -156,23 +157,23 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: false,
-    purpose: 'Supports worker stability.',
+    purpose: 'Supports Specialist stability.',
   },
   {
     key: 'hash',
-    displayName: 'Hash',
-    category: 'worker_supplies',
+    displayName: TERMS.hash,
+    category: 'drugs',
     field: 'hash',
     baseValue: REDLITE_MARKET_STARTING_PRICES.hash,
     shopPrice: SHOP_HASH_UNIT_PRICE,
     tradable: true,
     cityShop: true,
     contributesToNetWorth: true,
-    purpose: 'Core worker support supply.',
+    purpose: 'Technology resource — emergency stock; Operations are far cheaper.',
   },
   {
     key: 'beer',
-    displayName: 'Beer',
+    displayName: TERMS.rations,
     category: 'thug_supplies',
     field: 'beer',
     baseValue: REDLITE_MARKET_STARTING_PRICES.beer,
@@ -180,11 +181,11 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: false,
-    purpose: 'Keeps thugs content and ready.',
+    purpose: 'Keeps Enforcers content and ready.',
   },
   {
     key: 'shroom',
-    displayName: 'Shrooms',
+    displayName: TERMS.shrooms,
     category: 'drugs',
     field: 'shrooms',
     baseValue: REDLITE_MARKET_STARTING_PRICES.shroom,
@@ -192,11 +193,11 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: true,
-    purpose: 'Emergency stock — Producing is far cheaper.',
+    purpose: 'Emergency stock — Operations are far cheaper.',
   },
   {
     key: 'coke',
-    displayName: 'Coke',
+    displayName: TERMS.coke,
     category: 'drugs',
     field: 'coke',
     baseValue: REDLITE_MARKET_STARTING_PRICES.coke,
@@ -204,11 +205,11 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: true,
-    purpose: 'Emergency stock — Producing is far cheaper.',
+    purpose: 'Emergency stock — Operations are far cheaper.',
   },
   {
     key: 'heroin',
-    displayName: 'Heroin',
+    displayName: TERMS.heroin,
     category: 'drugs',
     field: 'heroin',
     baseValue: REDLITE_MARKET_STARTING_PRICES.heroin,
@@ -216,7 +217,7 @@ export const CITY_SHOP_ITEMS: ShopItemRule[] = [
     tradable: true,
     cityShop: true,
     contributesToNetWorth: true,
-    purpose: 'Emergency stock — Producing is far cheaper.',
+    purpose: 'Emergency stock — Operations are far cheaper.',
   },
 ];
 
@@ -241,11 +242,11 @@ export const SHOP_CATEGORY_ORDER: ShopCategory[] = [
 ];
 
 export const SHOP_CATEGORY_LABELS: Record<ShopCategory, string> = {
-  weapons: 'Weapons',
-  vehicles: 'Vehicles',
-  worker_supplies: 'Worker Supplies',
-  thug_supplies: 'Thug Supplies',
-  drugs: 'Drugs',
+  weapons: TERMS.weapons,
+  vehicles: TERMS.vehicles,
+  worker_supplies: 'Specialist Supplies',
+  thug_supplies: 'Enforcer Supplies',
+  drugs: TERMS.technology,
 };
 
 export function getCityShopItem(key: string): ShopItemRule | undefined {

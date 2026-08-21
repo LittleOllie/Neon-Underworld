@@ -8,6 +8,7 @@ import type { ActionResult } from '@core/server/actions/auth.actions';
 import { auth } from '@local/lib/auth/config';
 import { prisma } from '@core/lib/db/prisma';
 import { toUserMessage } from '@core/lib/game-engine/gameplay-errors';
+import { OS_TERMS } from '@local/config/terminology';
 import { ACTIVITY_TYPES } from '@local/config/activity-types';
 import { ActivityService } from '@local/server/services/activity.service';
 import { EmpireService } from '@local/server/services/empire.service';
@@ -42,7 +43,7 @@ export async function sellThugsAction(
     await ActivityService.record(
       playerId,
       ACTIVITY_TYPES.SHOP_SELL,
-      `You released ${result.data.quantity.toLocaleString()} Thugs for $${result.data.totalPayout.toLocaleString()}.`,
+      `You released ${result.data.quantity.toLocaleString()} ${OS_TERMS.enforcers} for $${result.data.totalPayout.toLocaleString()}.`,
       { sellThugs: result.data },
     );
 

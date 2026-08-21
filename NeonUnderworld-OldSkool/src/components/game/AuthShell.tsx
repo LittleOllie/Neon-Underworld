@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { NuBackground } from '@local/components/game/NuBackground';
+import { NuBrandLogo } from '@local/components/game/NuBrandLogo';
 
 export function AuthShell({
   title,
@@ -8,10 +10,11 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="g-shell g-auth-shell">
+    <div className="g-shell g-auth-shell g-auth-shell--nu">
+      <NuBackground background="intro" priority />
       <div className="g-auth-top">
-        <Link href="/login" className="g-brand">
-          NEON UNDERWORLD
+        <Link href="/login" className="g-auth-brand-link" aria-label="Neon Underworld">
+          <NuBrandLogo size="md" priority />
         </Link>
       </div>
       <main className="g-auth-main">
