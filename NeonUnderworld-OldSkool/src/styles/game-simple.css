@@ -1367,6 +1367,7 @@
   gap: 10px;
   padding-top: 8px;
   padding-bottom: 8px;
+  overflow: visible;
 }
 
 .g-empire-section-summary--metric .g-business-section-chevron {
@@ -1375,7 +1376,7 @@
 }
 
 .g-empire-section-summary__main {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1384,50 +1385,55 @@
 }
 
 .g-empire-section-count {
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 3.75rem;
+  max-width: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   align-self: stretch;
-  min-width: 56px;
-  max-width: 80px;
-  padding: 4px 0 4px 10px;
-  margin: -2px -4px -2px 0;
+  padding: 4px 2px 4px 12px;
+  margin: -2px 0;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: visible;
 }
 
 .g-empire-section-count__value {
-  font-size: clamp(1.65rem, 7.5vw, 2.125rem);
+  font-size: clamp(1.05rem, 2.4vw + 0.55rem, 2.125rem);
   font-weight: 700;
-  line-height: 0.95;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   color: #fff;
+  white-space: nowrap;
+  text-align: right;
+  max-width: 100%;
 }
 
 .g-empire-section-count__label {
-  margin-top: 3px;
-  max-width: 100%;
-  font-size: 8px;
+  margin-top: 4px;
+  font-size: clamp(7px, 1.6vw, 8px);
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-align: center;
+  text-align: right;
   line-height: 1.15;
   color: var(--game-text-secondary);
+  white-space: nowrap;
 }
 
 .g-empire-section-count__sub {
   margin-top: 2px;
-  max-width: 100%;
-  font-size: 8px;
+  font-size: clamp(7px, 1.6vw, 8px);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  text-align: center;
+  text-align: right;
   line-height: 1.15;
   color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
 }
 
 .g-empire-section-summary__head {
@@ -1645,6 +1651,29 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .g-empire-section-summary--metric {
+    gap: 8px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .g-empire-section-count {
+    min-width: 3.25rem;
+    padding-left: 10px;
+  }
+
+  .g-empire-section-count__value {
+    font-size: clamp(0.95rem, 2.1vw + 0.45rem, 1.75rem);
+  }
+
+  .g-empire-section-summary__head {
+    gap: 4px 6px;
+  }
+
+  .g-empire-section-flavour {
+    font-size: 9px;
   }
 }
 

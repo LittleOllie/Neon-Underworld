@@ -59,11 +59,13 @@ export function clearBootDismissed(): void {
 export function BootScreen({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
-  const [dismissed, setDismissed] = useState(() => isBootDismissed());
+  /** Always false on server + first client paint — avoids sessionStorage hydration mismatch. */
+  const [dismissed, setDismissed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const dismissingRef = useRef(false);
 
   useEffect(() => {
+    if (isBootDismissed()) setDismissed(true);
     setHydrated(true);
   }, []);
 
